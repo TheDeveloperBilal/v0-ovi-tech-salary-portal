@@ -1,0 +1,44 @@
+OviTech Salary Portal - File Structure
+=====================================
+
+project-root/
+│
+├── index.php                          # Redirect to dashboard
+├── login.php                          # Login page
+├── logout.php                         # Logout handler
+├── dashboard.php                      # Admin dashboard
+├── add-employee.php                   # Add new employee
+├── edit-employee.php                  # Edit employee details
+├── salary-slip.php                    # Generate and view salary slip
+├── bulk-salary.php                    # Bulk salary slip generation
+├── settings.php                       # Company settings
+├── download-pdf.php                   # PDF export handler
+├── download-word.php                  # Word document export
+│
+├── config/
+│   ├── database.php                   # Database connection (EDIT THIS)
+│   ├── constants.php                  # App constants & colors
+│   └── session.php                    # Session management
+│
+├── includes/
+│   └── functions.php                  # Helper functions
+│
+├── database/
+│   └── ovitech_salary.sql             # Database schema (import once)
+│
+├── assets/
+│   └── ovitech-logo.png              # Company logo (add this)
+│
+└── INSTALLATION_GUIDE.md              # This guide
+
+QUICK SETUP CHECKLIST:
+======================
+□ Create database in phpMyAdmin
+□ Import ovitech_salary.sql
+□ Create database user
+□ Upload all files to public_html
+□ Edit config/database.php with credentials
+□ Set file permissions (755 folders, 644 files)
+□ Add ovitech-logo.png to assets/
+□ Test login at your-domain.com
+□ Change default admin password
