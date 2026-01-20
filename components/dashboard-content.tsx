@@ -8,6 +8,7 @@ import { Users, FileText, Settings } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
 import { SalarySlipGenerator } from "./salary-slip-generator"
 import { CompanySettings } from "./company-settings"
+import { AdminUsers } from "./admin-users"
 
 export function DashboardContent({ user }: { user: any }) {
   const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0 })
@@ -35,7 +36,7 @@ export function DashboardContent({ user }: { user: any }) {
     fetchStats()
   }, [supabase])
 
-  const isAdmin = user?.role === "admin"
+  const isAdmin = user?.is_admin === true
 
   return (
     <div className="space-y-6">
@@ -74,6 +75,10 @@ export function DashboardContent({ user }: { user: any }) {
               <Users className="w-4 h-4 mr-2" />
               Manage Employees
             </TabsTrigger>
+            <TabsTrigger value="users" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+              <Users className="w-4 h-4 mr-2" />
+              Manage Users
+            </TabsTrigger>
             <TabsTrigger value="slips" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <FileText className="w-4 h-4 mr-2" />
               Salary Slips
@@ -86,6 +91,10 @@ export function DashboardContent({ user }: { user: any }) {
 
           <TabsContent value="employees">
             <EmployeeManagement />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <AdminUsers />
           </TabsContent>
 
           <TabsContent value="slips">
