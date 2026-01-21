@@ -2,9 +2,8 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
-  first_name text,
-  last_name text,
-  role text default 'employee', -- 'admin' or 'employee'
+  full_name text,
+  is_admin boolean default false,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -104,18 +103,9 @@ alter table public.salary_slips enable row level security;
 alter table public.company_settings enable row level security;
 
 -- Create RLS policies for profiles
-create policy "profiles_select_own"
+create policy "profiles_select_all"
   on public.profiles for select
-  using (auth.uid() = id);
-
-create policy "profiles_select_admin"
-  on public.profiles for select
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
-    )
-  );
+  using (true);
 
 create policy "profiles_update_own"
   on public.profiles for update
@@ -128,7 +118,7 @@ create policy "employees_select_own_or_admin"
     auth.uid() = user_id
     or exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -137,7 +127,7 @@ create policy "employees_insert_admin"
   with check (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -146,7 +136,7 @@ create policy "employees_update_admin"
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -155,7 +145,7 @@ create policy "employees_delete_admin"
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -166,7 +156,7 @@ create policy "salary_structures_select_own_or_admin"
     (select user_id from public.employees where id = employee_id) = auth.uid()
     or exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -175,7 +165,7 @@ create policy "salary_structures_write_admin"
   with check (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -184,7 +174,7 @@ create policy "salary_structures_update_admin"
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -195,7 +185,7 @@ create policy "salary_slips_select_own_or_admin"
     (select user_id from public.employees where id = employee_id) = auth.uid()
     or exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -204,7 +194,7 @@ create policy "salary_slips_write_admin"
   with check (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -213,7 +203,7 @@ create policy "salary_slips_update_admin"
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -227,7 +217,7 @@ create policy "company_settings_write_admin"
   with check (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -236,7 +226,7 @@ create policy "company_settings_update_admin"
   using (
     exists (
       select 1 from public.profiles
-      where id = auth.uid() and role = 'admin'
+      where id = auth.uid() and is_admin = true
     )
   );
 
@@ -248,13 +238,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, first_name, last_name, role)
+  insert into public.profiles (id, email, full_name, is_admin)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data ->> 'first_name', null),
-    coalesce(new.raw_user_meta_data ->> 'last_name', null),
-    coalesce(new.raw_user_meta_data ->> 'role', 'employee')
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'first_name', null),
+    false
   )
   on conflict (id) do nothing;
 

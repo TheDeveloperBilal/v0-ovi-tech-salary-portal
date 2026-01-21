@@ -44,11 +44,12 @@ export default function LoginPage() {
       
       console.log("[v0] Login successful, user:", data.user.email)
       
-      // Wait a moment for session to be established
-      await new Promise(resolve => setTimeout(resolve, 800))
+      // Wait for session to be fully established and propagated
+      await new Promise(resolve => setTimeout(resolve, 1200))
       
       console.log("[v0] Redirecting to dashboard")
-      router.push("/dashboard")
+      // Force a hard reload to ensure session is recognized
+      window.location.href = "/dashboard"
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Login failed - check console for details"
       console.log("[v0] Error during login:", errorMessage)

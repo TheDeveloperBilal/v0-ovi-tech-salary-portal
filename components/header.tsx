@@ -30,8 +30,8 @@ export function Header({ user }: { user: any }) {
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right text-sm">
-              <p className="font-semibold">{user?.first_name || user?.email}</p>
-              <p className="opacity-75 text-xs capitalize">{user?.role || "Employee"}</p>
+              <p className="font-semibold">{user?.full_name || user?.email}</p>
+              <p className="opacity-75 text-xs capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
             </div>
             <Button
               variant="outline"
