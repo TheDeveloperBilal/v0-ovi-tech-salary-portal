@@ -13,7 +13,7 @@ The database tables need to be created in Supabase. Here's what you need to do:
 2. Navigate to **SQL Editor**
 3. Create a new query and paste the following SQL:
 
-```sql
+\`\`\`sql
 -- Create profiles table
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -128,7 +128,7 @@ CREATE POLICY "Company settings readable by all" ON company_settings
 
 CREATE POLICY "Only admins can update settings" ON company_settings
   FOR UPDATE USING (true);
-```
+\`\`\`
 
 4. Click **Run** to execute the SQL
 
@@ -144,10 +144,10 @@ CREATE POLICY "Only admins can update settings" ON company_settings
 
 In the Vercel deployment settings, add these environment variables (get from Supabase):
 
-```
+\`\`\`
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
+\`\`\`
 
 To find these values:
 1. Go to Supabase Dashboard > Settings > API
@@ -170,9 +170,9 @@ To find these values:
 
 Or signup at your app URL and then run this SQL in Supabase to make them admin:
 
-```sql
+\`\`\`sql
 UPDATE profiles SET is_admin = TRUE WHERE email = 'admin@ovitech.co';
-```
+\`\`\`
 
 ## Default Login Credentials
 

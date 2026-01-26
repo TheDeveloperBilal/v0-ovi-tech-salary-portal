@@ -100,22 +100,22 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
           <CardTitle>My Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Name</p>
-              <p className="font-semibold">{employeeData?.first_name} {employeeData?.last_name}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Name</p>
+              <p className="font-semibold text-sm sm:text-base">{employeeData?.first_name} {employeeData?.last_name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Employee ID</p>
-              <p className="font-semibold">{employeeData?.employee_id}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Employee ID</p>
+              <p className="font-semibold text-sm sm:text-base">{employeeData?.employee_id}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Department</p>
-              <p className="font-semibold">{employeeData?.department || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Department</p>
+              <p className="font-semibold text-sm sm:text-base">{employeeData?.department || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Designation</p>
-              <p className="font-semibold">{employeeData?.designation || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Designation</p>
+              <p className="font-semibold text-sm sm:text-base">{employeeData?.designation || 'N/A'}</p>
             </div>
           </div>
         </CardContent>
@@ -131,7 +131,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {salarySlips.map((slip) => {
               const earnings = slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
               const deductions = Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
@@ -139,39 +139,61 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               return (
                 <Card key={slip.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-base sm:text-lg">
                       {getMonthName(slip.month)} {slip.year}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600">Earnings</span>
                         <span className="font-semibold text-green-600">PKR {earnings.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600">Deductions</span>
                         <span className="font-semibold text-red-600">PKR {deductions.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <div className="flex justify-between text-sm border-t pt-2">
+                      <div className="flex justify-between text-xs sm:text-sm border-t pt-2">
                         <span className="text-gray-600 font-semibold">Net Salary</span>
                         <span className="font-bold text-purple-600">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2 pt-2 flex-col sm:flex-row">
                       <Button 
                         onClick={() => handleViewSlip(slip)} 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1"
+                        className="flex-1 w-full sm:w-auto"
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View
                       </Button>
                       <Button 
+                        onClick={() => {
+                          setSelectedSlip({
+                            basic_salary: slip.basic_salary,
+                            allowances: slip.allowances || {},
+                            deductions: slip.deductions || {},
+                            net_salary: slip.net_salary,
+                            month: slip.month,
+                            year: slip.year,
+                            employee_name: `${employeeData?.first_name} ${employeeData?.last_name}`,
+                            employee_id: employeeData?.employee_id,
+                            email: employeeData?.email,
+                            department: employeeData?.department,
+                            designation: employeeData?.designation,
+                            position: employeeData?.designation,
+                            joinDate: employeeData?.date_of_joining,
+                          })
+                          // Trigger PDF download
+                          setTimeout(() => {
+                            const downloadBtn = document.querySelector('[data-pdf-download]') as HTMLButtonElement
+                            if (downloadBtn) downloadBtn.click()
+                          }, 100)
+                        }}
                         variant="outline" 
                         size="sm" 
-                        className="flex-1 bg-transparent"
+                        className="flex-1 w-full sm:w-auto bg-transparent"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download
@@ -187,7 +209,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-96 overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full mx-auto">
           <DialogHeader>
             <DialogTitle>Salary Slip Preview</DialogTitle>
           </DialogHeader>

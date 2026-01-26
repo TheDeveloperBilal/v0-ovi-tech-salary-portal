@@ -57,12 +57,12 @@
    - Open File Manager > config/database.php
    - Update with your database credentials:
 
-```php
+\`\`\`php
 define('DB_HOST', 'localhost');
 define('DB_USER', 'ovitech_user');  // Your created database user
 define('DB_PASS', 'your_password_here');  // Your strong password
 define('DB_NAME', 'ovitech_salary');
-```
+\`\`\`
 
 2. **Add Company Logo**
    - Create folder: `assets` in root directory
@@ -84,9 +84,9 @@ define('DB_NAME', 'ovitech_salary');
 ### STEP 5: Access Your Application
 
 1. **Open in Browser**
-   ```
+   \`\`\`
    https://your-domain.com/
-   ```
+   \`\`\`
 
 2. **Login Credentials (Default - CHANGE THESE)**
    - Email: `admin@ovitech.co`

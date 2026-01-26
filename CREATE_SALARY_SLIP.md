@@ -10,14 +10,14 @@
 ## Step 1: Add an Employee (First Time Only)
 
 ### Navigate to Employee Management
-```
+\`\`\`
 1. Login to your dashboard
 2. Click "Manage Employees" tab
 3. Click "Add New Employee" button
-```
+\`\`\`
 
 ### Fill Employee Details
-```
+\`\`\`
 Employee ID:        EMP001
 First Name:         John
 Last Name:          Doe
@@ -30,13 +30,13 @@ Bank Account:       1234567890123456
 Bank IFSC:          SBIN0001234
 PAN:                ABCDE1234F
 Aadhar:             123456789012
-```
+\`\`\`
 
 ### Click Save
-```
+\`\`\`
 The employee is now in the system
 Status: Employee added successfully ✓
-```
+\`\`\`
 
 ---
 
@@ -45,20 +45,20 @@ Status: Employee added successfully ✓
 The salary structure defines the salary components for an employee.
 
 ### Navigate to Salary Slips Tab
-```
+\`\`\`
 1. Click "Salary Slips" tab
 2. You'll see the salary slip generator
-```
+\`\`\`
 
 ### Select Employee
-```
+\`\`\`
 Choose: John Doe (or the employee you want)
-```
+\`\`\`
 
 ### Enter Salary Components
 
 #### EARNINGS (Add what the employee gets):
-```
+\`\`\`
 Basic Salary:              50,000
 HRA (House Rent):           7,500
 Dearness Allowance:         5,000
@@ -67,10 +67,10 @@ Transport Allowance:        2,500
 Other Allowance:            1,000
 ───────────────────────────
 TOTAL EARNINGS:            68,000
-```
+\`\`\`
 
 #### DEDUCTIONS (What gets deducted):
-```
+\`\`\`
 PF (Provident Fund):        6,000
 ESI (Employment State):        500
 Income Tax:                 5,000
@@ -78,36 +78,36 @@ Loan Deduction:                 0
 Other Deductions:               0
 ───────────────────────────
 TOTAL DEDUCTIONS:          11,500
-```
+\`\`\`
 
 ### Calculate Net Salary
-```
+\`\`\`
 NET SALARY = EARNINGS - DEDUCTIONS
            = 68,000 - 11,500
            = 56,500
-```
+\`\`\`
 
 ---
 
 ## Step 3: Generate Salary Slip
 
 ### Enter Month & Year
-```
+\`\`\`
 Month:  January (or select from dropdown)
 Year:   2025
-```
+\`\`\`
 
 ### Click "Generate Slip"
-```
+\`\`\`
 System calculates:
 ✓ Total Allowances
 ✓ Total Deductions
 ✓ Net Salary
 ✓ Creates salary slip record
-```
+\`\`\`
 
 ### You'll See
-```
+\`\`\`
 Salary Slip Successfully Generated ✓
 
 Employee: John Doe
@@ -115,37 +115,37 @@ Month: January 2025
 Net Salary: 56,500
 
 [Download PDF] [Download Word] [Print]
-```
+\`\`\`
 
 ---
 
 ## Step 4: Download Salary Slip
 
 ### Option 1: Download as PDF
-```
+\`\`\`
 1. Click [Download PDF] button
 2. File saves as: john_doe_jan_2025.pdf
 3. Open with any PDF reader
 4. You can print or email it
-```
+\`\`\`
 
 ### Option 2: Download as Word
-```
+\`\`\`
 1. Click [Download Word] button
 2. File saves as: john_doe_jan_2025.docx
 3. Open with Microsoft Word or any office app
 4. You can edit if needed
 5. Print or email it
-```
+\`\`\`
 
 ### Option 3: Print Directly
-```
+\`\`\`
 1. Click [Print] button
 2. Browser print dialog opens
 3. Select your printer
 4. Click Print
 5. Physical copy ready!
-```
+\`\`\`
 
 ---
 
@@ -153,7 +153,7 @@ Net Salary: 56,500
 
 The generated salary slip will look like:
 
-```
+\`\`\`
 ┌────────────────────────────────────────────────┐
 │           OVITECH GLOBAL PVT LTD               │
 │           SALARY SLIP                          │
@@ -195,14 +195,14 @@ The generated salary slip will look like:
 │ Generated on: 20-Jan-2025                     │
 │ Authorized by: OviTech Admin                  │
 └────────────────────────────────────────────────┘
-```
+\`\`\`
 
 ---
 
 ## Create Multiple Salary Slips
 
 ### Same Employee, Different Month
-```
+\`\`\`
 1. Go to "Salary Slips" tab
 2. Select: John Doe
 3. Change Month to: February
@@ -210,10 +210,10 @@ The generated salary slip will look like:
 5. Enter same salary components
 6. Click "Generate Slip"
 7. New slip created for February
-```
+\`\`\`
 
 ### Different Employee, Same Month
-```
+\`\`\`
 1. Go to "Salary Slips" tab
 2. Select: Jane Smith
 3. Month: January
@@ -221,7 +221,7 @@ The generated salary slip will look like:
 5. Enter Jane's salary components
 6. Click "Generate Slip"
 7. Jane's slip created
-```
+\`\`\`
 
 ---
 
@@ -229,20 +229,20 @@ The generated salary slip will look like:
 
 To create salary slips for all employees at once:
 
-```
+\`\`\`
 1. Go to "Salary Slips" tab
 2. Click "Generate Bulk Slips" (if available)
 3. Select Month & Year
 4. System creates slips for all employees
 5. Download all PDFs at once
-```
+\`\`\`
 
 ---
 
 ## View Previously Created Slips
 
 ### See All Salary Slips
-```
+\`\`\`
 1. Go to "Salary Slips" tab
 2. Scroll down to "Previous Slips"
 3. You'll see list of all created slips:
@@ -250,22 +250,22 @@ To create salary slips for all employees at once:
    - Month & Year
    - Net Salary
    - Creation date
-```
+\`\`\`
 
 ### Re-download Existing Slip
-```
+\`\`\`
 1. Find the slip in the list
 2. Click [Download PDF] or [Download Word]
 3. File downloads again
-```
+\`\`\`
 
 ### Edit Existing Slip
-```
+\`\`\`
 1. Click on the slip to edit
 2. Change salary components
 3. Click "Update Slip"
 4. New version saved
-```
+\`\`\`
 
 ---
 
@@ -273,7 +273,7 @@ To create salary slips for all employees at once:
 
 The system automatically calculates:
 
-```
+\`\`\`
 STEP 1: Calculate Total Earnings
 Earnings = Basic + HRA + DA + Medical + Transport + Other
 
@@ -285,31 +285,31 @@ Net Salary = Earnings - Deductions
 
 STEP 4: Create PDF/Word
 Format slip with all details and company info
-```
+\`\`\`
 
 ---
 
 ## Typical Salary Components
 
 ### Common Allowances
-```
+\`\`\`
 HRA (House Rent Allowance)      = 10-15% of basic
 Dearness Allowance              = 5-10% of basic
 Medical Allowance               = Fixed amount
 Transport Allowance             = Fixed amount
 City Allowance                  = Fixed amount
 Performance Bonus               = Monthly bonus
-```
+\`\`\`
 
 ### Common Deductions
-```
+\`\`\`
 PF (Provident Fund)             = 12% of basic
 ESI (Employment State)          = 0.75% of basic
 Income Tax                      = As per slab
 Professional Tax                = Fixed
 Loan EMI                        = As agreed
 Insurance Premium               = As agreed
-```
+\`\`\`
 
 ---
 
@@ -318,24 +318,24 @@ Insurance Premium               = As agreed
 ### Scenario: Create January 2025 salary for John Doe
 
 **1. Open App**
-```
+\`\`\`
 Login → Dashboard
-```
+\`\`\`
 
 **2. Go to Salary Slips**
-```
+\`\`\`
 Click "Salary Slips" tab
-```
+\`\`\`
 
 **3. Enter Details**
-```
+\`\`\`
 Employee: John Doe
 Month: January
 Year: 2025
-```
+\`\`\`
 
 **4. Add Earnings**
-```
+\`\`\`
 Basic Salary: 50000
 HRA: 7500
 Dearness Allowance: 5000
@@ -343,33 +343,33 @@ Medical Allowance: 2000
 Transport Allowance: 2500
 Other Allowance: 1000
 TOTAL: 68000
-```
+\`\`\`
 
 **5. Add Deductions**
-```
+\`\`\`
 PF: 6000
 ESI: 500
 Income Tax: 5000
 TOTAL: 11500
-```
+\`\`\`
 
 **6. Generate**
-```
+\`\`\`
 Click "Generate Slip"
 System shows: Net Salary = 56,500
-```
+\`\`\`
 
 **7. Download**
-```
+\`\`\`
 Click "Download PDF"
 john_doe_jan_2025.pdf created
-```
+\`\`\`
 
 **8. Send to Employee**
-```
+\`\`\`
 Email or print the PDF
 Employee receives salary slip
-```
+\`\`\`
 
 ---
 

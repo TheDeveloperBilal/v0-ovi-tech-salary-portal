@@ -40,7 +40,11 @@ export function SalarySlipPreview({ employee }: any) {
       jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
     }
 
-    html2pdf().set(opt).from(slipRef.current).save()
+    try {
+      html2pdf().set(opt).from(slipRef.current).save()
+    } catch (error) {
+      console.log("[v0] PDF download error:", error)
+    }
   }
 
   const handleWordDownload = () => {
@@ -53,16 +57,16 @@ export function SalarySlipPreview({ employee }: any) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 no-print">
-        <Button onClick={handlePDFDownload} className="gap-2">
+      <div className="flex flex-col sm:flex-row gap-2 no-print">
+        <Button onClick={handlePDFDownload} className="gap-2 w-full sm:w-auto" data-pdf-download>
           <Download className="w-4 h-4" />
           Download PDF
         </Button>
-        <Button onClick={handleWordDownload} variant="outline" className="gap-2 bg-transparent">
+        <Button onClick={handleWordDownload} variant="outline" className="gap-2 bg-transparent w-full sm:w-auto">
           <Download className="w-4 h-4" />
           Download Word
         </Button>
-        <Button onClick={handlePrint} variant="outline" className="gap-2 bg-transparent">
+        <Button onClick={handlePrint} variant="outline" className="gap-2 bg-transparent w-full sm:w-auto">
           <Printer className="w-4 h-4" />
           Print
         </Button>
@@ -88,41 +92,41 @@ export function SalarySlipPreview({ employee }: any) {
           </div>
 
           {/* Employee Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-xs sm:text-sm">
             <div>
-              <p className="text-gray-600 font-semibold">Employee Information</p>
+              <p className="text-gray-600 font-semibold text-sm">Employee Information</p>
               <div className="mt-2 space-y-1">
-                <p>
-                  <span className="text-gray-600">Name:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Name:</span>{" "}
                   <span className="font-semibold">{employee.employeeName}</span>
                 </p>
-                <p>
-                  <span className="text-gray-600">Employee ID:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Employee ID:</span>{" "}
                   <span className="font-semibold">{employee.employeeId}</span>
                 </p>
-                <p>
-                  <span className="text-gray-600">Email:</span>{" "}
-                  <span className="font-semibold">{employee.email || "N/A"}</span>
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Email:</span>{" "}
+                  <span className="font-semibold break-all">{employee.email || "N/A"}</span>
                 </p>
-                <p>
-                  <span className="text-gray-600">Department:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Department:</span>{" "}
                   <span className="font-semibold">{employee.department || "N/A"}</span>
                 </p>
               </div>
             </div>
             <div>
-              <p className="text-gray-600 font-semibold">Employment Details</p>
+              <p className="text-gray-600 font-semibold text-sm">Employment Details</p>
               <div className="mt-2 space-y-1">
-                <p>
-                  <span className="text-gray-600">Position:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Position:</span>{" "}
                   <span className="font-semibold">{employee.position || "N/A"}</span>
                 </p>
-                <p>
-                  <span className="text-gray-600">Joining Date:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Joining Date:</span>{" "}
                   <span className="font-semibold">{employee.joinDate || "N/A"}</span>
                 </p>
-                <p>
-                  <span className="text-gray-600">Slip Date:</span>{" "}
+                <p className="flex flex-col sm:flex-row sm:gap-2">
+                  <span className="text-gray-600 font-medium">Slip Date:</span>{" "}
                   <span className="font-semibold">{currentDate.toLocaleDateString()}</span>
                 </p>
               </div>
@@ -130,7 +134,7 @@ export function SalarySlipPreview({ employee }: any) {
           </div>
 
           {/* Earnings & Deductions Table */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Earnings */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs md:text-sm border border-gray-300">

@@ -18,7 +18,7 @@ This guide will walk you through setting up your OviTech Salary Portal completel
 
 Paste the entire SQL below into the SQL editor and click **Run**:
 
-```sql
+\`\`\`sql
 -- Create profiles table (for users)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -168,7 +168,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-```
+\`\`\`
 
 **Click RUN to execute all queries**
 
@@ -180,11 +180,11 @@ CREATE TRIGGER on_auth_user_created
 
 ### Step 2.1: Push Code to GitHub
 
-```bash
+\`\`\`bash
 git add .
 git commit -m "OviTech Salary Portal - Ready for Vercel"
 git push origin main
-```
+\`\`\`
 
 ### Step 2.2: Create Vercel Project
 
@@ -233,9 +233,9 @@ In the **Environment Variables** section, add these variables:
 3. Go to **SQL Editor**
 4. Run this query:
 
-```sql
+\`\`\`sql
 UPDATE profiles SET is_admin = TRUE WHERE email = 'your-email@example.com';
-```
+\`\`\`
 
 ---
 
@@ -280,7 +280,7 @@ UPDATE profiles SET is_admin = TRUE WHERE email = 'your-email@example.com';
 
 ### Data Flow:
 
-```
+\`\`\`
 User Input (Form)
     ↓
 React Component (Next.js)
@@ -294,12 +294,12 @@ Real-time Update
 Component Re-renders
     ↓
 User Sees Changes Instantly
-```
+\`\`\`
 
 ### Example: Adding an Employee
 
 **Frontend Code** (already set up):
-```javascript
+\`\`\`javascript
 const handleAddEmployee = async (formData) => {
   // Send data to Supabase
   const { data, error } = await supabase
@@ -309,7 +309,7 @@ const handleAddEmployee = async (formData) => {
   // Automatically updates the employee list
   refreshEmployeeList()
 }
-```
+\`\`\`
 
 **Database** (PostgreSQL in Supabase):
 - Data saved to `employees` table

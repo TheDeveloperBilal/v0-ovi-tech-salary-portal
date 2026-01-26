@@ -3,17 +3,17 @@
 ## ⚡ 3-Step Quick Start
 
 ### STEP 1: Create Tables (2 minutes)
-```
+\`\`\`
 1. Open: https://app.supabase.com
 2. Click your project
 3. SQL Editor → New Query
 4. Paste from SETUP_GUIDE.md (entire SQL block)
 5. Click RUN
 ✅ Done - Tables created
-```
+\`\`\`
 
 ### STEP 2: Deploy to Vercel (1 minute)
-```
+\`\`\`
 1. Go to: https://vercel.com/dashboard
 2. Click: "Add New Project"
 3. Select your GitHub repo
@@ -22,17 +22,17 @@
    - NEXT_PUBLIC_SUPABASE_ANON_KEY
 5. Click: Deploy
 ✅ Done - App is live
-```
+\`\`\`
 
 ### STEP 3: Create Admin User (1 minute)
-```
+\`\`\`
 1. Go to your Vercel URL
 2. Click "Sign Up"
 3. Use email: admin@ovitech.co
 4. Set strong password
 5. Login
 ✅ Done - You're admin
-```
+\`\`\`
 
 ---
 
@@ -97,37 +97,37 @@
 ## 🆘 If Something Goes Wrong
 
 ### Error: "Failed to fetch"
-```
+\`\`\`
 Fix: Supabase not connected
 1. Check keys are correct in Vercel
 2. Go Vercel → Settings → Environment Variables
 3. Copy-paste keys again from Supabase
 4. Redeploy: vercel deploy --prod
-```
+\`\`\`
 
 ### Error: "Cannot read property of undefined"
-```
+\`\`\`
 Fix: Tables don't exist yet
 1. Go to Supabase → SQL Editor
 2. Re-run the entire SQL script
 3. Wait 1-2 minutes
 4. Refresh browser
-```
+\`\`\`
 
 ### Error: "Unauthorized"
-```
+\`\`\`
 Fix: User not found
 1. Go to Supabase → Authentication → Users
 2. Check your email is listed
 3. If not, sign up again
 4. Verify email by clicking link
-```
+\`\`\`
 
 ---
 
 ## 📊 Architecture
 
-```
+\`\`\`
 ┌──────────────────────┐
 │   OviTech Website    │
 │  (Your employees)    │
@@ -158,7 +158,7 @@ Fix: User not found
 │  All data stored here  │
 │  Real-time updates     │
 └─────────────────────────┘
-```
+\`\`\`
 
 ---
 

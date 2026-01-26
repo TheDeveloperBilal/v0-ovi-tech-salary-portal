@@ -45,7 +45,7 @@ Professional PHP-based Salary Slip Generator for OviTech Global Pvt Ltd
 
 ## File Structure
 
-```
+\`\`\`
 ovitech-salary/
 ├── config/
 │   ├── database.php      # Database configuration
@@ -68,7 +68,7 @@ ovitech-salary/
 ├── settings.php          # Company settings
 ├── logout.php            # Logout
 └── index.php             # Redirect to login/dashboard
-```
+\`\`\`
 
 ## Usage
 
