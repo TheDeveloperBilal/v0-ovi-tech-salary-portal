@@ -118,7 +118,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           employee_id: formData.employee_id,
           month: formData.month,
           year: formData.year,
-          basic_salary: formData.basic_salary,
+          base_salary: formData.basic_salary,
           hra: formData.hra,
           dearness_allowance: formData.dearness_allowance,
           medical_allowance: formData.medical_allowance,
