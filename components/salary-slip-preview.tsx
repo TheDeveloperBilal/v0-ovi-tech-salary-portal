@@ -11,12 +11,15 @@ import { generateWordDocument } from "@/lib/word-generator"
 export function SalarySlipPreview({ employee }: any) {
   const slipRef = useRef<HTMLDivElement>(null)
 
-  const base = Number.parseFloat(employee.baseSalary) || 0
-  const totalAllowances = Object.values(employee.allowances).reduce(
+  const base = Number.parseFloat(employee.basic_salary) || Number.parseFloat(employee.baseSalary) || 0
+  const allowances = employee.allowances || {}
+  const deductions = employee.deductions || {}
+  
+  const totalAllowances = Object.values(allowances).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
   )
-  const totalDeductions = Object.values(employee.deductions).reduce(
+  const totalDeductions = Object.values(deductions).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
   )
@@ -28,11 +31,12 @@ export function SalarySlipPreview({ employee }: any) {
   const handlePDFDownload = () => {
     if (!slipRef.current) return
 
+    const employeeName = employee.employee_name || "SalarySlip"
     const opt = {
       margin: 10,
-      filename: `${employee.employeeName}_SalarySlip_${year}_${month}.pdf`,
+      filename: `${employeeName}_SalarySlip_${year}_${month}.pdf`,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, logging: false },
       jsPDF: { orientation: "portrait", unit: "mm", format: "a4" },
     }
 
@@ -84,7 +88,7 @@ export function SalarySlipPreview({ employee }: any) {
           </div>
 
           {/* Employee Info */}
-          <div className="grid grid-cols-2 gap-6 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
             <div>
               <p className="text-gray-600 font-semibold">Employee Information</p>
               <div className="mt-2 space-y-1">
@@ -126,10 +130,10 @@ export function SalarySlipPreview({ employee }: any) {
           </div>
 
           {/* Earnings & Deductions Table */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Earnings */}
-            <div>
-              <table className="w-full text-sm border border-gray-300">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs md:text-sm border border-gray-300">
                 <thead>
                   <tr className="bg-primary text-white">
                     <th className="p-2 text-left border-b border-gray-300">Earnings</th>
@@ -140,16 +144,16 @@ export function SalarySlipPreview({ employee }: any) {
                   <tr className="border-b border-gray-300">
                     <td className="p-2">Basic Salary</td>
                     <td className="p-2 text-right font-semibold">
-                      ₹{base.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      PKR {base.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
-                  {Object.entries(employee.allowances).map(([key, value]: any) => {
+                  {Object.entries(allowances).map(([key, value]: any) => {
                     const val = Number.parseFloat(value) || 0
                     return val > 0 ? (
                       <tr key={key} className="border-b border-gray-300">
-                        <td className="p-2 capitalize">{key} Allowance</td>
+                        <td className="p-2 capitalize">{key.replace(/_/g, " ")}</td>
                         <td className="p-2 text-right font-semibold">
-                          ₹{val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                          PKR {val.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     ) : null
@@ -157,7 +161,7 @@ export function SalarySlipPreview({ employee }: any) {
                   <tr className="bg-green-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Earnings</td>
                     <td className="p-2 text-right">
-                      ₹{(base + totalAllowances).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      PKR {(base + totalAllowances).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 </tbody>
@@ -165,8 +169,8 @@ export function SalarySlipPreview({ employee }: any) {
             </div>
 
             {/* Deductions */}
-            <div>
-              <table className="w-full text-sm border border-gray-300">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs md:text-sm border border-gray-300">
                 <thead>
                   <tr className="bg-accent text-accent-foreground">
                     <th className="p-2 text-left border-b border-gray-300">Deductions</th>
@@ -174,13 +178,19 @@ export function SalarySlipPreview({ employee }: any) {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(employee.deductions).map(([key, value]: any) => {
+                  {Object.entries(deductions).map(([key, value]: any) => {
                     const val = Number.parseFloat(value) || 0
                     return val > 0 ? (
                       <tr key={key} className="border-b border-gray-300">
-                        <td className="p-2 capitalize">{key === "pf" ? "PF" : key === "esi" ? "ESI" : key}</td>
+                        <td className="p-2 capitalize">
+                          {key === "pf_deduction" ? "PF" : 
+                           key === "esi_deduction" ? "ESI" : 
+                           key === "professional_tax" ? "Professional Tax" :
+                           key === "loan_deduction" ? "Loan Deduction" :
+                           key.replace(/_/g, " ")}
+                        </td>
                         <td className="p-2 text-right font-semibold">
-                          ₹{val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                          PKR {val.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
                     ) : null
@@ -188,7 +198,7 @@ export function SalarySlipPreview({ employee }: any) {
                   <tr className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
-                      ₹{totalDeductions.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                      PKR {totalDeductions.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 </tbody>
@@ -201,7 +211,7 @@ export function SalarySlipPreview({ employee }: any) {
             <div className="flex justify-between items-center">
               <span className="text-lg font-semibold">NET SALARY</span>
               <span className="text-2xl font-bold text-primary">
-                ₹{netSalary.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                PKR {netSalary.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>

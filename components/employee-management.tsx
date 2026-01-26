@@ -26,6 +26,7 @@ export function EmployeeManagement() {
     department: "",
     designation: "",
     date_of_joining: "",
+    password: "",
   })
   const supabase = createClient()
   const { toast } = useToast()
@@ -51,13 +52,46 @@ export function EmployeeManagement() {
 
     try {
       if (editingId) {
-        const { error } = await supabase.from("employees").update(formData).eq("id", editingId)
+        // Update existing employee
+        const { password, ...dataWithoutPassword } = formData
+        const { error } = await supabase.from("employees").update(dataWithoutPassword).eq("id", editingId)
         if (error) throw error
         toast({ title: "Success", description: "Employee updated successfully" })
       } else {
-        const { error } = await supabase.from("employees").insert([formData])
-        if (error) throw error
-        toast({ title: "Success", description: "Employee added successfully" })
+        // Create new employee
+        if (!formData.password) {
+          toast({ title: "Error", description: "Password is required for new employees", variant: "destructive" })
+          return
+        }
+
+        // First, create auth account
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: `${formData.first_name} ${formData.last_name}`,
+            },
+          },
+        })
+
+        if (authError) throw authError
+
+        // Then create employee record linked to auth user
+        const { password, ...dataWithoutPassword } = formData
+        const { error: empError } = await supabase
+          .from("employees")
+          .insert([{
+            ...dataWithoutPassword,
+            user_id: authData.user?.id,
+          }])
+
+        if (empError) throw empError
+
+        toast({
+          title: "Success",
+          description: `Employee added successfully. Credentials:\nEmail: ${formData.email}\nPassword: ${formData.password}`,
+        })
       }
 
       setFormData({
@@ -69,6 +103,7 @@ export function EmployeeManagement() {
         department: "",
         designation: "",
         date_of_joining: "",
+        password: "",
       })
       setEditingId(null)
       setIsOpen(false)
@@ -246,6 +281,18 @@ export function EmployeeManagement() {
                   value={formData.date_of_joining}
                   onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
                 />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="password">Password {!editingId && "*"}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder={editingId ? "Leave blank to keep current password" : "Enter initial password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required={!editingId}
+                />
+                <p className="text-xs text-gray-500 mt-1">Share this password with the employee for login</p>
               </div>
             </div>
             <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">

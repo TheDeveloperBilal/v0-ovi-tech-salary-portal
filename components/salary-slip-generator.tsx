@@ -96,6 +96,22 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     try {
       console.log("[v0] Creating salary slip for employee:", formData.employee_id)
 
+      const allowances = {
+        hra: formData.hra,
+        dearness_allowance: formData.dearness_allowance,
+        medical_allowance: formData.medical_allowance,
+        transport_allowance: formData.transport_allowance,
+        other_allowance: formData.other_allowance,
+      }
+
+      const deductions = {
+        pf_deduction: formData.pf_deduction,
+        esi_deduction: formData.esi_deduction,
+        professional_tax: formData.professional_tax,
+        loan_deduction: formData.loan_deduction,
+        other_deduction: formData.other_deduction,
+      }
+
       const totalEarnings =
         formData.basic_salary +
         formData.hra +
@@ -118,22 +134,10 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           employee_id: formData.employee_id,
           month: formData.month,
           year: formData.year,
-          base_salary: formData.basic_salary,
-          hra: formData.hra,
-          dearness_allowance: formData.dearness_allowance,
-          medical_allowance: formData.medical_allowance,
-          transport_allowance: formData.transport_allowance,
-          other_allowance: formData.other_allowance,
-          pf_deduction: formData.pf_deduction,
-          esi_deduction: formData.esi_deduction,
-          professional_tax: formData.professional_tax,
-          loan_deduction: formData.loan_deduction,
-          other_deduction: formData.other_deduction,
-          total_earnings: totalEarnings,
-          total_deductions: totalDeductions,
+          basic_salary: formData.basic_salary,
+          allowances: allowances,
+          deductions: deductions,
           net_salary: netSalary,
-          present_days: formData.present_days,
-          working_days: formData.working_days,
         },
       ])
 
@@ -214,19 +218,19 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                   <div>
                     <p className="text-muted-foreground">Earnings</p>
                     <p className="font-semibold text-green-600">
-                      ₹{slip.total_earnings?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}
+                      PKR {(slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Deductions</p>
                     <p className="font-semibold text-red-600">
-                      ₹{slip.total_deductions?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}
+                      PKR {Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Net Salary</p>
                     <p className="font-semibold text-purple-600">
-                      ₹{slip.net_salary?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}
+                      PKR {(slip.net_salary || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>
@@ -235,7 +239,21 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedSlip(slip)
+                      setSelectedSlip({
+                        basic_salary: slip.basic_salary,
+                        allowances: slip.allowances || {},
+                        deductions: slip.deductions || {},
+                        net_salary: slip.net_salary,
+                        month: slip.month,
+                        year: slip.year,
+                        employee_name: `${slip.employees?.first_name} ${slip.employees?.last_name}`,
+                        employee_id: slip.employees?.employee_id,
+                        email: slip.employees?.email,
+                        department: slip.employees?.department,
+                        designation: slip.employees?.designation,
+                        position: slip.employees?.designation,
+                        joinDate: slip.employees?.date_of_joining,
+                      })
                       setIsPreviewOpen(true)
                     }}
                     className="flex-1"
@@ -255,11 +273,11 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-96 overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-96 overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Salary Slip Preview</DialogTitle>
           </DialogHeader>
-          {selectedSlip && <SalarySlipPreview slip={selectedSlip} />}
+          {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
         </DialogContent>
       </Dialog>
 
