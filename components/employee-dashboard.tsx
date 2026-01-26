@@ -170,7 +170,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       </Button>
                       <Button 
                         onClick={() => {
-                          setSelectedSlip({
+                          const slipData = {
                             basic_salary: slip.basic_salary,
                             allowances: slip.allowances || {},
                             deductions: slip.deductions || {},
@@ -184,12 +184,18 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                             designation: employeeData?.designation,
                             position: employeeData?.designation,
                             joinDate: employeeData?.date_of_joining,
-                          })
-                          // Trigger PDF download
+                            employeeName: `${employeeData?.first_name} ${employeeData?.last_name}`,
+                            employeeId: employeeData?.employee_id,
+                          }
+                          setSelectedSlip(slipData)
+                          setIsPreviewOpen(true)
+                          // Trigger PDF download after dialog opens
                           setTimeout(() => {
                             const downloadBtn = document.querySelector('[data-pdf-download]') as HTMLButtonElement
-                            if (downloadBtn) downloadBtn.click()
-                          }, 100)
+                            if (downloadBtn) {
+                              downloadBtn.click()
+                            }
+                          }, 300)
                         }}
                         variant="outline" 
                         size="sm" 

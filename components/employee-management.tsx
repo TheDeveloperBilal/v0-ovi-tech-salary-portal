@@ -89,28 +89,31 @@ export function EmployeeManagement() {
 
         console.log("[v0] Auth account created with user ID:", authData.user.id)
 
-        // Wait for profile to be created by trigger
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Wait for profile to be created by trigger (2 seconds to be safe)
+        await new Promise(resolve => setTimeout(resolve, 2000))
 
-        // Then create employee record linked to auth user
+        // Then create employee record linked to auth user via profiles
         const { password, ...dataWithoutPassword } = formData
-        const { error: empError } = await supabase
+        const { data: empData, error: empError } = await supabase
           .from("employees")
           .insert([{
             ...dataWithoutPassword,
             user_id: authData.user.id,
           }])
+          .select()
 
         if (empError) {
           console.log("[v0] Employee creation error:", empError)
-          throw empError
+          // If insert failed, the profile was created but employee record failed
+          // This might be an RLS policy issue
+          throw new Error(`Failed to create employee record: ${empError.message}. Profile was created - try again.`)
         }
 
-        console.log("[v0] Employee record created successfully")
+        console.log("[v0] Employee record created successfully:", empData)
 
         toast({
           title: "Success",
-          description: `Employee added successfully.\n\nShare these credentials with the employee:\n\nEmail: ${formData.email}\nPassword: ${formData.password}`,
+          description: `Employee added successfully!\n\nShare these credentials with the employee:\n\nEmail: ${formData.email}\nPassword: ${formData.password}`,
           variant: "default",
         })
       }
@@ -136,14 +139,43 @@ export function EmployeeManagement() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this employee?")) return
+    if (!confirm("Are you sure you want to delete this employee? This action cannot be undone.")) return
 
-    const { error } = await supabase.from("employees").delete().eq("id", id)
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
+    try {
+      console.log("[v0] Deleting employee with ID:", id)
+      
+      // First verify user is admin
+      const { data: userData } = await supabase.auth.getUser()
+      console.log("[v0] Current user:", userData.user?.email)
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", userData.user?.id)
+        .single()
+      
+      console.log("[v0] User is_admin:", profile?.is_admin)
+      
+      if (!profile?.is_admin) {
+        throw new Error("You don't have permission to delete employees. Only admins can delete.")
+      }
+      
+      // Now attempt delete
+      const { error, status } = await supabase.from("employees").delete().eq("id", id)
+      
+      console.log("[v0] Delete response - Status:", status, "Error:", error)
+      
+      if (error) {
+        console.log("[v0] Delete error details:", JSON.stringify(error))
+        throw new Error(error.message || "Failed to delete employee")
+      }
+      
+      console.log("[v0] Employee deleted successfully")
       toast({ title: "Success", description: "Employee deleted successfully" })
       fetchEmployees()
+    } catch (error: any) {
+      console.log("[v0] Error during delete:", error)
+      toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
     }
   }
 
