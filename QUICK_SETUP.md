@@ -3,33 +3,33 @@
 ## 5-Minute Setup Guide
 
 ### 1. Database Setup (2 minutes)
-```
+\`\`\`
 cPanel → phpMyAdmin
 ├─ Create Database: ovitech_salary
 ├─ Import: database/ovitech_salary.sql
 └─ Create User: ovitech_user
-```
+\`\`\`
 
 ### 2. Upload Files (2 minutes)
-```
+\`\`\`
 cPanel File Manager
 └─ Upload all files to public_html/
-```
+\`\`\`
 
 ### 3. Configuration (1 minute)
-```
+\`\`\`
 Edit: config/database.php
 Change:
   DB_USER = 'ovitech_user'
   DB_PASS = 'your_password'
   DB_NAME = 'ovitech_salary'
-```
+\`\`\`
 
 ### 4. Test
-```
+\`\`\`
 Browser: https://your-domain.com
 Login: admin@ovitech.co / admin123
-```
+\`\`\`
 
 ---
 
@@ -49,14 +49,14 @@ Login: admin@ovitech.co / admin123
 
 ## File Paths Reference
 
-```
+\`\`\`
 Website URL:           https://your-domain.com/
 Login Page:            https://your-domain.com/login.php
 Dashboard:             https://your-domain.com/dashboard.php
 Add Employee:          https://your-domain.com/add-employee.php
 View Salary Slip:      https://your-domain.com/salary-slip.php
 Settings:              https://your-domain.com/settings.php
-```
+\`\`\`
 
 ---
 

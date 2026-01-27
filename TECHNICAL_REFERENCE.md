@@ -51,35 +51,35 @@
 
 ## PHP Requirements
 
-```
+\`\`\`
 PHP Version:    7.4 or higher
 Extensions:     PDO, PDO_MYSQL, GD (for images)
 Settings:       max_upload_size ≥ 10MB
                 post_max_size ≥ 10MB
                 memory_limit ≥ 128MB
-```
+\`\`\`
 
 ## File Permissions
 
-```
+\`\`\`
 Directories:    755 (rwxr-xr-x)
 Files:          644 (rw-r--r--)
 config/:        755
 database/:      755
 assets/:        755
-```
+\`\`\`
 
 ## Calculation Logic
 
 ### Gross Salary
-```
+\`\`\`
 Gross = Base + HRA + Dearness + Medical + Transport + Other Allowances
-```
+\`\`\`
 
 ### Net Salary
-```
+\`\`\`
 Net = Gross - (PF + ESI + Income Tax + Loan + Other Deductions)
-```
+\`\`\`
 
 ### Automatic Calculations
 - PF: 12% of base salary (configurable)
@@ -105,40 +105,40 @@ Net = Gross - (PF + ESI + Income Tax + Loan + Other Deductions)
 ## API Endpoints (Server Actions)
 
 ### Login
-```
+\`\`\`
 POST /login.php
 Parameters: email, password
 Response: Redirect to dashboard or error message
-```
+\`\`\`
 
 ### Add Employee
-```
+\`\`\`
 POST /add-employee.php
 Parameters: employee_id, first_name, last_name, email, phone, etc.
 Response: Success message or error
-```
+\`\`\`
 
 ### Generate Salary Slip
-```
+\`\`\`
 POST /salary-slip.php
 Parameters: employee_id, month, year, salary components
 Response: Slip HTML or error
-```
+\`\`\`
 
 ### Download PDF
-```
+\`\`\`
 GET /download-pdf.php?id=salary_structure_id
 Response: PDF file download
-```
+\`\`\`
 
 ## Session Variables
 
-```php
+\`\`\`php
 $_SESSION['user_id']     // Unique user ID
 $_SESSION['email']       // User email
 $_SESSION['name']        // User full name
 $_SESSION['role']        // admin or employee
-```
+\`\`\`
 
 ## Helper Functions
 

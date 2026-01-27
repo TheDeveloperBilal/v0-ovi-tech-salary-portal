@@ -64,33 +64,57 @@ export function EmployeeManagement() {
           return
         }
 
+        console.log("[v0] Creating auth account for:", formData.email)
+
         // First, create auth account
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
+            emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
             data: {
               full_name: `${formData.first_name} ${formData.last_name}`,
             },
           },
         })
 
-        if (authError) throw authError
+        if (authError) {
+          console.log("[v0] Auth error:", authError)
+          throw authError
+        }
 
-        // Then create employee record linked to auth user
+        if (!authData.user?.id) {
+          throw new Error("Failed to create auth user - no user ID returned")
+        }
+
+        console.log("[v0] Auth account created with user ID:", authData.user.id)
+
+        // Wait for profile to be created by trigger (2 seconds to be safe)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        // Then create employee record linked to auth user via profiles
         const { password, ...dataWithoutPassword } = formData
-        const { error: empError } = await supabase
+        const { data: empData, error: empError } = await supabase
           .from("employees")
           .insert([{
             ...dataWithoutPassword,
-            user_id: authData.user?.id,
+            user_id: authData.user.id,
           }])
+          .select()
 
-        if (empError) throw empError
+        if (empError) {
+          console.log("[v0] Employee creation error:", empError)
+          // If insert failed, the profile was created but employee record failed
+          // This might be an RLS policy issue
+          throw new Error(`Failed to create employee record: ${empError.message}. Profile was created - try again.`)
+        }
+
+        console.log("[v0] Employee record created successfully:", empData)
 
         toast({
           title: "Success",
-          description: `Employee added successfully. Credentials:\nEmail: ${formData.email}\nPassword: ${formData.password}`,
+          description: `Employee added successfully!\n\nShare these credentials with the employee:\n\nEmail: ${formData.email}\nPassword: ${formData.password}`,
+          variant: "default",
         })
       }
 
@@ -109,19 +133,49 @@ export function EmployeeManagement() {
       setIsOpen(false)
       fetchEmployees()
     } catch (error: any) {
+      console.log("[v0] Error in handleSubmit:", error)
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this employee?")) return
+    if (!confirm("Are you sure you want to delete this employee? This action cannot be undone.")) return
 
-    const { error } = await supabase.from("employees").delete().eq("id", id)
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
-    } else {
+    try {
+      console.log("[v0] Deleting employee with ID:", id)
+      
+      // First verify user is admin
+      const { data: userData } = await supabase.auth.getUser()
+      console.log("[v0] Current user:", userData.user?.email)
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", userData.user?.id)
+        .single()
+      
+      console.log("[v0] User is_admin:", profile?.is_admin)
+      
+      if (!profile?.is_admin) {
+        throw new Error("You don't have permission to delete employees. Only admins can delete.")
+      }
+      
+      // Now attempt delete
+      const { error, status } = await supabase.from("employees").delete().eq("id", id)
+      
+      console.log("[v0] Delete response - Status:", status, "Error:", error)
+      
+      if (error) {
+        console.log("[v0] Delete error details:", JSON.stringify(error))
+        throw new Error(error.message || "Failed to delete employee")
+      }
+      
+      console.log("[v0] Employee deleted successfully")
       toast({ title: "Success", description: "Employee deleted successfully" })
       fetchEmployees()
+    } catch (error: any) {
+      console.log("[v0] Error during delete:", error)
+      toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
     }
   }
 
@@ -170,14 +224,14 @@ export function EmployeeManagement() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
                   <div>
                     <p className="text-muted-foreground">Employee ID</p>
                     <p className="font-semibold">{emp.employee_id}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Email</p>
-                    <p className="font-semibold">{emp.email}</p>
+                    <p className="font-semibold break-all">{emp.email}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Phone</p>
@@ -188,12 +242,12 @@ export function EmployeeManagement() {
                     <p className="font-semibold">{emp.date_of_joining}</p>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-3 border-t">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1">
+                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1 w-full sm:w-auto">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(emp.id)} className="flex-1">
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(emp.id)} className="flex-1 w-full sm:w-auto">
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete
                   </Button>
@@ -205,13 +259,13 @@ export function EmployeeManagement() {
       )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto w-full mx-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Employee" : "Add New Employee"}</DialogTitle>
             <DialogDescription>Fill in the employee details below</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="employee_id">Employee ID *</Label>
                 <Input

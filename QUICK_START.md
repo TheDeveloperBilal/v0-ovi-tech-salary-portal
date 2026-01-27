@@ -3,44 +3,44 @@
 ## 🚀 Get Live in 5 Steps
 
 ### Step 1: Create Database (2 min)
-```
+\`\`\`
 1. Go to supabase.com → Your Project → SQL Editor
 2. New Query → Copy SETUP_GUIDE.md SQL code
 3. Click RUN
 4. Wait for "Query executed successfully"
-```
+\`\`\`
 
 ### Step 2: Get Credentials (1 min)
-```
+\`\`\`
 Supabase → Settings → API
 Copy:
 - Project URL
 - Anon Key
-```
+\`\`\`
 
 ### Step 3: Deploy to Vercel (1 min)
-```
+\`\`\`
 1. vercel.com → Add New Project
 2. Import GitHub repo
 3. Add Environment Variables:
    NEXT_PUBLIC_SUPABASE_URL = [your url]
    NEXT_PUBLIC_SUPABASE_ANON_KEY = [your key]
 4. Click Deploy
-```
+\`\`\`
 
 ### Step 4: Create Admin User (1 min)
-```
+\`\`\`
 Click "Sign Up" at your Vercel URL
 Or: Supabase → SQL → UPDATE profiles SET is_admin = TRUE WHERE email = '...';
-```
+\`\`\`
 
 ### Step 5: Test It Works (1 min)
-```
+\`\`\`
 1. Login at https://your-app.vercel.app
 2. Go to Dashboard
 3. Add an employee
 4. See it appear immediately (dynamic!)
-```
+\`\`\`
 
 ---
 
@@ -72,13 +72,13 @@ Or: Supabase → SQL → UPDATE profiles SET is_admin = TRUE WHERE email = '...'
 
 ## 💾 Database Tables Created
 
-```
+\`\`\`
 profiles          → User accounts & admin status
 employees         → Employee information
 salary_structures → Salary components (basic, HRA, etc)
 salary_slips      → Monthly salary slips
 company_settings  → OviTech company details
-```
+\`\`\`
 
 ---
 

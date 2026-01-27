@@ -84,7 +84,7 @@ Once a user is set to `is_admin = TRUE`, they'll see:
 
 ### Via Supabase Dashboard:
 
-```
+\`\`\`
 1. Open Supabase Project
 2. Go to: Table Editor → profiles
 3. Find row with email: bilal@ovitech.co
@@ -94,18 +94,18 @@ Once a user is set to `is_admin = TRUE`, they'll see:
 7. Refresh your app
 8. Login with bilal@ovitech.co
 9. You now have admin access!
-```
+\`\`\`
 
 ### Via Your App (After bilal is admin):
 
-```
+\`\`\`
 1. Login with admin@ovitech.co
 2. Go to Dashboard
 3. Click "Manage Users" tab
 4. Find bilal@ovitech.co
 5. Click "Make Admin" button
 6. Done! Both are now admins
-```
+\`\`\`
 
 ---
 

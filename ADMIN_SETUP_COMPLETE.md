@@ -8,14 +8,14 @@ Here's everything you need:
 
 ## TL;DR (Too Long; Didn't Read) - 2 Minute Solution
 
-```
+\`\`\`
 1. Open Supabase
 2. Go to: Table Editor → profiles
 3. Find: bilal@ovitech.co
 4. Change: is_admin from FALSE to TRUE
 5. Refresh app
 6. Done! You're admin
-```
+\`\`\`
 
 ---
 
@@ -36,43 +36,43 @@ I've updated your dashboard to make admin management easier:
 
 ## Your Current Users
 
-```
+\`\`\`
 Database Status:
 ✅ admin@ovitech.co - ADMIN (is_admin = TRUE) ← Can do everything
 ❌ bilal@ovitech.co - EMPLOYEE (is_admin = FALSE) ← Needs to be promoted
-```
+\`\`\`
 
 ---
 
 ## 3 Ways to Make Someone Admin
 
 ### Method 1: Supabase Direct (Fastest)
-```
+\`\`\`
 Supabase → Table Editor → profiles
 Find user → is_admin = FALSE → Change to TRUE
 Time: 2 minutes
 Requires: Supabase access
-```
+\`\`\`
 
 ### Method 2: Use Your App (Easiest)
-```
+\`\`\`
 Login with admin account
 Go to Dashboard → Manage Users tab
 Click "Make Admin" button
 Time: 1 minute
 Requires: Already have one admin
-```
+\`\`\`
 
 ### Method 3: SQL Query (Advanced)
-```sql
+\`\`\`sql
 UPDATE profiles SET is_admin = TRUE WHERE email = 'bilal@ovitech.co';
-```
+\`\`\`
 
 ---
 
 ## Complete Flow to Create Salary Slip
 
-```
+\`\`\`
 STEP 1: Make yourself admin
 ├─ Open Supabase
 ├─ Change is_admin to TRUE
@@ -94,7 +94,7 @@ STEP 3: Create salary slip
 STEP 4: Send to employee
 ├─ Email the PDF
 └─ Or print it
-```
+\`\`\`
 
 ---
 
@@ -114,7 +114,7 @@ STEP 4: Send to employee
 Once you're admin, you'll see 4 tabs:
 
 ### 1️⃣ Manage Employees
-```
+\`\`\`
 Add employee:
 ├─ Employee ID (EMP001)
 ├─ Name (John Doe)
@@ -127,10 +127,10 @@ Add employee:
 
 Edit employee: Modify any details
 Delete employee: Remove from system
-```
+\`\`\`
 
 ### 2️⃣ Manage Users (NEW!)
-```
+\`\`\`
 View all users:
 ├─ User email
 ├─ User name
@@ -140,10 +140,10 @@ View all users:
 Actions:
 ├─ Make user admin (promote)
 └─ Remove admin status (demote)
-```
+\`\`\`
 
 ### 3️⃣ Salary Slips
-```
+\`\`\`
 Create slip:
 ├─ Select employee
 ├─ Select month/year
@@ -156,10 +156,10 @@ View/Edit:
 ├─ Re-download as PDF/Word
 ├─ Print slips
 └─ Edit if needed
-```
+\`\`\`
 
 ### 4️⃣ Settings
-```
+\`\`\`
 Company Details:
 ├─ Company name
 ├─ Address
@@ -174,7 +174,7 @@ Tax Information:
 ├─ PAN
 ├─ GST
 ├─ CIN
-```
+\`\`\`
 
 ---
 
@@ -182,7 +182,7 @@ Tax Information:
 
 After creating, your slip looks like:
 
-```
+\`\`\`
 ┌─────────────────────────────────────┐
 │   OVITECH GLOBAL PVT LTD            │
 │   SALARY SLIP                       │
@@ -214,7 +214,7 @@ After creating, your slip looks like:
 │                                     │
 │ Date: 20-Jan-2025                   │
 └─────────────────────────────────────┘
-```
+\`\`\`
 
 ---
 

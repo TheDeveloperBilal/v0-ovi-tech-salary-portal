@@ -76,7 +76,7 @@ A: Yes! Bcrypt passwords, SQL injection prevention, session security
 
 ## File Structure
 
-```
+\`\`\`
 ovitech-salary-portal/
 ├── Login & Dashboard Pages
 │   ├── index.php
@@ -107,14 +107,14 @@ ovitech-salary-portal/
     ├── QUICK_SETUP.md
     ├── TECHNICAL_REFERENCE.md
     └── README.md
-```
+\`\`\`
 
 ## Default Login
 
-```
+\`\`\`
 Email:    admin@ovitech.co
 Password: admin123
-```
+\`\`\`
 
 ⚠️ CHANGE THIS IMMEDIATELY AFTER LOGIN!
 

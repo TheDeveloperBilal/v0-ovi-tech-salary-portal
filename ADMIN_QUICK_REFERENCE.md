@@ -2,11 +2,11 @@
 
 ## 🎯 Your Current Situation
 
-```
+\`\`\`
 USERS IN DATABASE:
 ├─ bilal@ovitech.co ❌ (Employee - needs to be admin)
 └─ admin@ovitech.co ✅ (Already admin)
-```
+\`\`\`
 
 ---
 
@@ -15,53 +15,53 @@ USERS IN DATABASE:
 ### FASTEST WAY (2 minutes):
 
 **Step 1:** Open Supabase
-```
+\`\`\`
 https://supabase.com
 Login → Select Your Project
-```
+\`\`\`
 
 **Step 2:** Go to profiles table
-```
+\`\`\`
 Left Sidebar → Table Editor → profiles table
-```
+\`\`\`
 
 **Step 3:** Find and update
-```
+\`\`\`
 Find row: bilal@ovitech.co
 Click:    is_admin cell (showing FALSE)
 Change:   FALSE → TRUE
-```
+\`\`\`
 
 **Step 4:** Refresh app
-```
+\`\`\`
 Go back to your app
 Hard Refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
 Logout and Login again
-```
+\`\`\`
 
 **Step 5:** You're done! 🎉
-```
+\`\`\`
 Now you see:
 ✅ Manage Employees tab
 ✅ Manage Users tab  
 ✅ Salary Slips tab
 ✅ Settings tab
-```
+\`\`\`
 
 ---
 
 ## 📊 Before & After
 
 ### EMPLOYEE VIEW (Current bilal@ovitech.co)
-```
+\`\`\`
 Dashboard
 ├─ Statistics (View only)
 └─ My Salary Slips
     └─ View salary slips
-```
+\`\`\`
 
 ### ADMIN VIEW (After making admin)
-```
+\`\`\`
 Dashboard
 ├─ Statistics (with counts)
 ├─ Manage Employees
@@ -81,13 +81,13 @@ Dashboard
    ├─ Bank information
    ├─ Tax codes
    └─ Save settings
-```
+\`\`\`
 
 ---
 
 ## 🔄 The Process Visual
 
-```
+\`\`\`
 ┌─────────────────────────────────────────────────────┐
 │         YOUR OViTECH SALARY PORTAL FLOW             │
 ├─────────────────────────────────────────────────────┤
@@ -114,22 +114,22 @@ Dashboard
 │    └─ Download PDF/Word                            │
 │                                                     │
 └─────────────────────────────────────────────────────┘
-```
+\`\`\`
 
 ---
 
 ## 🎬 Step-by-Step Screenshots Guide
 
 ### Step 1: Open Supabase Dashboard
-```
+\`\`\`
 1. Go to supabase.com
 2. Click "Sign In"
 3. Login with your account
 4. Select project "ovitech_salary" (or your project name)
-```
+\`\`\`
 
 ### Step 2: Navigate to profiles table
-```
+\`\`\`
 Left Menu:
 ├─ Home
 ├─ SQL Editor
@@ -142,49 +142,49 @@ Then:
 ├─ employees
 ├─ salary_slips
 └─ ...
-```
+\`\`\`
 
 ### Step 3: Find bilal@ovitech.co
-```
+\`\`\`
 You'll see a table like:
 
 | id          | email              | full_name | is_admin |
 |-------------|-------------------|-----------|----------|
 | 226bf1d...  | bilal@ovitech.co  | NULL      | FALSE   | ← YOUR ROW
 | f661e52...  | admin@ovitech.co  | NULL      | TRUE    |
-```
+\`\`\`
 
 ### Step 4: Click on FALSE to change to TRUE
-```
+\`\`\`
 Click on the FALSE value in bilal@ovitech.co row
 A popup appears
 Select: TRUE
 It saves automatically
-```
+\`\`\`
 
 ### Step 5: Refresh your app browser
-```
+\`\`\`
 Press Ctrl+Shift+R (Windows/Linux)
    or Cmd+Shift+R (Mac)
 
 The app will refresh and reload with new permissions
-```
+\`\`\`
 
 ---
 
 ## ✨ After Making Admin - What You Can Do
 
 ### 1️⃣ Add Employee
-```
+\`\`\`
 Manage Employees tab
 → "Add New Employee" button
 → Fill form
 → Click Save
 → Employee added to system
-```
+\`\`\`
 
 ### 2️⃣ Create Salary Slip
-```
+\`\`\`
 Salary Slips tab
 → Select Employee
 → Enter Month & Year
@@ -193,24 +193,24 @@ Salary Slips tab
 → Add Deductions (PF, Tax, etc)
 → "Generate Slip" button
 → Download as PDF or Word
-```
+\`\`\`
 
 ### 3️⃣ Manage Company Settings
-```
+\`\`\`
 Settings tab
 → Enter Company Name
 → Add Bank Details
 → Add PAN/GST/CIN
 → Click Save
-```
+\`\`\`
 
 ### 4️⃣ Manage Other Users
-```
+\`\`\`
 Manage Users tab
 → See all registered users
 → Click "Make Admin" to promote
 → Click "Remove Admin" to demote
-```
+\`\`\`
 
 ---
 

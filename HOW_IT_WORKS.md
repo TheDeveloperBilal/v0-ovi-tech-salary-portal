@@ -2,7 +2,7 @@
 
 ## Architecture
 
-```
+\`\`\`
 ┌─────────────────────┐
 │  Browser (User)     │
 │                     │
@@ -34,7 +34,7 @@
 │  - salary_slips table                   │
 │  - company_settings table               │
 └─────────────────────────────────────────┘
-```
+\`\`\`
 
 ---
 
@@ -43,16 +43,16 @@
 ### Example: Adding an Employee
 
 **Step 1: User fills form and clicks "Add Employee"**
-```
+\`\`\`
 Form Input:
 - Employee ID: EMP001
 - Name: John Doe
 - Email: john@ovitech.co
 - Department: Engineering
-```
+\`\`\`
 
 **Step 2: React component sends data to Supabase**
-```javascript
+\`\`\`javascript
 // File: components/employee-management.tsx
 const handleAddEmployee = async (formData) => {
   const { data, error } = await supabase
@@ -66,10 +66,10 @@ const handleAddEmployee = async (formData) => {
     await fetchEmployees()
   }
 }
-```
+\`\`\`
 
 **Step 3: Supabase validates and saves to PostgreSQL**
-```sql
+\`\`\`sql
 INSERT INTO employees (
   employee_id, 
   first_name, 
@@ -77,10 +77,10 @@ INSERT INTO employees (
   email, 
   department
 ) VALUES ('EMP001', 'John', 'Doe', 'john@ovitech.co', 'Engineering')
-```
+\`\`\`
 
 **Step 4: Component re-fetches data**
-```javascript
+\`\`\`javascript
 const fetchEmployees = async () => {
   const { data } = await supabase
     .from('employees')
@@ -89,7 +89,7 @@ const fetchEmployees = async () => {
   
   setEmployees(data || [])  // Update UI
 }
-```
+\`\`\`
 
 **Step 5: User sees employee in list (Real-time!)**
 
@@ -102,34 +102,34 @@ const fetchEmployees = async () => {
 **Technology:** React State + Supabase Client
 
 **Create (Add Employee):**
-```javascript
+\`\`\`javascript
 const { data } = await supabase
   .from('employees')
   .insert([newEmployee])
-```
+\`\`\`
 
 **Read (Get Employees):**
-```javascript
+\`\`\`javascript
 const { data } = await supabase
   .from('employees')
   .select('*')
-```
+\`\`\`
 
 **Update (Edit Employee):**
-```javascript
+\`\`\`javascript
 const { data } = await supabase
   .from('employees')
   .update(updatedData)
   .eq('id', employeeId)
-```
+\`\`\`
 
 **Delete (Remove Employee):**
-```javascript
+\`\`\`javascript
 const { data } = await supabase
   .from('employees')
   .delete()
   .eq('id', employeeId)
-```
+\`\`\`
 
 ---
 
@@ -138,7 +138,7 @@ const { data } = await supabase
 **Technology:** JavaScript Math + Supabase Queries
 
 **Get Employee & Salary Structure:**
-```javascript
+\`\`\`javascript
 // Fetch employee info
 const { data: employee } = await supabase
   .from('employees')
@@ -152,10 +152,10 @@ const { data: structure } = await supabase
   .select('*')
   .eq('employee_id', employeeId)
   .single()
-```
+\`\`\`
 
 **Calculate Salary:**
-```javascript
+\`\`\`javascript
 const calculateSalary = (employee, structure) => {
   // Earnings
   const basicSalary = structure.basic_salary
@@ -186,10 +186,10 @@ const calculateSalary = (employee, structure) => {
     }
   }
 }
-```
+\`\`\`
 
 **Save Salary Slip:**
-```javascript
+\`\`\`javascript
 const { data } = await supabase
   .from('salary_slips')
   .insert([{
@@ -209,29 +209,29 @@ const { data } = await supabase
     },
     net_salary: calculatedNetSalary
   }])
-```
+\`\`\`
 
 ---
 
 ### 3. Export to PDF/Word (Dynamic Document Generation)
 
 **PDF Export:**
-```javascript
+\`\`\`javascript
 const generatePDF = (slip) => {
   // Uses library to create PDF
   // Fetches data dynamically from slip object
   // Generates on-the-fly when user clicks "Download"
 }
-```
+\`\`\`
 
 **Word Export:**
-```javascript
+\`\`\`javascript
 const generateWord = (slip) => {
   // Uses library to create .doc file
   // Inserts dynamic data from database
   // File name: `salary_slip_${employeeId}_${month}.doc`
 }
-```
+\`\`\`
 
 ---
 
@@ -240,7 +240,7 @@ const generateWord = (slip) => {
 **Technology:** Row-Level Security (RLS) + React State
 
 **In Next.js Server Component:**
-```javascript
+\`\`\`javascript
 const { data: profile } = await supabase
   .from('profiles')
   .select('*')
@@ -251,10 +251,10 @@ const { data: profile } = await supabase
 if (!profile.is_admin) {
   redirect('/auth/login')
 }
-```
+\`\`\`
 
 **In React Component:**
-```javascript
+\`\`\`javascript
 export function DashboardContent({ user }) {
   if (!user.is_admin) {
     return <EmployeeView />  // Limited features
@@ -262,20 +262,20 @@ export function DashboardContent({ user }) {
   
   return <AdminView />  // Full features
 }
-```
+\`\`\`
 
 **Database Level (RLS Policy):**
-```sql
+\`\`\`sql
 CREATE POLICY "Employees viewable by authenticated users" ON employees
   FOR SELECT USING (auth.role() = 'authenticated');
-```
+\`\`\`
 
 ---
 
 ## Data Types & Structure
 
 ### Profiles Table
-```javascript
+\`\`\`javascript
 {
   id: "uuid",           // User ID (from auth)
   email: "string",      // Login email
@@ -284,10 +284,10 @@ CREATE POLICY "Employees viewable by authenticated users" ON employees
   created_at: "timestamp",
   updated_at: "timestamp"
 }
-```
+\`\`\`
 
 ### Employees Table
-```javascript
+\`\`\`javascript
 {
   id: "uuid",
   employee_id: "string",     // EMP001, EMP002, etc
@@ -305,10 +305,10 @@ CREATE POLICY "Employees viewable by authenticated users" ON employees
   created_at: "timestamp",
   updated_at: "timestamp"
 }
-```
+\`\`\`
 
 ### Salary Structures Table
-```javascript
+\`\`\`javascript
 {
   id: "uuid",
   employee_id: "uuid",           // References employees table
@@ -326,10 +326,10 @@ CREATE POLICY "Employees viewable by authenticated users" ON employees
   created_at: "timestamp",
   updated_at: "timestamp"
 }
-```
+\`\`\`
 
 ### Salary Slips Table
-```javascript
+\`\`\`javascript
 {
   id: "uuid",
   employee_id: "uuid",           // References employees
@@ -350,37 +350,37 @@ CREATE POLICY "Employees viewable by authenticated users" ON employees
   created_at: "timestamp",
   updated_at: "timestamp"
 }
-```
+\`\`\`
 
 ---
 
 ## API Endpoints (Supabase Functions)
 
 ### Add Employee
-```
+\`\`\`
 POST /functions/v1/add-employee
 Body: { employee_id, first_name, last_name, ... }
 Returns: New employee object
-```
+\`\`\`
 
 ### Generate Salary Slip
-```
+\`\`\`
 POST /functions/v1/generate-slip
 Body: { employee_id, month, year, salary_data }
 Returns: New salary slip object
-```
+\`\`\`
 
 ### Get All Employees
-```
+\`\`\`
 GET /functions/v1/employees
 Returns: Array of employees
-```
+\`\`\`
 
 ### Export Salary Slip
-```
+\`\`\`
 GET /functions/v1/export-pdf/:slipId
 Returns: PDF file download
-```
+\`\`\`
 
 ---
 
@@ -397,7 +397,7 @@ Returns: PDF file download
 - Updates on form submit
 
 **Optimization:**
-```javascript
+\`\`\`javascript
 // Good: Fetch once and cache
 const [employees, setEmployees] = useState([])
 
@@ -409,7 +409,7 @@ useEffect(() => {
 setInterval(() => {
   fetchEmployees()  // Too many queries!
 }, 1000)
-```
+\`\`\`
 
 ---
 
@@ -439,7 +439,7 @@ setInterval(() => {
 
 ## Deployment Flow
 
-```
+\`\`\`
 Local Development
     ↓
     Push to GitHub
@@ -455,7 +455,7 @@ App Available Globally
 All Data in Supabase
     ↓
 Real-Time Sync with Users
-```
+\`\`\`
 
 ---
 

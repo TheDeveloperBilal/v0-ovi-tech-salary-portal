@@ -25,7 +25,7 @@ A modern, secure salary slip management system built with Next.js 16, Supabase, 
 
 ## Project Structure
 
-```
+\`\`\`
 ├── app/
 │   ├── page.tsx                 # Home redirect
 │   ├── dashboard/               # Protected dashboard routes
@@ -62,30 +62,30 @@ A modern, secure salary slip management system built with Next.js 16, Supabase, 
 ### Local Development
 
 1. Clone and install:
-```bash
+\`\`\`bash
 git clone <your-repo>
 cd ovitech-salary-portal
 npm install
-```
+\`\`\`
 
 2. Setup Supabase:
    - Create account at supabase.com
    - Copy Project URL and Anon Key
 
 3. Create `.env.local`:
-```
+\`\`\`
 NEXT_PUBLIC_SUPABASE_URL=your_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
-```
+\`\`\`
 
 4. Setup database:
    - Go to Supabase SQL Editor
    - Run `scripts/001_create_tables.sql`
 
 5. Run locally:
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 ### Deploy to Vercel
 
@@ -179,14 +179,14 @@ All tables have Row Level Security enabled:
 
 ## Environment Variables
 
-```
+\`\`\`
 # Supabase (Required)
 NEXT_PUBLIC_SUPABASE_URL=          # Project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=     # Anon key (public)
 
 # Optional
 NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL=  # Development redirect
-```
+\`\`\`
 
 ## Support & Documentation
 

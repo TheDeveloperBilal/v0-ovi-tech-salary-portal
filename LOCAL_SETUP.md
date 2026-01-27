@@ -8,21 +8,21 @@
 ## Installation
 
 1. Clone the repository:
-```bash
+\`\`\`bash
 git clone your-repo-url
 cd ovitech-salary-portal
-```
+\`\`\`
 
 2. Install dependencies:
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
 3. Create `.env.local` file:
-```
+\`\`\`
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+\`\`\`
 
 4. Setup Supabase database:
    - Go to your Supabase project SQL Editor
@@ -30,9 +30,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    - Run the SQL
 
 5. Run development server:
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
