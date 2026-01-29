@@ -87,7 +87,7 @@ export function EmployeeManagement() {
 
         console.log("[v0] Creating auth account for:", formData.email)
 
-        // First, create auth account
+        // Create auth account without email confirmation (auto-confirm)
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -109,9 +109,22 @@ export function EmployeeManagement() {
         }
 
         console.log("[v0] Auth account created with user ID:", authData.user.id)
+        
+        // Verify email immediately for instant access
+        if (authData.user?.email && authData.user.id) {
+          try {
+            await supabase.auth.admin.updateUserById(authData.user.id, {
+              email_confirm: true,
+            })
+            console.log("[v0] Email confirmed for user:", authData.user.email)
+          } catch (confirmError) {
+            console.log("[v0] Email confirmation error (non-critical):", confirmError)
+            // Continue anyway - this is non-critical
+          }
+        }
 
-        // Wait for profile to be created by trigger (2 seconds to be safe)
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        // Wait for profile to be created by trigger
+        await new Promise(resolve => setTimeout(resolve, 1500))
 
         // Then create employee record linked to auth user via profiles
         const { password, ...dataWithoutPassword } = formData

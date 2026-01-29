@@ -49,37 +49,89 @@
     color: hsl(var(--foreground));
   }
 
+  /* Ensure all buttons show proper colors */
+  button,
+  button[type="button"],
+  button[type="submit"],
   button[data-slot="button"] {
-    background-color: hsl(var(--primary, 262 80% 50%));
-    color: hsl(var(--primary-foreground, 0 0% 100%));
+    background-color: hsl(262 80% 50%);
+    color: white;
   }
 
-  button:disabled {
+  button:hover:not(:disabled),
+  button[type="button"]:hover:not(:disabled),
+  button[type="submit"]:hover:not(:disabled),
+  button[data-slot="button"]:hover:not(:disabled) {
+    background-color: hsl(262 72% 40%);
+  }
+
+  .dark button,
+  .dark button[type="button"],
+  .dark button[type="submit"],
+  .dark button[data-slot="button"] {
+    background-color: hsl(262 80% 65%);
+    color: #000;
+  }
+
+  .dark button:hover:not(:disabled),
+  .dark button[type="button"]:hover:not(:disabled),
+  .dark button[type="submit"]:hover:not(:disabled),
+  .dark button[data-slot="button"]:hover:not(:disabled) {
+    background-color: hsl(262 80% 55%);
+  }
+
+  button:disabled,
+  button[type="button"]:disabled,
+  button[type="submit"]:disabled,
+  button[data-slot="button"]:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
   [data-state="active"] {
-    background-color: hsl(var(--primary, 262 80% 50%)) !important;
-    color: hsl(var(--primary-foreground, 0 0% 100%)) !important;
+    background-color: hsl(262 80% 50%) !important;
+    color: white !important;
+  }
+
+  .dark [data-state="active"] {
+    background-color: hsl(262 80% 65%) !important;
+    color: #000 !important;
   }
 
   .bg-primary {
-    background-color: hsl(var(--primary, 262 80% 50%)) !important;
-    color: hsl(var(--primary-foreground, 0 0% 100%)) !important;
+    background-color: hsl(262 80% 50%) !important;
+    color: white !important;
+  }
+
+  .dark .bg-primary {
+    background-color: hsl(262 80% 65%) !important;
+    color: #000 !important;
   }
 
   .bg-accent {
-    background-color: hsl(var(--accent, 262 80% 50%)) !important;
-    color: hsl(var(--accent-foreground, 0 0% 100%)) !important;
+    background-color: hsl(262 80% 50%) !important;
+    color: white !important;
+  }
+
+  .dark .bg-accent {
+    background-color: hsl(262 80% 65%) !important;
+    color: #000 !important;
   }
 
   .text-primary {
-    color: hsl(var(--primary, 262 80% 50%)) !important;
+    color: hsl(262 80% 50%) !important;
+  }
+
+  .dark .text-primary {
+    color: hsl(262 80% 65%) !important;
   }
 
   .text-accent {
-    color: hsl(var(--accent, 262 80% 50%)) !important;
+    color: hsl(262 80% 50%) !important;
+  }
+
+  .dark .text-accent {
+    color: hsl(262 80% 65%) !important;
   }
 
   .border-border {
@@ -100,6 +152,16 @@
 
   .text-card-foreground {
     color: hsl(var(--card-foreground)) !important;
+  }
+
+  /* Dialog and overlay styles */
+  [data-radix-dialog-overlay] {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  [role="dialog"] {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
   }
 }
 
