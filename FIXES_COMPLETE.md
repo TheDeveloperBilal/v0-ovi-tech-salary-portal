@@ -220,17 +220,17 @@ If something isn't working:
 4. These show exactly what's happening
 
 ### Example Good Log
-```
+\`\`\`
 [v0] Creating auth account for: employee@email.com
 [v0] Auth account created with user ID: abc123
 [v0] Employee record created successfully
-```
+\`\`\`
 
 ### Example Error Log
-```
+\`\`\`
 [v0] Auth error: [Details of error]
 [v0] Employee creation error: [Details of error]
-```
+\`\`\`
 
 ---
 

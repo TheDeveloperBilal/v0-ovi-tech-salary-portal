@@ -58,7 +58,7 @@ All screens are now responsive:
 ## 🎯 Quick Checklist
 
 ### Employee Login Issues
-```
+\`\`\`
 ❌ Employee can't log in with password
   → Wait 2-3 seconds after creating employee
   → Re-create if needed
@@ -68,10 +68,10 @@ All screens are now responsive:
   → Check exact email and password match
   → Try password reset
   → Clear browser cookies
-```
+\`\`\`
 
 ### Salary Slip Issues
-```
+\`\`\`
 ❌ View button doesn't work
   → Should open preview dialog (fixed now)
 
@@ -79,10 +79,10 @@ All screens are now responsive:
   → Should auto-download PDF (fixed now)
   → Check browser download settings
   → Try incognito mode
-```
+\`\`\`
 
 ### Mobile Issues
-```
+\`\`\`
 ❌ Layout looks broken on phone
   → Should now display properly
   → Try refreshing page
@@ -91,7 +91,7 @@ All screens are now responsive:
 ❌ Buttons hard to click
   → Should be larger now
   → Buttons are full-width on mobile
-```
+\`\`\`
 
 ---
 
@@ -114,18 +114,18 @@ Test your fixes on these screen sizes:
 4. These show what's happening behind the scenes
 
 ### Example Messages
-```
+\`\`\`
 [v0] Creating auth account for: employee@email.com
 [v0] Auth account created with user ID: 123-456
 [v0] Employee record created successfully
-```
+\`\`\`
 
 ### If You See Errors
-```
+\`\`\`
 [v0] Auth error: ...
 [v0] Employee creation error: ...
 [v0] Error in handleSubmit: ...
-```
+\`\`\`
 
 Take a screenshot and note the exact error message.
 

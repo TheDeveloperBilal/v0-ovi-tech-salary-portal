@@ -25,7 +25,7 @@
   - Dynamic imports to avoid SSR issues
 
 **Code Changes:**
-```typescript
+\`\`\`typescript
 // Before: html2pdf().set(opt).from(slipRef.current).save()
 
 // After: Proper async PDF generation with error handling
@@ -43,13 +43,13 @@ const imgData = canvas.toDataURL('image/png')
 const pdf = new jsPDF('p', 'mm', 'a4')
 // Add image to PDF with proper scaling
 pdf.save(fileName)
-```
+\`\`\`
 
 **Updated package.json:**
-```json
+\`\`\`json
 "html2canvas": "^1.4.1",
 "jspdf": "^2.5.1",
-```
+\`\`\`
 
 ---
 
@@ -74,17 +74,17 @@ pdf.save(fileName)
 - **Cascade delete safety** - salary_structures and salary_slips will auto-delete
 
 **Code Changes:**
-```typescript
+\`\`\`typescript
 // Added before delete:
 1. Verify user is authenticated
 2. Check if user has is_admin = true in profiles table
 3. Log admin status to console
 4. Attempt delete only if admin
 5. Capture and display detailed error messages
-```
+\`\`\`
 
 **Testing Checklist:**
-```
+\`\`\`
 1. Login as admin user
 2. Navigate to Employee Management
 3. Click Delete button on any employee
@@ -92,7 +92,7 @@ pdf.save(fileName)
 5. Check browser console for [v0] logs
 6. Expected: Success toast and employee removed from list
 7. If error: See detailed error message explaining why
-```
+\`\`\`
 
 ---
 
@@ -122,19 +122,19 @@ pdf.save(fileName)
 ## Browser Console Debugging
 
 If PDF download still fails, check browser console (F12) for:
-```
+\`\`\`
 [v0] Generating PDF for: EmployeeName
 [v0] PDF generated successfully
-```
+\`\`\`
 
 If delete fails, check console for:
-```
+\`\`\`
 [v0] Deleting employee with ID: xxx-xxx-xxx
 [v0] Current user: admin@example.com
 [v0] User is_admin: true
 [v0] Delete response - Status: 204 Error: null
 [v0] Employee deleted successfully
-```
+\`\`\`
 
 ---
 

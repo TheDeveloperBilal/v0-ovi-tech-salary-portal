@@ -59,13 +59,13 @@ The application now:
 ### Testing Your Fix
 
 To verify the password login works:
-```
+\`\`\`
 1. Employee email: the email you entered
 2. Employee password: the password shown in the success message
 3. Visit: /auth/login
 4. Enter credentials
 5. Should be redirected to /employee
-```
+\`\`\`
 
 ### If Password Still Doesn't Work
 

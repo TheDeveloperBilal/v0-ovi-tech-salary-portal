@@ -109,14 +109,14 @@ Multiple issues combined:
 
 All fixes include `console.log("[v0]")` statements for debugging:
 
-```
+\`\`\`
 [v0] Creating auth account for: email@example.com
 [v0] Auth account created with user ID: {uuid}
 [v0] Employee creation error: {error message}
 [v0] Deleting employee with ID: {uuid}
 [v0] Delete error: {error message}
 [v0] Generating PDF for: Employee Name
-```
+\`\`\`
 
 Check browser console (F12) for these logs when debugging.
 
