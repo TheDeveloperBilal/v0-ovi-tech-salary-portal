@@ -215,11 +215,13 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-full mx-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Salary Slip Preview</DialogTitle>
           </DialogHeader>
-          {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
+          <div className="flex-1 overflow-y-auto">
+            {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

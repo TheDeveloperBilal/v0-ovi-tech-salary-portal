@@ -2,10 +2,116 @@
 
 :root {
   color-scheme: light;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3%;
+  --primary: 262 80% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 89%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 262 80% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 89%;
+  --input: 0 0% 100%;
+  --ring: 262 80% 50%;
+  --radius: 0.5rem;
 }
 
 .dark {
   color-scheme: dark;
+  --background: 0 0% 9%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 98%;
+  --primary: 262 80% 65%;
+  --primary-foreground: 0 0% 9%;
+  --secondary: 0 0% 21%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 21%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 262 80% 65%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 9%;
+  --border: 0 0% 21%;
+  --input: 0 0% 12%;
+  --ring: 262 80% 65%;
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  button[data-slot="button"] {
+    background-color: hsl(var(--primary, 262 80% 50%));
+    color: hsl(var(--primary-foreground, 0 0% 100%));
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  [data-state="active"] {
+    background-color: hsl(var(--primary, 262 80% 50%)) !important;
+    color: hsl(var(--primary-foreground, 0 0% 100%)) !important;
+  }
+
+  .bg-primary {
+    background-color: hsl(var(--primary, 262 80% 50%)) !important;
+    color: hsl(var(--primary-foreground, 0 0% 100%)) !important;
+  }
+
+  .bg-accent {
+    background-color: hsl(var(--accent, 262 80% 50%)) !important;
+    color: hsl(var(--accent-foreground, 0 0% 100%)) !important;
+  }
+
+  .text-primary {
+    color: hsl(var(--primary, 262 80% 50%)) !important;
+  }
+
+  .text-accent {
+    color: hsl(var(--accent, 262 80% 50%)) !important;
+  }
+
+  .border-border {
+    border-color: hsl(var(--border, 0 0% 89%)) !important;
+  }
+
+  .bg-background {
+    background-color: hsl(var(--background)) !important;
+  }
+
+  .text-foreground {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .bg-card {
+    background-color: hsl(var(--card)) !important;
+  }
+
+  .text-card-foreground {
+    color: hsl(var(--card-foreground)) !important;
+  }
+}
+
+@layer components {
+  .dialog-overlay {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .dialog-content {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
 }
 
 @media print {

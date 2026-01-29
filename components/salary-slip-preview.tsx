@@ -118,8 +118,8 @@ export function SalarySlipPreview({ employee }: any) {
         </Button>
       </div>
 
-      <Card ref={slipRef} className="bg-white text-black">
-        <CardContent className="pt-8 space-y-6 p-8">
+      <div ref={slipRef} className="bg-white text-black rounded-lg border border-gray-300" style={{ backgroundColor: '#ffffff', color: '#000000' }}>
+        <div className="pt-8 space-y-6 p-8">
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-primary pb-4">
             <div className="flex items-center gap-3">
@@ -272,8 +272,8 @@ export function SalarySlipPreview({ employee }: any) {
             <p>For queries, please contact HR Department</p>
             <p className="mt-2 font-semibold">OviTech Global Pvt Ltd | Digital Marketing Services</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

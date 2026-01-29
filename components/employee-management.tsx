@@ -9,8 +9,29 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+
+// Generate a strong random password
+function generateSecurePassword() {
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  const lowercase = "abcdefghijklmnopqrstuvwxyz"
+  const numbers = "0123456789"
+  const special = "!@#$%^&*"
+  const all = uppercase + lowercase + numbers + special
+  
+  let password = ""
+  password += uppercase[Math.floor(Math.random() * uppercase.length)]
+  password += lowercase[Math.floor(Math.random() * lowercase.length)]
+  password += numbers[Math.floor(Math.random() * numbers.length)]
+  password += special[Math.floor(Math.random() * special.length)]
+  
+  for (let i = password.length; i < 12; i++) {
+    password += all[Math.floor(Math.random() * all.length)]
+  }
+  
+  return password.split('').sort(() => Math.random() - 0.5).join('')
+}
 
 export function EmployeeManagement() {
   const [employees, setEmployees] = useState<any[]>([])
@@ -171,8 +192,14 @@ export function EmployeeManagement() {
       }
       
       console.log("[v0] Employee deleted successfully")
+      
+      // Update local state immediately to reflect the change
+      setEmployees(employees.filter(emp => emp.id !== id))
+      
       toast({ title: "Success", description: "Employee deleted successfully" })
-      fetchEmployees()
+      
+      // Also refresh from server after a short delay to ensure consistency
+      setTimeout(() => fetchEmployees(), 500)
     } catch (error: any) {
       console.log("[v0] Error during delete:", error)
       toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
@@ -338,15 +365,31 @@ export function EmployeeManagement() {
               </div>
               <div className="col-span-2">
                 <Label htmlFor="password">Password {!editingId && "*"}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={editingId ? "Leave blank to keep current password" : "Enter initial password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required={!editingId}
-                />
-                <p className="text-xs text-gray-500 mt-1">Share this password with the employee for login</p>
+                <div className="flex gap-2">
+                  <Input
+                    id="password"
+                    type="text"
+                    placeholder={editingId ? "Leave blank to keep current password" : "Enter or generate password"}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required={!editingId}
+                  />
+                  {!editingId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newPassword = generateSecurePassword()
+                        setFormData({ ...formData, password: newPassword })
+                      }}
+                      className="flex-shrink-0"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
             <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
