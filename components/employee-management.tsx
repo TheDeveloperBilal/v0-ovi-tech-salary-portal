@@ -34,6 +34,8 @@ function generateSecurePassword() {
 }
 
 export function EmployeeManagement() {
+  console.log("[v0] EmployeeManagement component loaded - VERSION: 2.0 - Purple Theme + Full API Integration")
+  
   const [employees, setEmployees] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)

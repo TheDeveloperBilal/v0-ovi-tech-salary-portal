@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
 
 export function Header({ user }: { user: any }) {
+  console.log("[v0] Header loaded - VERSION: 2.0 - Purple Theme")
+  
   const router = useRouter()
   const supabase = createClient()
 
