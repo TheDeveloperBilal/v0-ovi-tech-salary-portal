@@ -224,12 +224,33 @@ export function EmployeeManagement() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Employee Management</h2>
-          <p className="text-muted-foreground">Add and manage employee records</p>
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
+            <p className="text-gray-600 mt-1">Add and manage employee records</p>
+          </div>
+          <Button onClick={() => {
+            setFormData({
+              employee_id: "",
+              first_name: "",
+              last_name: "",
+              email: "",
+              phone: "",
+              department: "",
+              designation: "",
+              date_of_joining: "",
+              password: "",
+            });
+            setEditingId(null);
+            setIsOpen(true);
+          }} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Employee
+          </Button>
         </div>
+      </div>
         <Button onClick={() => {
           setFormData({
             employee_id: "",
@@ -429,7 +450,7 @@ export function EmployeeManagement() {
                 <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white">
+            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
           </form>
@@ -483,7 +504,7 @@ export function EmployeeManagement() {
               />
             </div>
             <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
+              <Button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
                 Reset Password
               </Button>
               <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
