@@ -1,10 +1,10 @@
 /* OviTech Dashboard Styles */
 
 :root {
-  --primary-color: hsl(211, 100%, 43%);
-  --primary-dark: hsl(211, 100%, 35%);
-  --primary-light: hsl(211, 100%, 55%);
-  --accent-color: hsl(211, 100%, 43%);
+  --primary-color: hsl(270, 100%, 50%);
+  --primary-dark: hsl(270, 100%, 40%);
+  --primary-light: hsl(270, 100%, 60%);
+  --accent-color: hsl(270, 100%, 50%);
   --bg-light: #ffffff;
   --bg-dark: #0f172a;
   --text-dark: #000000;
@@ -17,7 +17,7 @@
 .dark {
   --bg-light: #0f172a;
   --text-dark: #f3f4f6;
-  --primary-color: hsl(211, 100%, 55%);
+  --primary-color: hsl(270, 100%, 60%);
 }
 
 /* Header Styling */
@@ -161,7 +161,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
 }
 
 /* Table Styling */

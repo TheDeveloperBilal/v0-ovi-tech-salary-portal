@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("[v0] Password reset API called for employee:", employeeId);
+
     const supabase = await createClient();
 
     // Get current user to verify they're an admin
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log("[v0] No authenticated user");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -36,6 +39,8 @@ export async function POST(request: NextRequest) {
       .select("is_admin")
       .eq("id", user.id)
       .single();
+
+    console.log("[v0] User is admin:", profile?.is_admin);
 
     if (!profile?.is_admin) {
       return NextResponse.json(
@@ -52,22 +57,31 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (empError || !employee) {
+      console.log("[v0] Employee not found:", empError);
       return NextResponse.json(
         { error: "Employee not found" },
         { status: 404 }
       );
     }
 
+    console.log("[v0] Found employee:", employee.email);
+
+    if (!employee.user_id) {
+      return NextResponse.json(
+        { error: "Employee has no associated auth user" },
+        { status: 400 }
+      );
+    }
+
     // Update the auth user's password using admin API
     try {
+      console.log("[v0] Updating password for user:", employee.user_id);
+
       await supabase.auth.admin.updateUserById(employee.user_id, {
         password: newPassword,
       });
 
-      console.log(
-        "[v0] Password reset successfully for employee:",
-        employee.email
-      );
+      console.log("[v0] Password reset successfully for employee:", employee.email);
 
       return NextResponse.json(
         {
@@ -91,3 +105,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

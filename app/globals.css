@@ -3,22 +3,22 @@
 :root {
   color-scheme: light;
   --background: 0 0% 100%;
-  --foreground: 0 0% 15%;
+  --foreground: 0 0% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 15%;
-  --primary: 211 100% 43%;
+  --card-foreground: 0 0% 20%;
+  --primary: 270 100% 50%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 15%;
+  --secondary-foreground: 0 0% 20%;
   --muted: 0 0% 89%;
   --muted-foreground: 0 0% 50%;
-  --accent: 211 100% 43%;
+  --accent: 270 100% 50%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 89%;
   --input: 0 0% 100%;
-  --ring: 211 100% 43%;
+  --ring: 270 100% 50%;
   --radius: 0.5rem;
 }
 
@@ -28,19 +28,19 @@
   --foreground: 0 0% 98%;
   --card: 0 0% 12%;
   --card-foreground: 0 0% 98%;
-  --primary: 211 100% 55%;
-  --primary-foreground: 0 0% 9%;
+  --primary: 270 100% 60%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 21%;
   --secondary-foreground: 0 0% 98%;
   --muted: 0 0% 21%;
   --muted-foreground: 0 0% 64%;
-  --accent: 211 100% 55%;
-  --accent-foreground: 0 0% 9%;
+  --accent: 270 100% 60%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 9%;
   --border: 0 0% 21%;
   --input: 0 0% 12%;
-  --ring: 211 100% 55%;
+  --ring: 270 100% 60%;
 }
 
 @layer base {
@@ -62,14 +62,14 @@
   button[type="button"]:hover:not(:disabled),
   button[type="submit"]:hover:not(:disabled),
   button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(211 100% 35%);
+    background-color: hsl(270 100% 40%);
   }
 
   .dark button:hover:not(:disabled),
   .dark button[type="button"]:hover:not(:disabled),
   .dark button[type="submit"]:hover:not(:disabled),
   .dark button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(211 100% 65%);
+    background-color: hsl(270 100% 70%);
   }
 
   button:disabled,

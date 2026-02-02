@@ -85,71 +85,27 @@ export function EmployeeManagement() {
         if (error) throw error
         toast({ title: "Success", description: "Employee updated successfully" })
       } else {
-        // Create new employee
+        // Create new employee via API
         if (!formData.password) {
           toast({ title: "Error", description: "Password is required for new employees", variant: "destructive" })
           return
         }
 
-        console.log("[v0] Creating auth account for:", formData.email)
+        console.log("[v0] Submitting new employee via API:", formData.email)
 
-        // Create auth account without email confirmation (auto-confirm)
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
-            data: {
-              full_name: `${formData.first_name} ${formData.last_name}`,
-            },
-          },
+        const response = await fetch("/api/employees/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
         })
 
-        if (authError) {
-          console.log("[v0] Auth error:", authError)
-          throw authError
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to add employee")
         }
 
-        if (!authData.user?.id) {
-          throw new Error("Failed to create auth user - no user ID returned")
-        }
-
-        console.log("[v0] Auth account created with user ID:", authData.user.id)
-        
-        // Verify email immediately for instant access
-        if (authData.user?.email && authData.user.id) {
-          try {
-            await supabase.auth.admin.updateUserById(authData.user.id, {
-              email_confirm: true,
-            })
-            console.log("[v0] Email confirmed for user:", authData.user.email)
-          } catch (confirmError) {
-            console.log("[v0] Email confirmation error (non-critical):", confirmError)
-            // Continue anyway - this is non-critical
-          }
-        }
-
-        // Wait for profile to be created by trigger
-        await new Promise(resolve => setTimeout(resolve, 1500))
-
-        // Then create employee record linked to auth user via profiles
-        const { password, ...dataWithoutPassword } = formData
-        const { data: empData, error: empError } = await supabase
-          .from("employees")
-          .insert([{
-            ...dataWithoutPassword,
-            user_id: authData.user.id,
-          }])
-          .select()
-
-        if (empError) {
-          console.log("[v0] Employee creation error:", empError)
-          // If insert failed, the profile was created but employee record failed
-          // This might be an RLS policy issue
-          throw new Error(`Failed to create employee record: ${empError.message}. Profile was created - try again.`)
-        }
-
-        console.log("[v0] Employee record created successfully:", empData)
+        console.log("[v0] Employee created via API:", data)
 
         toast({
           title: "Success",
@@ -183,41 +139,26 @@ export function EmployeeManagement() {
 
     try {
       console.log("[v0] Deleting employee with ID:", id)
-      
-      // First verify user is admin
-      const { data: userData } = await supabase.auth.getUser()
-      console.log("[v0] Current user:", userData.user?.email)
-      
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", userData.user?.id)
-        .single()
-      
-      console.log("[v0] User is_admin:", profile?.is_admin)
-      
-      if (!profile?.is_admin) {
-        throw new Error("You don't have permission to delete employees. Only admins can delete.")
+
+      const response = await fetch(`/api/employees/delete/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete employee")
       }
-      
-      // Now attempt delete
-      const { error, status } = await supabase.from("employees").delete().eq("id", id)
-      
-      console.log("[v0] Delete response - Status:", status, "Error:", error)
-      
-      if (error) {
-        console.log("[v0] Delete error details:", JSON.stringify(error))
-        throw new Error(error.message || "Failed to delete employee")
-      }
-      
-      console.log("[v0] Employee deleted successfully")
-      
-      // Update local state immediately to reflect the change
+
+      console.log("[v0] Employee deleted successfully:", data)
+
+      // Update local state immediately
       setEmployees(employees.filter(emp => emp.id !== id))
-      
+
       toast({ title: "Success", description: "Employee deleted successfully" })
-      
-      // Also refresh from server after a short delay to ensure consistency
+
+      // Refresh from server to ensure consistency
       setTimeout(() => fetchEmployees(), 500)
     } catch (error: any) {
       console.log("[v0] Error during delete:", error)
@@ -303,7 +244,7 @@ export function EmployeeManagement() {
           });
           setEditingId(null);
           setIsOpen(true);
-        }} className="bg-blue-600 hover:bg-blue-700">
+        }} className="bg-purple-600 hover:bg-purple-700">
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
         </Button>
@@ -488,7 +429,7 @@ export function EmployeeManagement() {
                 <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
           </form>
@@ -542,7 +483,7 @@ export function EmployeeManagement() {
               />
             </div>
             <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
+              <Button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700">
                 Reset Password
               </Button>
               <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
