@@ -16,7 +16,7 @@ export function Header({ user }: { user: any }) {
   }
 
   return (
-    <header className="bg-gradient-to-r from-purple-600 to-purple-700 text-white sticky top-0 z-50 border-b border-purple-800">
+    <header className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-50 border-b border-blue-800">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -37,7 +37,7 @@ export function Header({ user }: { user: any }) {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="text-white border-white hover:bg-purple-700 bg-transparent"
+              className="text-white border-white hover:bg-blue-700 bg-transparent"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout

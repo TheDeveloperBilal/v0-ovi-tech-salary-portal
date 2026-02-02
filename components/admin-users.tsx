@@ -109,7 +109,7 @@ export function AdminUsers() {
                     <div
                       className={`px-3 py-1 rounded-full text-sm font-medium ${
                         user.is_admin
-                          ? 'bg-purple-100 text-purple-800'
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}
                     >

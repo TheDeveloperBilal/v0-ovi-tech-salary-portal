@@ -183,7 +183,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="space-y-4">
       {isAdmin && (
-        <Button onClick={() => setIsCreateOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
+        <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
           <FileText className="w-4 h-4 mr-2" />
           Create Salary Slip
         </Button>
@@ -204,10 +204,10 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       ) : (
         <div className="grid gap-4">
           {slips.map((slip) => (
-            <Card key={slip.id} className="hover:border-purple-600/50 transition">
+                <Card key={slip.id} className="hover:border-blue-600/50 transition">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-purple-600" />
+                  <FileText className="w-5 h-5 text-blue-600" />
                   {slip.employees?.first_name} {slip.employees?.last_name}
                 </CardTitle>
                 <CardDescription>
@@ -230,7 +230,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Net Salary</p>
-                    <p className="font-semibold text-purple-600">
+                    <p className="font-semibold text-blue-600">
                       PKR {(slip.net_salary || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
@@ -465,7 +465,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
             </div>
 
             <div className="flex gap-2 pt-4 border-t">
-              <Button onClick={createSalarySlip} className="flex-1 bg-purple-600 hover:bg-purple-700">
+              <Button onClick={createSalarySlip} className="flex-1 bg-blue-600 hover:bg-blue-700">
                 Create Salary Slip
               </Button>
               <Button onClick={() => setIsCreateOpen(false)} variant="outline" className="flex-1">

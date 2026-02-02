@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus, RefreshCw } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 // Generate a strong random password
@@ -36,6 +36,12 @@ function generateSecurePassword() {
 export function EmployeeManagement() {
   const [employees, setEmployees] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
+  const [resetPasswordData, setResetPasswordData] = useState({
+    employeeId: "",
+    newPassword: "",
+    confirmPassword: "",
+  })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState({
@@ -225,6 +231,57 @@ export function EmployeeManagement() {
     setIsOpen(true)
   }
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordData.employeeId) {
+      toast({ title: "Error", description: "Please select an employee", variant: "destructive" })
+      return
+    }
+
+    if (!resetPasswordData.newPassword || resetPasswordData.newPassword.length < 8) {
+      toast({ title: "Error", description: "Password must be at least 8 characters long", variant: "destructive" })
+      return
+    }
+
+    if (resetPasswordData.newPassword !== resetPasswordData.confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" })
+      return
+    }
+
+    try {
+      console.log("[v0] Resetting password for employee:", resetPasswordData.employeeId)
+
+      const response = await fetch("/api/employees/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeId: resetPasswordData.employeeId,
+          newPassword: resetPasswordData.newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to reset password")
+      }
+
+      toast({
+        title: "Success",
+        description: `Password reset successfully for ${data.email}. Employee can now log in with the new password.`,
+      })
+
+      setResetPasswordData({
+        employeeId: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
+      setIsResetPasswordOpen(false)
+    } catch (error: any) {
+      console.log("[v0] Password reset error:", error)
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -232,7 +289,21 @@ export function EmployeeManagement() {
           <h2 className="text-2xl font-bold">Employee Management</h2>
           <p className="text-muted-foreground">Add and manage employee records</p>
         </div>
-        <Button onClick={() => setIsOpen(true)} className="bg-purple-600 hover:bg-purple-700">
+        <Button onClick={() => {
+          setFormData({
+            employee_id: "",
+            first_name: "",
+            last_name: "",
+            email: "",
+            phone: "",
+            department: "",
+            designation: "",
+            date_of_joining: "",
+            password: "",
+          });
+          setEditingId(null);
+          setIsOpen(true);
+        }} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
         </Button>
@@ -286,6 +357,18 @@ export function EmployeeManagement() {
                   <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1 w-full sm:w-auto">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setResetPasswordData({ ...resetPasswordData, employeeId: emp.id })
+                      setIsResetPasswordOpen(true)
+                    }}
+                    className="flex-1 w-full sm:w-auto"
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
+                    Reset Password
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDelete(emp.id)} className="flex-1 w-full sm:w-auto">
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -405,9 +488,67 @@ export function EmployeeManagement() {
                 <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
+        <DialogContent className="w-full mx-auto">
+          <DialogHeader>
+            <DialogTitle>Reset Employee Password</DialogTitle>
+            <DialogDescription>Enter a new password for the employee. They will be able to login with this new password.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); handleResetPassword(); }} className="space-y-4">
+            <div>
+              <Label htmlFor="reset_employee">Select Employee *</Label>
+              <select
+                id="reset_employee"
+                value={resetPasswordData.employeeId}
+                onChange={(e) => setResetPasswordData({ ...resetPasswordData, employeeId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                required
+              >
+                <option value="">Select Employee</option>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.first_name} {emp.last_name} ({emp.employee_id})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="new_password">New Password *</Label>
+              <Input
+                id="new_password"
+                type="password"
+                placeholder="Enter new password (min 8 characters)"
+                value={resetPasswordData.newPassword}
+                onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm_password">Confirm Password *</Label>
+              <Input
+                id="confirm_password"
+                type="password"
+                placeholder="Confirm new password"
+                value={resetPasswordData.confirmPassword}
+                onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
+                Reset Password
+              </Button>
+              <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
+                Cancel
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
