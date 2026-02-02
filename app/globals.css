@@ -3,44 +3,44 @@
 :root {
   color-scheme: light;
   --background: 0 0% 100%;
-  --foreground: 0 0% 20%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 20%;
-  --primary: 270 100% 50%;
+  --card-foreground: 222 47% 11%;
+  --primary: 222 47% 11%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 20%;
-  --muted: 0 0% 89%;
-  --muted-foreground: 0 0% 50%;
-  --accent: 270 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 89%;
-  --input: 0 0% 100%;
-  --ring: 270 100% 50%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 222 47% 11%;
   --radius: 0.5rem;
 }
 
 .dark {
   color-scheme: dark;
-  --background: 0 0% 9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 12%;
-  --card-foreground: 0 0% 98%;
-  --primary: 270 100% 60%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 21%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 21%;
-  --muted-foreground: 0 0% 64%;
-  --accent: 270 100% 60%;
-  --accent-foreground: 0 0% 100%;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 15%;
+  --card-foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 9%;
-  --border: 0 0% 21%;
-  --input: 0 0% 12%;
-  --ring: 270 100% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 210 40% 98%;
 }
 
 @layer base {
@@ -62,14 +62,14 @@
   button[type="button"]:hover:not(:disabled),
   button[type="submit"]:hover:not(:disabled),
   button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(270 100% 40%);
+    background-color: hsl(222 47% 20%);
   }
 
   .dark button:hover:not(:disabled),
   .dark button[type="button"]:hover:not(:disabled),
   .dark button[type="submit"]:hover:not(:disabled),
   .dark button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(270 100% 70%);
+    background-color: hsl(210 40% 85%);
   }
 
   button:disabled,

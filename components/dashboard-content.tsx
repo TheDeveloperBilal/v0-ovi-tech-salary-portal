@@ -42,27 +42,27 @@ export function DashboardContent({ user }: { user: any }) {
     <div className="space-y-6">
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-l-4 border-l-purple-600">
+        <Card className="border-l-4 border-l-slate-900">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-600" />
+              <Users className="w-4 h-4 text-slate-900" />
               Total Employees
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">{stats.totalEmployees}</p>
+            <p className="text-3xl font-bold text-slate-900">{stats.totalEmployees}</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-600">
+        <Card className="border-l-4 border-l-emerald-600">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4 text-purple-600" />
+              <FileText className="w-4 h-4 text-emerald-600" />
               Salary Slips Generated
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">{stats.totalSalarySlips}</p>
+            <p className="text-3xl font-bold text-emerald-600">{stats.totalSalarySlips}</p>
           </CardContent>
         </Card>
       </div>
@@ -70,20 +70,20 @@ export function DashboardContent({ user }: { user: any }) {
       {/* Main Tabs */}
       {isAdmin ? (
         <Tabs defaultValue="employees" className="space-y-4">
-          <TabsList className="bg-gray-100">
-            <TabsTrigger value="employees" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+          <TabsList className="bg-slate-100">
+            <TabsTrigger value="employees" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <Users className="w-4 h-4 mr-2" />
               Manage Employees
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="users" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <Users className="w-4 h-4 mr-2" />
               Manage Users
             </TabsTrigger>
-            <TabsTrigger value="slips" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="slips" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <FileText className="w-4 h-4 mr-2" />
               Salary Slips
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+            <TabsTrigger value="settings" className="data-[state=active]:bg-slate-900 data-[state=active]:text-white">
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </TabsTrigger>

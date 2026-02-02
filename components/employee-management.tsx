@@ -34,8 +34,6 @@ function generateSecurePassword() {
 }
 
 export function EmployeeManagement() {
-  console.log("[v0] EmployeeManagement component loaded - VERSION: 2.0 - Purple Theme + Full API Integration")
-  
   const [employees, setEmployees] = useState<any[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
@@ -246,7 +244,7 @@ export function EmployeeManagement() {
           });
           setEditingId(null);
           setIsOpen(true);
-        }} className="bg-purple-600 hover:bg-purple-700">
+        }} className="bg-slate-900 hover:bg-slate-800 text-white">
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
         </Button>
@@ -431,7 +429,7 @@ export function EmployeeManagement() {
                 <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
+            <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
           </form>
@@ -485,7 +483,7 @@ export function EmployeeManagement() {
               />
             </div>
             <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700">
+              <Button type="submit" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white">
                 Reset Password
               </Button>
               <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
