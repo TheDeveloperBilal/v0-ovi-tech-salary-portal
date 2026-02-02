@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
 
 export function Header({ user }: { user: any }) {
+  console.log("[v0] Header loaded - VERSION: 2.0 - Purple Theme")
+  
   const router = useRouter()
   const supabase = createClient()
 
@@ -16,7 +18,7 @@ export function Header({ user }: { user: any }) {
   }
 
   return (
-    <header className="bg-gradient-to-r from-purple-600 to-purple-700 text-white sticky top-0 z-50 border-b border-purple-800">
+    <header className="bg-gradient-to-r from-purple-600 to-purple-700 text-white sticky top-0 z-50 border-b border-purple-800 shadow-lg">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

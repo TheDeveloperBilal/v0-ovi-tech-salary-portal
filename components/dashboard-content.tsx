@@ -54,15 +54,15 @@ export function DashboardContent({ user }: { user: any }) {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-600">
+        <Card className="border-l-4 border-l-purple-600">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
+              <FileText className="w-4 h-4 text-purple-600" />
               Salary Slips Generated
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{stats.totalSalarySlips}</p>
+            <p className="text-3xl font-bold text-purple-600">{stats.totalSalarySlips}</p>
           </CardContent>
         </Card>
       </div>
@@ -70,7 +70,7 @@ export function DashboardContent({ user }: { user: any }) {
       {/* Main Tabs */}
       {isAdmin ? (
         <Tabs defaultValue="employees" className="space-y-4">
-          <TabsList className="bg-purple-100">
+          <TabsList className="bg-gray-100">
             <TabsTrigger value="employees" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
               <Users className="w-4 h-4 mr-2" />
               Manage Employees

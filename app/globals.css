@@ -3,22 +3,22 @@
 :root {
   color-scheme: light;
   --background: 0 0% 100%;
-  --foreground: 0 0% 3%;
+  --foreground: 0 0% 20%;
   --card: 0 0% 100%;
-  --card-foreground: 0 0% 3%;
-  --primary: 262 80% 50%;
+  --card-foreground: 0 0% 20%;
+  --primary: 270 100% 50%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 9%;
+  --secondary-foreground: 0 0% 20%;
   --muted: 0 0% 89%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 262 80% 50%;
+  --muted-foreground: 0 0% 50%;
+  --accent: 270 100% 50%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   --border: 0 0% 89%;
   --input: 0 0% 100%;
-  --ring: 262 80% 50%;
+  --ring: 270 100% 50%;
   --radius: 0.5rem;
 }
 
@@ -28,19 +28,19 @@
   --foreground: 0 0% 98%;
   --card: 0 0% 12%;
   --card-foreground: 0 0% 98%;
-  --primary: 262 80% 65%;
-  --primary-foreground: 0 0% 9%;
+  --primary: 270 100% 60%;
+  --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 21%;
   --secondary-foreground: 0 0% 98%;
   --muted: 0 0% 21%;
   --muted-foreground: 0 0% 64%;
-  --accent: 262 80% 65%;
-  --accent-foreground: 0 0% 9%;
+  --accent: 270 100% 60%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 9%;
   --border: 0 0% 21%;
   --input: 0 0% 12%;
-  --ring: 262 80% 65%;
+  --ring: 270 100% 60%;
 }
 
 @layer base {
@@ -54,30 +54,22 @@
   button[type="button"],
   button[type="submit"],
   button[data-slot="button"] {
-    background-color: hsl(262 80% 50%);
-    color: white;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
 
   button:hover:not(:disabled),
   button[type="button"]:hover:not(:disabled),
   button[type="submit"]:hover:not(:disabled),
   button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(262 72% 40%);
-  }
-
-  .dark button,
-  .dark button[type="button"],
-  .dark button[type="submit"],
-  .dark button[data-slot="button"] {
-    background-color: hsl(262 80% 65%);
-    color: #000;
+    background-color: hsl(270 100% 40%);
   }
 
   .dark button:hover:not(:disabled),
   .dark button[type="button"]:hover:not(:disabled),
   .dark button[type="submit"]:hover:not(:disabled),
   .dark button[data-slot="button"]:hover:not(:disabled) {
-    background-color: hsl(262 80% 55%);
+    background-color: hsl(270 100% 70%);
   }
 
   button:disabled,
@@ -89,49 +81,49 @@
   }
 
   [data-state="active"] {
-    background-color: hsl(262 80% 50%) !important;
-    color: white !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
   }
 
   .dark [data-state="active"] {
-    background-color: hsl(262 80% 65%) !important;
-    color: #000 !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
   }
 
   .bg-primary {
-    background-color: hsl(262 80% 50%) !important;
-    color: white !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
   }
 
   .dark .bg-primary {
-    background-color: hsl(262 80% 65%) !important;
-    color: #000 !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
   }
 
   .bg-accent {
-    background-color: hsl(262 80% 50%) !important;
-    color: white !important;
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
   }
 
   .dark .bg-accent {
-    background-color: hsl(262 80% 65%) !important;
-    color: #000 !important;
+    background-color: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
   }
 
   .text-primary {
-    color: hsl(262 80% 50%) !important;
+    color: hsl(var(--primary)) !important;
   }
 
   .dark .text-primary {
-    color: hsl(262 80% 65%) !important;
+    color: hsl(var(--primary)) !important;
   }
 
   .text-accent {
-    color: hsl(262 80% 50%) !important;
+    color: hsl(var(--accent)) !important;
   }
 
   .dark .text-accent {
-    color: hsl(262 80% 65%) !important;
+    color: hsl(var(--accent)) !important;
   }
 
   .border-border {
