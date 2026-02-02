@@ -186,12 +186,12 @@ The app now provides an excellent experience on:
 ## Rollback Instructions
 
 If you need to revert these changes:
-```bash
+\`\`\`bash
 git checkout HEAD -- components/employee-management.tsx
 git checkout HEAD -- components/employee-dashboard.tsx
 git checkout HEAD -- components/salary-slip-preview.tsx
 git checkout HEAD -- app/employee/page.tsx
-```
+\`\`\`
 
 ---
 

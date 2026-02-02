@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText, Download, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { SalarySlipPreview } from "@/components/salary-slip-preview"
 
 export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
   const [slips, setSlips] = useState<any[]>([])
@@ -273,11 +274,13 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-96 overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Salary Slip Preview</DialogTitle>
           </DialogHeader>
-          {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
+          <div className="flex-1 overflow-y-auto">
+            {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -472,123 +475,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function SalarySlipPreview({ slip }: { slip: any }) {
-  return (
-    <div className="p-6 bg-white rounded border border-gray-200">
-      <div className="text-center mb-6 border-b pb-4">
-        <h2 className="text-2xl font-bold text-purple-600">SALARY SLIP</h2>
-        <p className="text-sm text-gray-600">OviTech Global Pvt Ltd</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-6 text-sm">
-        <div>
-          <p className="text-gray-600">Employee Name:</p>
-          <p className="font-semibold">
-            {slip.employees?.first_name} {slip.employees?.last_name}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-600">Employee ID:</p>
-          <p className="font-semibold">{slip.employees?.employee_id}</p>
-        </div>
-        <div>
-          <p className="text-gray-600">Period:</p>
-          <p className="font-semibold">
-            {slip.month}/{slip.year}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-600">Days Present:</p>
-          <p className="font-semibold">
-            {slip.present_days || 26} / {slip.working_days || 26}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        <div className="border-t pt-4">
-          <h3 className="font-bold text-green-600 mb-3">Earnings</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span>Base Salary:</span>
-              <span>₹{slip.basic_salary?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}</span>
-            </div>
-            {slip.hra && (
-              <div className="flex justify-between">
-                <span>HRA:</span>
-                <span>₹{slip.hra.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.dearness_allowance && (
-              <div className="flex justify-between">
-                <span>Dearness Allowance:</span>
-                <span>₹{slip.dearness_allowance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.medical_allowance && (
-              <div className="flex justify-between">
-                <span>Medical Allowance:</span>
-                <span>₹{slip.medical_allowance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.transport_allowance && (
-              <div className="flex justify-between">
-                <span>Transport Allowance:</span>
-                <span>₹{slip.transport_allowance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-green-600 border-t pt-2">
-              <span>Total Earnings:</span>
-              <span>₹{slip.total_earnings?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t pt-4">
-          <h3 className="font-bold text-red-600 mb-3">Deductions</h3>
-          <div className="space-y-2 text-sm">
-            {slip.pf_deduction && (
-              <div className="flex justify-between">
-                <span>PF:</span>
-                <span>₹{slip.pf_deduction.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.esi_deduction && (
-              <div className="flex justify-between">
-                <span>ESI:</span>
-                <span>₹{slip.esi_deduction.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.professional_tax && (
-              <div className="flex justify-between">
-                <span>Professional Tax:</span>
-                <span>₹{slip.professional_tax.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            {slip.loan_deduction && (
-              <div className="flex justify-between">
-                <span>Loan Deduction:</span>
-                <span>₹{slip.loan_deduction.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-bold text-red-600 border-t pt-2">
-              <span>Total Deductions:</span>
-              <span>₹{slip.total_deductions?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-purple-50 p-4 rounded text-center">
-        <p className="text-gray-600 text-sm">Net Salary</p>
-        <p className="text-3xl font-bold text-purple-600">
-          ₹{slip.net_salary?.toLocaleString("en-IN", { maximumFractionDigits: 0 }) || "0"}
-        </p>
-      </div>
     </div>
   )
 }
