@@ -251,25 +251,6 @@ export function EmployeeManagement() {
           </Button>
         </div>
       </div>
-        <Button onClick={() => {
-          setFormData({
-            employee_id: "",
-            first_name: "",
-            last_name: "",
-            email: "",
-            phone: "",
-            department: "",
-            designation: "",
-            date_of_joining: "",
-            password: "",
-          });
-          setEditingId(null);
-          setIsOpen(true);
-        }} className="bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Employee
-        </Button>
-      </div>
 
       {isLoading ? (
         <Card>
