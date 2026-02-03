@@ -60,9 +60,9 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
@@ -71,7 +71,7 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white">
         {profile && <Header user={profile} />}
         <main className="container mx-auto py-8 px-4">
           {profile && <DashboardContent user={profile} />}
