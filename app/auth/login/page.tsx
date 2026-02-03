@@ -60,7 +60,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
@@ -68,16 +68,16 @@ export default function LoginPage() {
               <Image src="/images/image.png" alt="OviTech Logo" width={128} height={128} />
             </div>
           </div>
-          <Card className="border-0 shadow-lg">
+          <Card className="border border-gray-200 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-2xl text-center">OviTech Salary Portal</CardTitle>
-              <CardDescription className="text-center">Login to your account</CardDescription>
+              <CardTitle className="text-2xl text-center text-gray-900">OviTech Salary Portal</CardTitle>
+              <CardDescription className="text-center text-gray-600">Login to your account</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin}>
                 <div className="flex flex-col gap-6">
                   <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="text-gray-900">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -85,26 +85,28 @@ export default function LoginPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      className="border border-gray-300 text-gray-900 placeholder-gray-500"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password" className="text-gray-900">Password</Label>
                     <Input
                       id="password"
                       type="password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      className="border border-gray-300 text-gray-900 placeholder-gray-500"
                     />
                   </div>
-                  {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-                  <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700" disabled={isLoading}>
+                  {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                  <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Logging in..." : "Login"}
                   </Button>
                 </div>
-                <div className="mt-4 text-center text-sm">
+                <div className="mt-4 text-center text-sm text-gray-600">
                   Don&apos;t have an account?{" "}
-                  <Link href="/auth/sign-up" className="text-purple-600 underline underline-offset-4">
+                  <Link href="/auth/sign-up" className="text-gray-900 font-medium underline underline-offset-4">
                     Sign up
                   </Link>
                 </div>

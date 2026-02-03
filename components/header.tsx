@@ -20,7 +20,7 @@ export function Header({ user }: { user: any }) {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center shadow-sm">
               <Image src="/images/image.png" alt="OviTech Logo" width={32} height={32} className="h-8 w-auto" />
             </div>
             <div>
@@ -34,10 +34,9 @@ export function Header({ user }: { user: any }) {
               <p className="text-xs text-gray-500 capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
             </div>
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={handleLogout}
-              className="border-gray-300 hover:bg-gray-50 text-gray-700"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout

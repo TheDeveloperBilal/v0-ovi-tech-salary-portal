@@ -14,7 +14,7 @@ export default async function EmployeePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
           <div className="flex-1 min-w-0">
@@ -31,7 +31,7 @@ export default async function EmployeePage() {
           >
             <button
               type="submit"
-              className="w-full sm:w-auto px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-medium"
+              className="w-full sm:w-auto px-4 py-2 border border-gray-800 text-gray-800 hover:bg-gray-50 rounded-md text-sm font-medium"
             >
               Logout
             </button>

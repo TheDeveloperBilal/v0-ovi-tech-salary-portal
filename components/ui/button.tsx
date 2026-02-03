@@ -9,16 +9,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: '[background-color:hsl(262_80%_50%)] text-white hover:[background-color:hsl(262_72%_40%)] dark:[background-color:hsl(262_80%_65%)] dark:hover:[background-color:hsl(262_80%_55%)]',
+        default: 'border border-gray-800 text-gray-800 bg-white hover:bg-gray-50 dark:border-gray-800 dark:text-gray-800 dark:bg-white dark:hover:bg-gray-50',
         destructive:
-          '[background-color:hsl(0_84%_60%)] text-white hover:[background-color:hsl(0_84%_50%)] focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:[background-color:hsl(0_84%_50%)]',
+          'border border-red-600 text-red-600 bg-white hover:bg-red-50 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:border-red-600 dark:text-red-600 dark:bg-white dark:hover:bg-red-50',
         outline:
-          'border border-[hsl(var(--border))] bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
+          'border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 dark:border-gray-300 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-50',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+          'border border-gray-400 bg-white text-gray-800 hover:bg-gray-100 dark:border-gray-400 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100',
         ghost:
-          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: '[color:hsl(262_80%_50%)] underline-offset-4 hover:underline dark:[color:hsl(262_80%_65%)]',
+          'text-gray-800 hover:bg-gray-100 dark:text-gray-800 dark:hover:bg-gray-100',
+        link: 'text-gray-800 underline-offset-4 hover:underline dark:text-gray-800',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

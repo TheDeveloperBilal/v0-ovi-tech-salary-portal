@@ -42,27 +42,27 @@ export function DashboardContent({ user }: { user: any }) {
     <div className="space-y-6">
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-l-4 border-l-indigo-600 bg-white">
+        <Card className="border border-gray-200 bg-white">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <Users className="w-4 h-4 text-indigo-600" />
+            <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-800" />
               Total Employees
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-indigo-600">{stats.totalEmployees}</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.totalEmployees}</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-600 bg-white">
+        <Card className="border border-gray-200 bg-white">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-emerald-600" />
+            <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-800" />
               Salary Slips Generated
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-emerald-600">{stats.totalSalarySlips}</p>
+            <p className="text-3xl font-bold text-gray-900">{stats.totalSalarySlips}</p>
           </CardContent>
         </Card>
       </div>
@@ -71,19 +71,19 @@ export function DashboardContent({ user }: { user: any }) {
       {isAdmin ? (
         <Tabs defaultValue="employees" className="space-y-4">
           <TabsList className="bg-white border border-gray-200">
-            <TabsTrigger value="employees" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <TabsTrigger value="employees" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
               <Users className="w-4 h-4 mr-2" />
               Manage Employees
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <TabsTrigger value="users" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
               <Users className="w-4 h-4 mr-2" />
               Manage Users
             </TabsTrigger>
-            <TabsTrigger value="slips" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <TabsTrigger value="slips" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
               <FileText className="w-4 h-4 mr-2" />
               Salary Slips
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+            <TabsTrigger value="settings" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </TabsTrigger>
@@ -106,10 +106,10 @@ export function DashboardContent({ user }: { user: any }) {
           </TabsContent>
         </Tabs>
       ) : (
-        <Card>
+        <Card className="border border-gray-200 bg-white">
           <CardHeader>
-            <CardTitle>My Salary Slips</CardTitle>
-            <CardDescription>View and download your salary slips</CardDescription>
+            <CardTitle className="text-gray-900">My Salary Slips</CardTitle>
+            <CardDescription className="text-gray-600">View and download your salary slips</CardDescription>
           </CardHeader>
           <CardContent>
             <SalarySlipGenerator isAdmin={false} />

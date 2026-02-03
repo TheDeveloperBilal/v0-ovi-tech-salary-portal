@@ -85,7 +85,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-4"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mb-4"></div>
           <p className="text-gray-600">Loading your salary slips...</p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm border-t pt-2">
                         <span className="text-gray-600 font-semibold">Net Salary</span>
-                        <span className="font-bold text-purple-600">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="font-bold text-gray-900">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                     </div>
                     <div className="flex gap-2 pt-2 flex-col sm:flex-row">
