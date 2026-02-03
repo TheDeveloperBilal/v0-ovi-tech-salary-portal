@@ -265,7 +265,7 @@ export function EmployeeManagement() {
           });
           setEditingId(null);
           setIsOpen(true);
-        }} className="bg-slate-900 hover:bg-slate-800 text-white">
+        }} className="bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
           <Plus className="w-4 h-4 mr-2" />
           Add Employee
         </Button>
