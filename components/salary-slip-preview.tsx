@@ -52,8 +52,15 @@ export function SalarySlipPreview({ employee }: any) {
   const totalDeductions = Object.values(deductions).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
-  ) + (employee.leaves_deducted || 0)
-  const netSalary = base + totalAllowances - totalDeductions
+  )
+  
+  // Calculate leave deduction as monetary value (daily salary × leaves deducted)
+  const leavesDeductedAmount = base > 0 && employee.leaves_deducted > 0 
+    ? (base / 26) * employee.leaves_deducted 
+    : 0
+  
+  const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
+  const netSalary = base + totalAllowances - totalDeductionsWithLeaves
   const currentDate = new Date()
   const monthNum = employee.month || currentDate.getMonth() + 1
   const yearNum = employee.year || currentDate.getFullYear()
@@ -271,16 +278,16 @@ export function SalarySlipPreview({ employee }: any) {
                   })}
                   {employee.leaves_deducted && employee.leaves_deducted > 0 && (
                     <tr className="border-b border-gray-300">
-                      <td className="p-2 capitalize">Leaves Deducted</td>
+                      <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
                       <td className="p-2 text-right font-semibold">
-                        {employee.leaves_deducted} days
+                        PKR {leavesDeductedAmount.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                       </td>
                     </tr>
                   )}
                   <tr className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
-                      PKR {totalDeductions.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {totalDeductionsWithLeaves.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 </tbody>
