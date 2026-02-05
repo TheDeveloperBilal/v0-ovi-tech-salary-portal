@@ -93,9 +93,19 @@ export function EmployeeManagement() {
 
         console.log("[v0] Submitting new employee via API:", formData.email)
 
+        // Get the current session to send auth token
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
         const response = await fetch("/api/employees/add", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`
+          },
           body: JSON.stringify(formData),
         })
 

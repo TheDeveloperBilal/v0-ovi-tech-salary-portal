@@ -20,10 +20,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Get current user to verify they're an admin
-    const { data: { user } } = await supabase.auth.getUser();
+    // With service role key, we can access auth admin functions directly
+    // Get the current session from the Authorization header
+    const authHeader = request.headers.get('authorization');
+    let currentUser = null;
 
-    if (!user) {
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        // Verify the token using the service role
+        const { data: { user } } = await supabase.auth.getUser(authHeader.substring(7));
+        currentUser = user;
+      } catch (err) {
+        console.log("[v0] Token verification failed:", err);
+      }
+    }
+
+    if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", user.id)
+      .eq("id", currentUser.id)
       .single();
 
     if (!profile?.is_admin) {
