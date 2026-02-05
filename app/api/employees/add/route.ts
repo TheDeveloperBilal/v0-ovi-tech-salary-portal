@@ -53,46 +53,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create auth account using admin.createUser (service role method)
-    console.log("[v0] Creating auth user for:", email);
+    // Check if user already exists with this email
+    console.log("[v0] Checking if user exists with email:", email);
 
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirm email for instant access
-      user_metadata: {
-        full_name: `${first_name} ${last_name}`,
-      },
-    });
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
 
-    if (authError) {
-      console.log("[v0] Auth creation error:", authError);
-      return NextResponse.json(
-        { error: `Failed to create auth account: ${authError.message}` },
-        { status: 400 }
-      );
+    let userId: string;
+
+    if (existingUser) {
+      console.log("[v0] User already exists:", existingUser.id);
+      userId = existingUser.id;
+    } else {
+      // Create auth account using admin.createUser (service role method)
+      console.log("[v0] Creating new auth user for:", email);
+
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email for instant access
+        user_metadata: {
+          full_name: `${first_name} ${last_name}`,
+        },
+      });
+
+      if (authError) {
+        console.log("[v0] Auth creation error:", authError);
+        return NextResponse.json(
+          { error: `Failed to create auth account: ${authError.message}` },
+          { status: 400 }
+        );
+      }
+
+      if (!authData.user?.id) {
+        return NextResponse.json(
+          { error: "Failed to create auth user" },
+          { status: 400 }
+        );
+      }
+
+      console.log("[v0] Auth user created:", authData.user.id);
+      userId = authData.user.id;
+
+      // Wait a moment for profile trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
-
-    if (!authData.user?.id) {
-      return NextResponse.json(
-        { error: "Failed to create auth user" },
-        { status: 400 }
-      );
-    }
-
-    console.log("[v0] Auth user created:", authData.user.id);
-
-    // Wait a moment for profile trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Create employee record with service role (bypass RLS for admin operations)
-    console.log("[v0] Creating employee record");
+    console.log("[v0] Creating employee record for user:", userId);
 
     const { data: empData, error: empError } = await supabase
       .from("employees")
       .insert([
         {
-          user_id: authData.user.id,
+          user_id: userId,
           employee_id,
           first_name,
           last_name,
