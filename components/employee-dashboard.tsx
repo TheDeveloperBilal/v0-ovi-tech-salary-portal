@@ -174,7 +174,15 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               }
               
               const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
-              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted || 0)
+              
+              // Calculate leave deduction only if all 14 annual leaves have been used
+              const baseSalary = slip.base_salary || slip.basic_salary || 0
+              const totalLeavesUsed = (employeeData?.leaves_taken || 0) + (slip.leaves_deducted || 0)
+              const leavesDeductionAmount = baseSalary > 0 && totalLeavesUsed >= 14 && slip.leaves_deducted > 0
+                ? (baseSalary / 26) * slip.leaves_deducted
+                : 0
+              
+              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + leavesDeductionAmount
               
               return (
                 <Card key={slip.id} className="hover:shadow-lg transition-shadow">
