@@ -18,8 +18,32 @@ export function SalarySlipPreview({ employee }: any) {
   const employeeId = employee.employee_id || employee.employeeId || "N/A"
   
   const base = Number.parseFloat(employee.basic_salary) || Number.parseFloat(employee.baseSalary) || 0
-  const allowances = employee.allowances || {}
-  const deductions = employee.deductions || {}
+  
+  // Support both JSON object format and individual columns format
+  let allowances = employee.allowances || {}
+  let deductions = employee.deductions || {}
+  
+  // If allowances is empty but individual fields exist, reconstruct the object
+  if (Object.keys(allowances).length === 0 && employee.hra !== undefined) {
+    allowances = {
+      hra: employee.hra || 0,
+      dearness_allowance: employee.dearness_allowance || 0,
+      medical_allowance: employee.medical_allowance || 0,
+      transport_allowance: employee.transport_allowance || 0,
+      other_allowance: employee.other_allowance || 0,
+    }
+  }
+  
+  // If deductions is empty but individual fields exist, reconstruct the object
+  if (Object.keys(deductions).length === 0 && employee.pf_deduction !== undefined) {
+    deductions = {
+      pf_deduction: employee.pf_deduction || 0,
+      esi_deduction: employee.esi_deduction || 0,
+      professional_tax: employee.professional_tax || 0,
+      loan_deduction: employee.loan_deduction || 0,
+      other_deduction: employee.other_deduction || 0,
+    }
+  }
   
   const totalAllowances = Object.values(allowances).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
@@ -29,7 +53,16 @@ export function SalarySlipPreview({ employee }: any) {
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
   )
-  const netSalary = base + totalAllowances - totalDeductions
+  
+  // Calculate leave deduction as monetary value (daily salary × leaves deducted)
+  // Only deduct leave money if all 14 annual leaves have been used
+  const totalLeavesUsed = (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
+  const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0 
+    ? (base / 26) * employee.leaves_deducted 
+    : 0
+  
+  const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
+  const netSalary = base + totalAllowances - totalDeductionsWithLeaves
   const currentDate = new Date()
   const monthNum = employee.month || currentDate.getMonth() + 1
   const yearNum = employee.year || currentDate.getFullYear()
@@ -245,10 +278,18 @@ export function SalarySlipPreview({ employee }: any) {
                       </tr>
                     ) : null
                   })}
+                  {employee.leaves_deducted && employee.leaves_deducted > 0 && (
+                    <tr className="border-b border-gray-300">
+                      <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
+                      <td className="p-2 text-right font-semibold">
+                        PKR {leavesDeductedAmount.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  )}
                   <tr className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
-                      PKR {totalDeductions.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {totalDeductionsWithLeaves.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 </tbody>

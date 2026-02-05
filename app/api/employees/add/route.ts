@@ -100,13 +100,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create employee record with service role (bypass RLS for admin operations)
-    console.log("[v0] Creating employee record for user:", userId);
+    console.log("[v0] Creating employee record");
 
     const { data: empData, error: empError } = await supabase
       .from("employees")
       .insert([
         {
-          user_id: userId,
           employee_id,
           first_name,
           last_name,

@@ -26,18 +26,25 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     try {
       setIsLoading(true)
       
-      // Get employee record linked to this user
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user?.email) {
+        throw new Error("User not authenticated")
+      }
+
+      // Get employee record linked to this user's email
       const { data: employee, error: empError } = await supabase
         .from('employees')
         .select('*')
-        .eq('email', (await supabase.auth.getUser()).data.user?.email)
+        .eq('email', user.email)
         .single()
 
       if (empError) throw empError
 
       setEmployeeData(employee)
 
-      // Fetch salary slips for this employee
+      // Fetch salary slips ONLY for this employee
       const { data: slips, error: slipsError } = await supabase
         .from('salary_slips')
         .select('*')
@@ -61,6 +68,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       basic_salary: slip.basic_salary,
       allowances: slip.allowances || {},
       deductions: slip.deductions || {},
+      leaves_deducted: slip.leaves_deducted || 0,
       net_salary: slip.net_salary,
       month: slip.month,
       year: slip.year,
@@ -71,6 +79,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       designation: employeeData?.designation,
       position: employeeData?.designation,
       joinDate: employeeData?.date_of_joining,
+      leaves_taken: employeeData?.leaves_taken || 0,
     })
     setIsPreviewOpen(true)
   }
@@ -117,6 +126,11 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               <p className="text-xs sm:text-sm text-gray-600">Designation</p>
               <p className="font-semibold text-sm sm:text-base">{employeeData?.designation || 'N/A'}</p>
             </div>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm text-gray-600">Remaining Leaves</p>
+              <p className="font-bold text-lg sm:text-xl text-blue-600">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
+              <p className="text-xs text-gray-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -133,8 +147,42 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {salarySlips.map((slip) => {
-              const earnings = slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
-              const deductions = Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
+              // Support both JSON object format and individual columns format
+              let allowances = slip.allowances || {}
+              let deductions = slip.deductions || {}
+              
+              // If allowances is empty but individual fields exist, reconstruct the object
+              if (Object.keys(allowances).length === 0 && slip.hra !== undefined) {
+                allowances = {
+                  hra: slip.hra || 0,
+                  dearness_allowance: slip.dearness_allowance || 0,
+                  medical_allowance: slip.medical_allowance || 0,
+                  transport_allowance: slip.transport_allowance || 0,
+                  other_allowance: slip.other_allowance || 0,
+                }
+              }
+              
+              // If deductions is empty but individual fields exist, reconstruct the object
+              if (Object.keys(deductions).length === 0 && slip.pf_deduction !== undefined) {
+                deductions = {
+                  pf_deduction: slip.pf_deduction || 0,
+                  esi_deduction: slip.esi_deduction || 0,
+                  professional_tax: slip.professional_tax || 0,
+                  loan_deduction: slip.loan_deduction || 0,
+                  other_deduction: slip.other_deduction || 0,
+                }
+              }
+              
+              const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
+              
+              // Calculate leave deduction only if all 14 annual leaves have been used
+              const baseSalary = slip.base_salary || slip.basic_salary || 0
+              const totalLeavesUsed = (employeeData?.leaves_taken || 0) + (slip.leaves_deducted || 0)
+              const leavesDeductionAmount = baseSalary > 0 && totalLeavesUsed >= 14 && slip.leaves_deducted > 0
+                ? (baseSalary / 26) * slip.leaves_deducted
+                : 0
+              
+              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + leavesDeductionAmount
               
               return (
                 <Card key={slip.id} className="hover:shadow-lg transition-shadow">
@@ -151,7 +199,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600">Deductions</span>
-                        <span className="font-semibold text-red-600">PKR {deductions.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="font-semibold text-red-600">PKR {deductionsTotal.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm border-t pt-2">
                         <span className="text-gray-600 font-semibold">Net Salary</span>
@@ -171,9 +219,20 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       <Button 
                         onClick={() => {
                           const slipData = {
-                            basic_salary: slip.basic_salary,
-                            allowances: slip.allowances || {},
-                            deductions: slip.deductions || {},
+                            basic_salary: slip.base_salary || slip.basic_salary,
+                            hra: slip.hra,
+                            dearness_allowance: slip.dearness_allowance,
+                            medical_allowance: slip.medical_allowance,
+                            transport_allowance: slip.transport_allowance,
+                            other_allowance: slip.other_allowance,
+                            allowances: allowances,
+                            pf_deduction: slip.pf_deduction,
+                            esi_deduction: slip.esi_deduction,
+                            professional_tax: slip.professional_tax,
+                            loan_deduction: slip.loan_deduction,
+                            other_deduction: slip.other_deduction,
+                            deductions: deductions,
+                            leaves_deducted: slip.leaves_deducted || 0,
                             net_salary: slip.net_salary,
                             month: slip.month,
                             year: slip.year,
@@ -184,6 +243,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                             designation: employeeData?.designation,
                             position: employeeData?.designation,
                             joinDate: employeeData?.date_of_joining,
+                            leaves_taken: employeeData?.leaves_taken || 0,
                             employeeName: `${employeeData?.first_name} ${employeeData?.last_name}`,
                             employeeId: employeeData?.employee_id,
                           }

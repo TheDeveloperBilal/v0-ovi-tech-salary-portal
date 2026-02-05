@@ -150,9 +150,19 @@ export function EmployeeManagement() {
     try {
       console.log("[v0] Deleting employee with ID:", id)
 
+      // Get the current session to send auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Not authenticated. Please log in.");
+      }
+
       const response = await fetch(`/api/employees/delete/${id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
       })
 
       const data = await response.json()
@@ -201,9 +211,19 @@ export function EmployeeManagement() {
     try {
       console.log("[v0] Resetting password for employee:", resetPasswordData.employeeId)
 
+      // Get the current session to send auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Not authenticated. Please log in.");
+      }
+
       const response = await fetch("/api/employees/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           employeeId: resetPasswordData.employeeId,
           newPassword: resetPasswordData.newPassword,

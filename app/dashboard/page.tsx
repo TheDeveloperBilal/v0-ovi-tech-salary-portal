@@ -36,16 +36,34 @@ export default function DashboardPage() {
 
         if (error) {
           console.log("[v0] Profile fetch error:", error.message)
-          // Create default profile if not found
+          // Try to get employee data instead
+          const { data: empData } = await supabase
+            .from("employees")
+            .select("first_name, last_name, email")
+            .eq("email", session.user.email)
+            .single()
+
           const defaultProfile = {
             id: session.user.id,
             email: session.user.email,
             is_admin: false,
-            full_name: session.user.email?.split("@")[0] || "User",
+            full_name: empData ? `${empData.first_name} ${empData.last_name}` : (session.user.email?.split("@")[0] || "User"),
           }
           setProfile(defaultProfile)
         } else {
           console.log("[v0] Profile loaded:", data)
+          // If profile exists but no full_name, fetch from employee table
+          if (!data.full_name || data.full_name === "") {
+            const { data: empData } = await supabase
+              .from("employees")
+              .select("first_name, last_name")
+              .eq("email", session.user.email)
+              .single()
+
+            if (empData) {
+              data.full_name = `${empData.first_name} ${empData.last_name}`
+            }
+          }
           setProfile(data)
         }
       } catch (error) {
