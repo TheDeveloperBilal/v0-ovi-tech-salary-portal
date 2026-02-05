@@ -18,8 +18,32 @@ export function SalarySlipPreview({ employee }: any) {
   const employeeId = employee.employee_id || employee.employeeId || "N/A"
   
   const base = Number.parseFloat(employee.basic_salary) || Number.parseFloat(employee.baseSalary) || 0
-  const allowances = employee.allowances || {}
-  const deductions = employee.deductions || {}
+  
+  // Support both JSON object format and individual columns format
+  let allowances = employee.allowances || {}
+  let deductions = employee.deductions || {}
+  
+  // If allowances is empty but individual fields exist, reconstruct the object
+  if (Object.keys(allowances).length === 0 && employee.hra !== undefined) {
+    allowances = {
+      hra: employee.hra || 0,
+      dearness_allowance: employee.dearness_allowance || 0,
+      medical_allowance: employee.medical_allowance || 0,
+      transport_allowance: employee.transport_allowance || 0,
+      other_allowance: employee.other_allowance || 0,
+    }
+  }
+  
+  // If deductions is empty but individual fields exist, reconstruct the object
+  if (Object.keys(deductions).length === 0 && employee.pf_deduction !== undefined) {
+    deductions = {
+      pf_deduction: employee.pf_deduction || 0,
+      esi_deduction: employee.esi_deduction || 0,
+      professional_tax: employee.professional_tax || 0,
+      loan_deduction: employee.loan_deduction || 0,
+      other_deduction: employee.other_deduction || 0,
+    }
+  }
   
   const totalAllowances = Object.values(allowances).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
@@ -28,7 +52,7 @@ export function SalarySlipPreview({ employee }: any) {
   const totalDeductions = Object.values(deductions).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
-  )
+  ) + (employee.leaves_deducted || 0)
   const netSalary = base + totalAllowances - totalDeductions
   const currentDate = new Date()
   const monthNum = employee.month || currentDate.getMonth() + 1

@@ -68,6 +68,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       basic_salary: slip.basic_salary,
       allowances: slip.allowances || {},
       deductions: slip.deductions || {},
+      leaves_deducted: slip.leaves_deducted || 0,
       net_salary: slip.net_salary,
       month: slip.month,
       year: slip.year,
@@ -78,6 +79,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       designation: employeeData?.designation,
       position: employeeData?.designation,
       joinDate: employeeData?.date_of_joining,
+      leaves_taken: employeeData?.leaves_taken || 0,
     })
     setIsPreviewOpen(true)
   }
@@ -186,6 +188,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                             basic_salary: slip.basic_salary,
                             allowances: slip.allowances || {},
                             deductions: slip.deductions || {},
+                            leaves_deducted: slip.leaves_deducted || 0,
                             net_salary: slip.net_salary,
                             month: slip.month,
                             year: slip.year,
@@ -196,6 +199,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                             designation: employeeData?.designation,
                             position: employeeData?.designation,
                             joinDate: employeeData?.date_of_joining,
+                            leaves_taken: employeeData?.leaves_taken || 0,
                             employeeName: `${employeeData?.first_name} ${employeeData?.last_name}`,
                             employeeId: employeeData?.employee_id,
                           }

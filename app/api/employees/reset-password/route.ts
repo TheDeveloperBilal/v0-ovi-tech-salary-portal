@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Get employee info 
     const { data: employee, error: empError } = await supabase
       .from("employees")
-      .select("email")
+      .select("email, first_name, last_name")
       .eq("id", employeeId)
       .single();
 
