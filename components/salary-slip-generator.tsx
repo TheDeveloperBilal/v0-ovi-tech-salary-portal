@@ -127,8 +127,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         formData.esi_deduction +
         formData.professional_tax +
         formData.loan_deduction +
-        formData.other_deduction +
-        formData.leaves_deducted
+        formData.other_deduction
 
       const netSalary = totalEarnings - totalDeductions
 
@@ -137,19 +136,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           employee_id: formData.employee_id,
           month: formData.month,
           year: formData.year,
-          base_salary: formData.basic_salary,
-          hra: formData.hra,
-          dearness_allowance: formData.dearness_allowance,
-          medical_allowance: formData.medical_allowance,
-          transport_allowance: formData.transport_allowance,
-          other_allowance: formData.other_allowance,
-          total_earnings: totalEarnings,
-          pf_deduction: formData.pf_deduction,
-          esi_deduction: formData.esi_deduction,
-          professional_tax: formData.professional_tax,
-          loan_deduction: formData.loan_deduction,
-          other_deduction: formData.other_deduction,
-          total_deductions: totalDeductions,
+          basic_salary: formData.basic_salary,
+          allowances: allowances,
+          deductions: deductions,
           leaves_deducted: formData.leaves_deducted,
           net_salary: netSalary,
         },
@@ -205,8 +194,36 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
   }
 
   const downloadPDF = async (slip: any) => {
-    // Placeholder for PDF generation
-    toast({ title: "Info", description: "PDF download feature coming soon" })
+    try {
+      setSelectedSlip({
+        basic_salary: slip.basic_salary,
+        allowances: slip.allowances || {},
+        deductions: slip.deductions || {},
+        leaves_deducted: slip.leaves_deducted || 0,
+        net_salary: slip.net_salary,
+        month: slip.month,
+        year: slip.year,
+        employee_name: `${slip.employees?.first_name} ${slip.employees?.last_name}`,
+        employee_id: slip.employees?.employee_id,
+        email: slip.employees?.email,
+        department: slip.employees?.department,
+        designation: slip.employees?.designation,
+        position: slip.employees?.designation,
+        joinDate: slip.employees?.date_of_joining,
+        leaves_taken: slip.employees?.leaves_taken || 0,
+      })
+      setIsPreviewOpen(true)
+      // Trigger PDF download after dialog opens
+      setTimeout(() => {
+        const downloadBtn = document.querySelector('[data-pdf-download]') as HTMLButtonElement
+        if (downloadBtn) {
+          downloadBtn.click()
+        }
+      }, 300)
+    } catch (error) {
+      console.log("[v0] Error preparing PDF:", error)
+      toast({ title: "Error", description: "Failed to prepare salary slip for download", variant: "destructive" })
+    }
   }
 
   const handleDeleteSlip = async (slipId: string) => {
@@ -355,7 +372,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
+        <DialogContent className="max-w-7xl w-[95vw] mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Salary Slip Preview</DialogTitle>
           </DialogHeader>
