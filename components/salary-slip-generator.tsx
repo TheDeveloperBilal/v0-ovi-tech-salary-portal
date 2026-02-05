@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { FileText, Download, Eye } from "lucide-react"
+import { FileText, Download, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SalarySlipPreview } from "@/components/salary-slip-preview"
 
@@ -180,6 +180,45 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     toast({ title: "Info", description: "PDF download feature coming soon" })
   }
 
+  const handleDeleteSlip = async (slipId: string) => {
+    if (!confirm("Are you sure you want to delete this salary slip? This action cannot be undone.")) return
+
+    try {
+      console.log("[v0] Deleting salary slip:", slipId)
+
+      // Get the current session to send auth token
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        throw new Error("Not authenticated. Please log in.")
+      }
+
+      const response = await fetch(`/api/salary-slips/delete/${slipId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete salary slip")
+      }
+
+      console.log("[v0] Salary slip deleted successfully")
+
+      // Remove from local state
+      setSlips(slips.filter(slip => slip.id !== slipId))
+
+      toast({ title: "Success", description: "Salary slip deleted successfully" })
+    } catch (error: any) {
+      console.log("[v0] Error deleting salary slip:", error)
+      toast({ title: "Error", description: error.message || "Failed to delete salary slip", variant: "destructive" })
+    }
+  }
+
   return (
     <div className="space-y-4">
       {isAdmin && (
@@ -266,6 +305,17 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     <Download className="w-4 h-4 mr-2" />
                     PDF
                   </Button>
+                  {isAdmin && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDeleteSlip(slip.id)}
+                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
