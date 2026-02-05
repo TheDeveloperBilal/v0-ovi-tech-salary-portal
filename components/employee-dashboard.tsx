@@ -26,18 +26,25 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     try {
       setIsLoading(true)
       
-      // Get employee record linked to this user
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user?.email) {
+        throw new Error("User not authenticated")
+      }
+
+      // Get employee record linked to this user's email
       const { data: employee, error: empError } = await supabase
         .from('employees')
         .select('*')
-        .eq('email', (await supabase.auth.getUser()).data.user?.email)
+        .eq('email', user.email)
         .single()
 
       if (empError) throw empError
 
       setEmployeeData(employee)
 
-      // Fetch salary slips for this employee
+      // Fetch salary slips ONLY for this employee
       const { data: slips, error: slipsError } = await supabase
         .from('salary_slips')
         .select('*')

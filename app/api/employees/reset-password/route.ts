@@ -23,12 +23,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Get current user to verify they're an admin
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // Extract auth token from Authorization header for proper session context
+    const authHeader = request.headers.get('authorization');
+    let currentUser = null;
 
-    if (!user) {
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        // Verify the token using the service role
+        const token = authHeader.substring(7);
+        const { data: { user } } = await supabase.auth.getUser(token);
+        currentUser = user;
+      } catch (err) {
+        console.log("[v0] Token verification failed:", err);
+      }
+    }
+
+    if (!currentUser) {
       console.log("[v0] No authenticated user");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -37,7 +47,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", user.id)
+      .eq("id", currentUser.id)
       .single();
 
     console.log("[v0] User is admin:", profile?.is_admin);
@@ -49,10 +59,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get employee to find their auth user ID
+    // Get employee info 
     const { data: employee, error: empError } = await supabase
       .from("employees")
-      .select("user_id, email")
+      .select("email")
       .eq("id", employeeId)
       .single();
 
@@ -66,18 +76,22 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Found employee:", employee.email);
 
-    if (!employee.user_id) {
-      return NextResponse.json(
-        { error: "Employee has no associated auth user" },
-        { status: 400 }
-      );
-    }
-
     // Update the auth user's password using admin API
     try {
-      console.log("[v0] Updating password for user:", employee.user_id);
+      console.log("[v0] Updating password for employee with email:", employee.email);
 
-      await supabase.auth.admin.updateUserById(employee.user_id, {
+      // Get the user by email from auth
+      const { data: authUsers } = await supabase.auth.admin.listUsers();
+      const authUser = authUsers?.users?.find(u => u.email === employee.email);
+
+      if (!authUser) {
+        return NextResponse.json(
+          { error: "Employee has no associated auth user" },
+          { status: 400 }
+        );
+      }
+
+      await supabase.auth.admin.updateUserById(authUser.id, {
         password: newPassword,
       });
 

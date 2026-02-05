@@ -19,10 +19,22 @@ export async function DELETE(
 
     const supabase = await createClient();
 
-    // Get current user to verify they're an admin
-    const { data: { user } } = await supabase.auth.getUser();
+    // Extract auth token from Authorization header for proper session context
+    const authHeader = request.headers.get('authorization');
+    let currentUser = null;
 
-    if (!user) {
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        // Verify the token using the service role
+        const token = authHeader.substring(7);
+        const { data: { user } } = await supabase.auth.getUser(token);
+        currentUser = user;
+      } catch (err) {
+        console.log("[v0] Token verification failed:", err);
+      }
+    }
+
+    if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -30,7 +42,7 @@ export async function DELETE(
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", user.id)
+      .eq("id", currentUser.id)
       .single();
 
     if (!profile?.is_admin) {
@@ -40,10 +52,10 @@ export async function DELETE(
       );
     }
 
-    // Get employee to find their user ID for deletion
+    // Get employee info before deletion
     const { data: employee, error: fetchError } = await supabase
       .from("employees")
-      .select("user_id, email")
+      .select("email")
       .eq("id", employeeId)
       .single();
 
@@ -57,7 +69,7 @@ export async function DELETE(
 
     console.log("[v0] Found employee:", employee.email);
 
-    // Delete the employee record first
+    // Delete the employee record
     const { error: deleteError } = await supabase
       .from("employees")
       .delete()
@@ -71,18 +83,7 @@ export async function DELETE(
       );
     }
 
-    console.log("[v0] Employee record deleted");
-
-    // Optionally delete the auth user as well
-    if (employee.user_id) {
-      try {
-        await supabase.auth.admin.deleteUser(employee.user_id);
-        console.log("[v0] Auth user deleted");
-      } catch (authError) {
-        console.log("[v0] Warning: Could not delete auth user (non-critical):", authError);
-        // Don't fail the operation if auth deletion fails
-      }
-    }
+    console.log("[v0] Employee record deleted successfully");
 
     return NextResponse.json(
       {
