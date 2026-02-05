@@ -8,6 +8,7 @@ import { Users, FileText, Settings } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
 import { SalarySlipGenerator } from "./salary-slip-generator"
 import { CompanySettings } from "./company-settings"
+import { EmployeeDashboard } from "./employee-dashboard"
 
 export function DashboardContent({ user }: { user: any }) {
   const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0 })
@@ -99,15 +100,7 @@ export function DashboardContent({ user }: { user: any }) {
           </Tabs>
         </>
       ) : (
-        <Card className="border border-gray-200 bg-white">
-          <CardHeader>
-            <CardTitle className="text-gray-900">My Salary Slips</CardTitle>
-            <CardDescription className="text-gray-600">View and download your salary slips</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SalarySlipGenerator isAdmin={false} />
-          </CardContent>
-        </Card>
+        <EmployeeDashboard userId={user.id} />
       )}
     </div>
   )
