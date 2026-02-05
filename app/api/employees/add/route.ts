@@ -53,22 +53,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create auth account
+    // Create auth account using admin.createUser (service role method)
     console.log("[v0] Creating auth user for:", email);
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-        data: {
-          full_name: `${first_name} ${last_name}`,
-        },
+      email_confirm: true, // Auto-confirm email for instant access
+      user_metadata: {
+        full_name: `${first_name} ${last_name}`,
       },
     });
 
     if (authError) {
-      console.log("[v0] Auth signup error:", authError);
+      console.log("[v0] Auth creation error:", authError);
       return NextResponse.json(
         { error: `Failed to create auth account: ${authError.message}` },
         { status: 400 }
@@ -83,16 +81,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[v0] Auth user created:", authData.user.id);
-
-    // Verify email immediately for instant access
-    try {
-      await supabase.auth.admin.updateUserById(authData.user.id, {
-        email_confirmed_at: new Date().toISOString(),
-      });
-      console.log("[v0] Email auto-confirmed");
-    } catch (confirmError) {
-      console.log("[v0] Email confirmation error (non-critical):", confirmError);
-    }
 
     // Wait a moment for profile trigger to create the profile
     await new Promise(resolve => setTimeout(resolve, 1500));
