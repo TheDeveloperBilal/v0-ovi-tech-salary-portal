@@ -147,8 +147,34 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {salarySlips.map((slip) => {
-              const earnings = slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
-              const deductions = Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
+              // Support both JSON object format and individual columns format
+              let allowances = slip.allowances || {}
+              let deductions = slip.deductions || {}
+              
+              // If allowances is empty but individual fields exist, reconstruct the object
+              if (Object.keys(allowances).length === 0 && slip.hra !== undefined) {
+                allowances = {
+                  hra: slip.hra || 0,
+                  dearness_allowance: slip.dearness_allowance || 0,
+                  medical_allowance: slip.medical_allowance || 0,
+                  transport_allowance: slip.transport_allowance || 0,
+                  other_allowance: slip.other_allowance || 0,
+                }
+              }
+              
+              // If deductions is empty but individual fields exist, reconstruct the object
+              if (Object.keys(deductions).length === 0 && slip.pf_deduction !== undefined) {
+                deductions = {
+                  pf_deduction: slip.pf_deduction || 0,
+                  esi_deduction: slip.esi_deduction || 0,
+                  professional_tax: slip.professional_tax || 0,
+                  loan_deduction: slip.loan_deduction || 0,
+                  other_deduction: slip.other_deduction || 0,
+                }
+              }
+              
+              const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
+              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted || 0)
               
               return (
                 <Card key={slip.id} className="hover:shadow-lg transition-shadow">
@@ -165,7 +191,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600">Deductions</span>
-                        <span className="font-semibold text-red-600">PKR {deductions.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="font-semibold text-red-600">PKR {deductionsTotal.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm border-t pt-2">
                         <span className="text-gray-600 font-semibold">Net Salary</span>
@@ -185,9 +211,19 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       <Button 
                         onClick={() => {
                           const slipData = {
-                            basic_salary: slip.basic_salary,
-                            allowances: slip.allowances || {},
-                            deductions: slip.deductions || {},
+                            basic_salary: slip.base_salary || slip.basic_salary,
+                            hra: slip.hra,
+                            dearness_allowance: slip.dearness_allowance,
+                            medical_allowance: slip.medical_allowance,
+                            transport_allowance: slip.transport_allowance,
+                            other_allowance: slip.other_allowance,
+                            allowances: allowances,
+                            pf_deduction: slip.pf_deduction,
+                            esi_deduction: slip.esi_deduction,
+                            professional_tax: slip.professional_tax,
+                            loan_deduction: slip.loan_deduction,
+                            other_deduction: slip.other_deduction,
+                            deductions: deductions,
                             leaves_deducted: slip.leaves_deducted || 0,
                             net_salary: slip.net_salary,
                             month: slip.month,
