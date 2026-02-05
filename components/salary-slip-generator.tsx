@@ -31,6 +31,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     professional_tax: 0,
     loan_deduction: 0,
     other_deduction: 0,
+    leaves_deducted: 0,
     present_days: 26,
     working_days: 26,
   })
@@ -54,7 +55,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     try {
       const { data, error } = await supabase
         .from("salary_slips")
-        .select("*, employees(first_name, last_name, employee_id)")
+        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken)")
         .order("created_at", { ascending: false })
 
       if (error) throw error
@@ -72,7 +73,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       console.log("[v0] Fetching employees...")
       const { data, error } = await supabase
         .from("employees")
-        .select("id, first_name, last_name, employee_id")
+        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken")
         .order("first_name", { ascending: true })
 
       if (error) {
@@ -126,7 +127,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         formData.esi_deduction +
         formData.professional_tax +
         formData.loan_deduction +
-        formData.other_deduction
+        formData.other_deduction +
+        formData.leaves_deducted
 
       const netSalary = totalEarnings - totalDeductions
 
@@ -138,6 +140,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           basic_salary: formData.basic_salary,
           allowances: allowances,
           deductions: deductions,
+          leaves_deducted: formData.leaves_deducted,
           net_salary: netSalary,
         },
       ])
@@ -145,6 +148,21 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       if (error) {
         console.log("[v0] Error creating salary slip:", error.message)
         throw error
+      }
+
+      // Update employee's leaves_taken
+      if (formData.leaves_deducted > 0) {
+        const employee = employees.find(e => e.id === formData.employee_id)
+        const currentLeavesUsed = employee?.leaves_taken || 0
+        
+        const { error: updateError } = await supabase
+          .from("employees")
+          .update({ leaves_taken: currentLeavesUsed + formData.leaves_deducted })
+          .eq("id", formData.employee_id)
+
+        if (updateError) {
+          console.log("[v0] Warning: Could not update leaves_taken:", updateError)
+        }
       }
 
       console.log("[v0] Salary slip created successfully")
@@ -165,6 +183,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         professional_tax: 0,
         loan_deduction: 0,
         other_deduction: 0,
+        leaves_deducted: 0,
         present_days: 26,
         working_days: 26,
       })
@@ -283,6 +302,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                         basic_salary: slip.basic_salary,
                         allowances: slip.allowances || {},
                         deductions: slip.deductions || {},
+                        leaves_deducted: slip.leaves_deducted || 0,
                         net_salary: slip.net_salary,
                         month: slip.month,
                         year: slip.year,
@@ -293,6 +313,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                         designation: slip.employees?.designation,
                         position: slip.employees?.designation,
                         joinDate: slip.employees?.date_of_joining,
+                        leaves_taken: slip.employees?.leaves_taken || 0,
                       })
                       setIsPreviewOpen(true)
                     }}
@@ -485,6 +506,18 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     value={formData.other_deduction}
                     onChange={(e) => setFormData({ ...formData, other_deduction: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Leaves Deducted</label>
+                  <input
+                    type="number"
+                    value={formData.leaves_deducted}
+                    onChange={(e) => setFormData({ ...formData, leaves_deducted: parseFloat(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    min="0"
+                    max="14"
+                    title="Maximum 14 annual leaves"
                   />
                 </div>
               </div>

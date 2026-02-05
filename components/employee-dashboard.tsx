@@ -124,6 +124,11 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               <p className="text-xs sm:text-sm text-gray-600">Designation</p>
               <p className="font-semibold text-sm sm:text-base">{employeeData?.designation || 'N/A'}</p>
             </div>
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs sm:text-sm text-gray-600">Remaining Leaves</p>
+              <p className="font-bold text-lg sm:text-xl text-blue-600">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
+              <p className="text-xs text-gray-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
