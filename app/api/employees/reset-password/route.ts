@@ -82,18 +82,39 @@ export async function POST(request: NextRequest) {
 
       // Get the user by email from auth
       const { data: authUsers } = await supabase.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find(u => u.email === employee.email);
+      let authUser = authUsers?.users?.find(u => u.email === employee.email);
 
+      // If auth user doesn't exist, create one with a temporary password
       if (!authUser) {
-        return NextResponse.json(
-          { error: "Employee has no associated auth user" },
-          { status: 400 }
-        );
-      }
+        console.log("[v0] Auth user not found for email:", employee.email);
+        console.log("[v0] Creating new auth user for employee:", employee.email);
 
-      await supabase.auth.admin.updateUserById(authUser.id, {
-        password: newPassword,
-      });
+        const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
+          email: employee.email,
+          password: newPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: `${employee.first_name} ${employee.last_name}`,
+          },
+        });
+
+        if (createError) {
+          console.log("[v0] Error creating auth user:", createError);
+          return NextResponse.json(
+            { error: `Failed to create auth account: ${createError.message}` },
+            { status: 400 }
+          );
+        }
+
+        authUser = newAuthUser.user;
+        console.log("[v0] Auth user created successfully for:", employee.email);
+      } else {
+        // Update existing auth user's password
+        await supabase.auth.admin.updateUserById(authUser.id, {
+          password: newPassword,
+        });
+        console.log("[v0] Password updated for existing auth user:", employee.email);
+      }
 
       console.log("[v0] Password reset successfully for employee:", employee.email);
 
