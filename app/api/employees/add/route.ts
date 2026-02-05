@@ -20,10 +20,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient();
 
-    // Get current user to verify they're an admin
-    const { data: { user } } = await supabase.auth.getUser();
+    // With service role key, we can access auth admin functions directly
+    // Get the current session from the Authorization header
+    const authHeader = request.headers.get('authorization');
+    let currentUser = null;
 
-    if (!user) {
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        // Verify the token using the service role
+        const { data: { user } } = await supabase.auth.getUser(authHeader.substring(7));
+        currentUser = user;
+      } catch (err) {
+        console.log("[v0] Token verification failed:", err);
+      }
+    }
+
+    if (!currentUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_admin")
-      .eq("id", user.id)
+      .eq("id", currentUser.id)
       .single();
 
     if (!profile?.is_admin) {
@@ -41,58 +53,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create auth account
-    console.log("[v0] Creating auth user for:", email);
+    // Check if user already exists with this email
+    console.log("[v0] Checking if user exists with email:", email);
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-        data: {
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
+
+    let userId: string;
+
+    if (existingUser) {
+      console.log("[v0] User already exists:", existingUser.id);
+      userId = existingUser.id;
+    } else {
+      // Create auth account using admin.createUser (service role method)
+      console.log("[v0] Creating new auth user for:", email);
+
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email for instant access
+        user_metadata: {
           full_name: `${first_name} ${last_name}`,
         },
-      },
-    });
-
-    if (authError) {
-      console.log("[v0] Auth signup error:", authError);
-      return NextResponse.json(
-        { error: `Failed to create auth account: ${authError.message}` },
-        { status: 400 }
-      );
-    }
-
-    if (!authData.user?.id) {
-      return NextResponse.json(
-        { error: "Failed to create auth user" },
-        { status: 400 }
-      );
-    }
-
-    console.log("[v0] Auth user created:", authData.user.id);
-
-    // Verify email immediately for instant access
-    try {
-      await supabase.auth.admin.updateUserById(authData.user.id, {
-        email_confirmed_at: new Date().toISOString(),
       });
-      console.log("[v0] Email auto-confirmed");
-    } catch (confirmError) {
-      console.log("[v0] Email confirmation error (non-critical):", confirmError);
+
+      if (authError) {
+        console.log("[v0] Auth creation error:", authError);
+        return NextResponse.json(
+          { error: `Failed to create auth account: ${authError.message}` },
+          { status: 400 }
+        );
+      }
+
+      if (!authData.user?.id) {
+        return NextResponse.json(
+          { error: "Failed to create auth user" },
+          { status: 400 }
+        );
+      }
+
+      console.log("[v0] Auth user created:", authData.user.id);
+      userId = authData.user.id;
+
+      // Wait a moment for profile trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
-    // Wait a moment for profile trigger to create the profile
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Create employee record
-    console.log("[v0] Creating employee record");
+    // Create employee record with service role (bypass RLS for admin operations)
+    console.log("[v0] Creating employee record for user:", userId);
 
     const { data: empData, error: empError } = await supabase
       .from("employees")
       .insert([
         {
-          user_id: authData.user.id,
+          user_id: userId,
           employee_id,
           first_name,
           last_name,
@@ -108,6 +122,7 @@ export async function POST(request: NextRequest) {
 
     if (empError) {
       console.log("[v0] Employee creation error:", empError);
+      console.log("[v0] Error details:", { message: empError.message, code: empError.code, details: empError.details });
       return NextResponse.json(
         { error: `Failed to create employee record: ${empError.message}` },
         { status: 400 }
