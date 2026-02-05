@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Wait a moment for profile trigger to create the profile
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Create employee record
+    // Create employee record with service role (bypass RLS for admin operations)
     console.log("[v0] Creating employee record");
 
     const { data: empData, error: empError } = await supabase
@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
 
     if (empError) {
       console.log("[v0] Employee creation error:", empError);
+      console.log("[v0] Error details:", { message: empError.message, code: empError.code, details: empError.details });
       return NextResponse.json(
         { error: `Failed to create employee record: ${empError.message}` },
         { status: 400 }
