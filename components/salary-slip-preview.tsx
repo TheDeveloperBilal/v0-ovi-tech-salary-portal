@@ -16,13 +16,13 @@ export function SalarySlipPreview({ employee }: any) {
   // Support both naming conventions for compatibility
   const employeeName = employee.employee_name || employee.employeeName || "Employee"
   const employeeId = employee.employee_id || employee.employeeId || "N/A"
-  
+
   const base = Number.parseFloat(employee.basic_salary) || Number.parseFloat(employee.baseSalary) || 0
-  
+
   // Support both JSON object format and individual columns format
   let allowances = employee.allowances || {}
   let deductions = employee.deductions || {}
-  
+
   // If allowances is empty but individual fields exist, reconstruct the object
   if (Object.keys(allowances).length === 0 && employee.hra !== undefined) {
     allowances = {
@@ -33,7 +33,7 @@ export function SalarySlipPreview({ employee }: any) {
       other_allowance: employee.other_allowance || 0,
     }
   }
-  
+
   // If deductions is empty but individual fields exist, reconstruct the object
   if (Object.keys(deductions).length === 0 && employee.pf_deduction !== undefined) {
     deductions = {
@@ -44,7 +44,7 @@ export function SalarySlipPreview({ employee }: any) {
       other_deduction: employee.other_deduction || 0,
     }
   }
-  
+
   const totalAllowances = Object.values(allowances).reduce(
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
@@ -53,14 +53,14 @@ export function SalarySlipPreview({ employee }: any) {
     (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
     0,
   )
-  
+
   // Calculate leave deduction as monetary value (daily salary × leaves deducted)
   // Only deduct leave money if all 14 annual leaves have been used
   const totalLeavesUsed = (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
-  const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0 
-    ? (base / 26) * employee.leaves_deducted 
+  const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0
+    ? (base / 26) * employee.leaves_deducted
     : 0
-  
+
   const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
   const netSalary = base + totalAllowances - totalDeductionsWithLeaves
   const currentDate = new Date()
@@ -79,18 +79,18 @@ export function SalarySlipPreview({ employee }: any) {
     try {
       setIsGeneratingPDF(true)
       console.log("[v0] Generating PDF for:", employeeName)
-      
+
       // Import dynamically to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default
       const jsPDF = (await import('jspdf')).jsPDF
-      
+
       const canvas = await html2canvas(slipRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
       })
-      
+
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF('p', 'mm', 'a4')
       const imgWidth = 210 // A4 width in mm
@@ -98,17 +98,17 @@ export function SalarySlipPreview({ employee }: any) {
       const imgHeight = (canvas.height * imgWidth) / canvas.width
       let heightLeft = imgHeight
       let position = 0
-      
+
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
-      
+
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
-      
+
       const fileName = `${employeeName}_SalarySlip_${year}_${month}.pdf`
       pdf.save(fileName)
       console.log("[v0] PDF generated successfully")
@@ -132,10 +132,10 @@ export function SalarySlipPreview({ employee }: any) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-2 no-print">
-        <Button 
-          onClick={handlePDFDownload} 
+        <Button
+          onClick={handlePDFDownload}
           disabled={isGeneratingPDF}
-          className="gap-2 w-full sm:w-auto" 
+          className="gap-2 w-full sm:w-auto"
           data-pdf-download
         >
           <Download className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function SalarySlipPreview({ employee }: any) {
               <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" />
               <div>
                 <h2 className="text-2xl font-bold text-primary">OviTech Global Pvt Ltd</h2>
-                <p className="text-xs text-gray-600">Digital Marketing Agency | UAE</p>
+                <p className="text-xs text-gray-600">Digital Marketing Agency</p>
               </div>
             </div>
             <div className="text-right text-sm text-gray-600">
@@ -266,11 +266,11 @@ export function SalarySlipPreview({ employee }: any) {
                     return val > 0 ? (
                       <tr key={key} className="border-b border-gray-300">
                         <td className="p-2 capitalize">
-                          {key === "pf_deduction" ? "PF" : 
-                           key === "esi_deduction" ? "ESI" : 
-                           key === "professional_tax" ? "Professional Tax" :
-                           key === "loan_deduction" ? "Loan Deduction" :
-                           key.replace(/_/g, " ")}
+                          {key === "pf_deduction" ? "PF" :
+                            key === "esi_deduction" ? "ESI" :
+                              key === "professional_tax" ? "Professional Tax" :
+                                key === "loan_deduction" ? "Loan Deduction" :
+                                  key.replace(/_/g, " ")}
                         </td>
                         <td className="p-2 text-right font-semibold">
                           PKR {val.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
@@ -311,7 +311,7 @@ export function SalarySlipPreview({ employee }: any) {
           <div className="border-t-2 border-primary pt-4 text-xs text-gray-600 text-center">
             <p>This is a computer generated salary slip and does not require a signature.</p>
             <p>For queries, please contact HR Department</p>
-            <p className="mt-2 font-semibold">OviTech Global Pvt Ltd | Digital Marketing Services</p>
+            <p className="mt-2 font-semibold">OviTech Global Pvt Ltd | Digital Marketing Agency</p>
           </div>
         </div>
       </div>
