@@ -20,11 +20,9 @@ export function Header({ user }: { user: any }) {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center shadow-sm">
-              <Image src="/images/image.png" alt="OviTech Logo" width={32} height={32} className="h-8 w-auto" />
-            </div>
+            <Image src="/ovitech-logo.webp" alt="OviTech Logo" width={40} height={40} className="h-10 w-10" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">OviTech Salary Portal</h1>
+              <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>
               <p className="text-xs text-gray-500">Employee Management System</p>
             </div>
           </div>
