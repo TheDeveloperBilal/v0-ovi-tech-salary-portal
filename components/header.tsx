@@ -24,7 +24,7 @@ export function Header({ user }: { user: any }) {
               <Image src="/images/image.png" alt="OviTech Logo" width={32} height={32} className="h-8 w-auto" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">OviTech Salary Portal</h1>
+              <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>
               <p className="text-xs text-gray-500">Employee Management System</p>
             </div>
           </div>
