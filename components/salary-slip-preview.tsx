@@ -56,7 +56,10 @@ export function SalarySlipPreview({ employee }: any) {
 
   // Calculate leave deduction as monetary value (daily salary × leaves deducted)
   // Only deduct leave money if all 14 annual leaves have been used
-  const totalLeavesUsed = (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
+  const totalLeavesUsed = employee.total_leaves_used !== undefined 
+    ? employee.total_leaves_used 
+    : (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
+  
   const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0
     ? (base / 26) * employee.leaves_deducted
     : 0
