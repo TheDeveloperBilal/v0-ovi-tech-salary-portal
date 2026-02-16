@@ -195,6 +195,16 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
 
   const downloadPDF = async (slip: any) => {
     try {
+      // Calculate total leaves deducted up to and including this slip
+      const slipsUpToThisMonth = slips.filter(s => 
+        s.employee_id === slip.employee_id && 
+        (s.year < slip.year || (s.year === slip.year && s.month <= slip.month))
+      )
+      
+      const totalLeavesDeductedUpToNow = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
+      const employeeCurrentLeavesTaken = slip.employees?.leaves_taken || 0
+      const totalLeavesUsed = employeeCurrentLeavesTaken + totalLeavesDeductedUpToNow
+
       setSelectedSlip({
         basic_salary: slip.basic_salary,
         allowances: slip.allowances || {},
@@ -210,7 +220,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         designation: slip.employees?.designation,
         position: slip.employees?.designation,
         joinDate: slip.employees?.date_of_joining,
-        leaves_taken: slip.employees?.leaves_taken || 0,
+        leaves_taken: employeeCurrentLeavesTaken,
+        total_leaves_used: totalLeavesUsed, // Pass cumulative leaves
       })
       setIsPreviewOpen(true)
       // Trigger PDF download after dialog opens
