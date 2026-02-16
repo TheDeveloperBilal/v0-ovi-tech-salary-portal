@@ -281,7 +281,7 @@ export function SalarySlipPreview({ employee }: any) {
                       </tr>
                     ) : null
                   })}
-                  {leavesDeductedAmount > 0 && (
+                  {employee.leaves_deducted && employee.leaves_deducted > 0 && (
                     <tr className="border-b border-gray-300">
                       <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
                       <td className="p-2 text-right font-semibold">
