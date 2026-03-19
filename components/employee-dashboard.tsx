@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Download, Eye } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
 
@@ -80,6 +80,8 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       position: employeeData?.designation,
       joinDate: employeeData?.date_of_joining,
       leaves_taken: employeeData?.leaves_taken || 0,
+      is_probation: employeeData?.is_probation || false,
+      probation_end_date: employeeData?.probation_end_date || null,
     })
     setIsPreviewOpen(true)
   }
@@ -127,9 +129,25 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               <p className="font-semibold text-sm sm:text-base">{employeeData?.designation || 'N/A'}</p>
             </div>
             <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <p className="text-xs sm:text-sm text-gray-600">Remaining Leaves</p>
-              <p className="font-bold text-lg sm:text-xl text-blue-600">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
-              <p className="text-xs text-gray-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+              {employeeData?.is_probation ? (
+                <>
+                  <p className="text-xs sm:text-sm text-yellow-800 font-semibold">Probation Period</p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    You are on probation. Leave benefits will be available after probation ends.
+                  </p>
+                  {employeeData?.probation_end_date && (
+                    <p className="text-xs text-gray-600 mt-2">
+                      Probation ends: {new Date(employeeData.probation_end_date).toLocaleDateString()}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-xs sm:text-sm text-gray-600">Remaining Leaves</p>
+                  <p className="font-bold text-lg sm:text-xl text-blue-600">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
+                  <p className="text-xs text-gray-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
@@ -275,10 +293,11 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Salary Slip Preview</DialogTitle>
-          </DialogHeader>
+      <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
+        <DialogHeader>
+          <DialogTitle>Salary Slip Details</DialogTitle>
+          <DialogDescription>View your salary slip information</DialogDescription>
+        </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
           </div>

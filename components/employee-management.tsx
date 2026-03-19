@@ -190,7 +190,19 @@ export function EmployeeManagement() {
   }
 
   const handleEdit = (employee: any) => {
-    setFormData(employee)
+    setFormData({
+      employee_id: employee.employee_id || "",
+      first_name: employee.first_name || "",
+      last_name: employee.last_name || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      department: employee.department || "",
+      designation: employee.designation || "",
+      date_of_joining: employee.date_of_joining || "",
+      password: "",
+      is_probation: employee.is_probation === true,
+      probation_end_date: employee.probation_end_date || "",
+    })
     setEditingId(employee.id)
     setIsOpen(true)
   }
