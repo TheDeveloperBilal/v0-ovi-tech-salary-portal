@@ -55,13 +55,18 @@ export function SalarySlipPreview({ employee }: any) {
   )
 
   // Calculate leave deduction as monetary value (daily salary × leaves deducted)
-  // Only deduct leave money if all 14 annual leaves have been used
+  // For probation employees: ALL leaves are deducted from salary
+  // For permanent employees: Only deduct leaves if all 14 annual leaves have been used
+  const isProbation = employee.is_probation === true
   const totalLeavesUsed = employee.total_leaves_used !== undefined 
     ? employee.total_leaves_used 
     : (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
   
-  const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0
-    ? (base / 26) * employee.leaves_deducted
+  // Probation: deduct all leaves, Permanent: only after 14 leaves are used
+  const leavesDeductedAmount = base > 0 && employee.leaves_deducted > 0
+    ? isProbation 
+      ? (base / 26) * employee.leaves_deducted  // Deduct all for probation
+      : totalLeavesUsed >= 14 ? (base / 26) * employee.leaves_deducted : 0  // Only after 14 for permanent
     : 0
 
   const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
@@ -172,6 +177,20 @@ export function SalarySlipPreview({ employee }: any) {
               </p>
             </div>
           </div>
+
+          {/* Probation Status Banner */}
+          {isProbation && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+              <p className="text-yellow-800 font-semibold text-sm">
+                ⚠️ Probation Period: This employee is on probation. All leaves are deducted from salary.
+              </p>
+              {employee.probation_end_date && (
+                <p className="text-yellow-700 text-xs mt-1">
+                  Probation End Date: {new Date(employee.probation_end_date).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Employee Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-xs sm:text-sm">

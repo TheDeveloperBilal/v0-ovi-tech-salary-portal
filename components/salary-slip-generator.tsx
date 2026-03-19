@@ -55,7 +55,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     try {
       const { data, error } = await supabase
         .from("salary_slips")
-        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken)")
+        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date)")
         .order("created_at", { ascending: false })
 
       if (error) throw error
@@ -73,7 +73,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       console.log("[v0] Fetching employees...")
       const { data, error } = await supabase
         .from("employees")
-        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken")
+        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date")
         .order("first_name", { ascending: true })
 
       if (error) {
