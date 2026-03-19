@@ -38,7 +38,21 @@ export function CompanySettings() {
     const { data, error } = await supabase.from("company_settings").select("*").single()
 
     if (data) {
-      setFormData(data)
+      // Ensure all values are strings, not null
+      setFormData({
+        company_name: data.company_name || "OviTech Global Pvt Ltd",
+        company_address: data.company_address || "",
+        company_phone: data.company_phone || "",
+        company_email: data.company_email || "",
+        company_website: data.company_website || "",
+        bank_name: data.bank_name || "",
+        bank_account: data.bank_account || "",
+        ifsc_code: data.ifsc_code || "",
+        cin: data.cin || "",
+        pan: data.pan || "",
+        esi_code: data.esi_code || "",
+        pf_code: data.pf_code || "",
+      })
     } else if (error) {
       console.log("Creating new settings...")
     }
