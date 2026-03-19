@@ -428,7 +428,7 @@ export function EmployeeManagement() {
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
+                  value={formData.email ?? ""}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
@@ -437,7 +437,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
-                  value={formData.phone}
+                  value={formData.phone ?? ""}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
@@ -502,7 +502,7 @@ export function EmployeeManagement() {
                 <input
                   type="checkbox"
                   id="is_probation"
-                  checked={formData.is_probation}
+                  checked={Boolean(formData.is_probation)}
                   onChange={(e) => setFormData({ 
                     ...formData, 
                     is_probation: e.target.checked,
