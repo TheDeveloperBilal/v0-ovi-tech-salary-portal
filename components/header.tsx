@@ -20,7 +20,14 @@ export function Header({ user }: { user: any }) {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/ovitech-logo.webp" alt="OviTech Logo" width={40} height={40} className="h-10 w-10" />
+            <Image 
+              src="/ovitech-logo.webp" 
+              alt="OviTech Logo" 
+              width={40} 
+              height={40} 
+              className="h-10"
+              style={{ width: 'auto', height: 'auto' }}
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>
               <p className="text-xs text-gray-500">Employee Management System</p>

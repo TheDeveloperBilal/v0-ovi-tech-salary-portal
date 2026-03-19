@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus, RefreshCw, Lock } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ProbationManager } from "./probation-manager"
 
 // Generate a strong random password
 function generateSecurePassword() {
@@ -54,6 +55,8 @@ export function EmployeeManagement() {
     designation: "",
     date_of_joining: "",
     password: "",
+    is_probation: false,
+    probation_end_date: "",
   })
   const supabase = createClient()
   const { toast } = useToast()
@@ -187,7 +190,19 @@ export function EmployeeManagement() {
   }
 
   const handleEdit = (employee: any) => {
-    setFormData(employee)
+    setFormData({
+      employee_id: employee.employee_id || "",
+      first_name: employee.first_name || "",
+      last_name: employee.last_name || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      department: employee.department || "",
+      designation: employee.designation || "",
+      date_of_joining: employee.date_of_joining || "",
+      password: "",
+      is_probation: employee.is_probation === true,
+      probation_end_date: employee.probation_end_date || "",
+    })
     setEditingId(employee.id)
     setIsOpen(true)
   }
@@ -272,6 +287,8 @@ export function EmployeeManagement() {
               designation: "",
               date_of_joining: "",
               password: "",
+              is_probation: false,
+              probation_end_date: "",
             });
             setEditingId(null);
             setIsOpen(true);
@@ -300,8 +317,14 @@ export function EmployeeManagement() {
           {employees.map((emp) => (
             <Card key={emp.id}>
               <CardHeader className="pb-3">
-                <CardTitle>
-                  {emp.first_name} {emp.last_name}
+                <CardTitle className="flex items-center justify-between">
+                  <span>{emp.first_name} {emp.last_name}</span>
+                  {emp.is_probation && (
+                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Probation
+                    </span>
+                  )}
                 </CardTitle>
                 <CardDescription>
                   {emp.designation} • {emp.department}
@@ -331,6 +354,17 @@ export function EmployeeManagement() {
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
+                  {emp.is_probation && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {}} 
+                      className="flex-1 w-full sm:w-auto bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100"
+                    >
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      Probation Status
+                    </Button>
+                  )}
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -366,7 +400,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="employee_id">Employee ID *</Label>
                 <Input
                   id="employee_id"
-                  value={formData.employee_id}
+                  value={formData.employee_id ?? ""}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
                   required
                 />
@@ -394,7 +428,7 @@ export function EmployeeManagement() {
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
+                  value={formData.email ?? ""}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
@@ -403,7 +437,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
-                  value={formData.phone}
+                  value={formData.phone ?? ""}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
@@ -411,7 +445,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="department">Department</Label>
                 <Input
                   id="department"
-                  value={formData.department}
+                  value={formData.department ?? ""}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                 />
               </div>
@@ -419,7 +453,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="designation">Designation</Label>
                 <Input
                   id="designation"
-                  value={formData.designation}
+                  value={formData.designation ?? ""}
                   onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                 />
               </div>
@@ -428,7 +462,7 @@ export function EmployeeManagement() {
                 <Input
                   id="date_of_joining"
                   type="date"
-                  value={formData.date_of_joining}
+                  value={formData.date_of_joining ?? ""}
                   onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
                 />
               </div>
@@ -439,7 +473,7 @@ export function EmployeeManagement() {
                     id="password"
                     type="text"
                     placeholder={editingId ? "Leave blank to keep current password" : "Enter or generate password"}
-                    value={formData.password}
+                    value={formData.password ?? ""}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required={!editingId}
                   />
@@ -461,7 +495,41 @@ export function EmployeeManagement() {
                 <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
-                  <Button type="submit" className="w-full bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
+
+            {/* Probation Section */}
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="is_probation"
+                  checked={Boolean(formData.is_probation ?? false)}
+                  onChange={(e) => setFormData({ 
+                    ...formData, 
+                    is_probation: e.target.checked,
+                    probation_end_date: e.target.checked ? formData.probation_end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : ""
+                  })}
+                  className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                />
+                <label htmlFor="is_probation" className="text-sm font-medium cursor-pointer">
+                  Mark as Probation Period Employee
+                </label>
+              </div>
+              {formData.is_probation && (
+                <div>
+                  <Label htmlFor="probation_end_date">Probation End Date *</Label>
+                  <Input
+                    id="probation_end_date"
+                    type="date"
+                    value={formData.probation_end_date ?? ""}
+                    onChange={(e) => setFormData({ ...formData, probation_end_date: e.target.value })}
+                    required={formData.is_probation}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Employee will have no paid leave benefits until this date</p>
+                </div>
+              )}
+            </div>
+            
+            <Button type="submit" className="w-full bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
           </form>

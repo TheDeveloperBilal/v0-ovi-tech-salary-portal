@@ -55,13 +55,18 @@ export function SalarySlipPreview({ employee }: any) {
   )
 
   // Calculate leave deduction as monetary value (daily salary × leaves deducted)
-  // Only deduct leave money if all 14 annual leaves have been used
-  const totalLeavesUsed = employee.total_leaves_used !== undefined 
-    ? employee.total_leaves_used 
+  // For probation employees: ALL leaves are deducted from salary
+  // For permanent employees: Only deduct leaves if all 14 annual leaves have been used
+  const isProbation = employee.is_probation === true
+  const totalLeavesUsed = employee.total_leaves_used !== undefined
+    ? employee.total_leaves_used
     : (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
-  
-  const leavesDeductedAmount = base > 0 && totalLeavesUsed >= 14 && employee.leaves_deducted > 0
-    ? (base / 26) * employee.leaves_deducted
+
+  // Probation: deduct all leaves, Permanent: only after 14 leaves are used
+  const leavesDeductedAmount = base > 0 && employee.leaves_deducted > 0
+    ? isProbation
+      ? (base / 26) * employee.leaves_deducted  // Deduct all for probation
+      : totalLeavesUsed >= 14 ? (base / 26) * employee.leaves_deducted : 0  // Only after 14 for permanent
     : 0
 
   const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
@@ -159,7 +164,7 @@ export function SalarySlipPreview({ employee }: any) {
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-primary pb-4">
             <div className="flex items-center gap-3">
-              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" />
+              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" style={{ width: '25%', height: 'auto' }} />
               <div>
                 <h2 className="text-2xl font-bold text-primary">OviTech Global Pvt Ltd</h2>
                 <p className="text-xs text-gray-600">Digital Marketing Agency</p>
@@ -172,6 +177,20 @@ export function SalarySlipPreview({ employee }: any) {
               </p>
             </div>
           </div>
+
+          {/* Probation Status Banner */}
+          {isProbation && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+              <p className="text-yellow-800 font-semibold text-sm">
+                ⚠️ Probation Period: This employee is on probation. All leaves are deducted from salary.
+              </p>
+              {employee.probation_end_date && (
+                <p className="text-yellow-700 text-xs mt-1">
+                  Probation End Date: {new Date(employee.probation_end_date).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Employee Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-xs sm:text-sm">
@@ -264,10 +283,14 @@ export function SalarySlipPreview({ employee }: any) {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(deductions).map(([key, value]: any) => {
-                    const val = Number.parseFloat(value) || 0
-                    return val > 0 ? (
-                      <tr key={key} className="border-b border-gray-300">
+                  {deductions && typeof deductions === 'object' && Object.entries(deductions)
+                    .filter(([key, value]: any) => {
+                      if (!key || typeof key !== 'string' || key === '0') return false
+                      const val = Number.parseFloat(String(value))
+                      return !isNaN(val) && val > 0
+                    })
+                    .map(([key, value]: any) => (
+                      <tr key={`deduction-${key}`} className="border-b border-gray-300">
                         <td className="p-2 capitalize">
                           {key === "pf_deduction" ? "PF" :
                             key === "esi_deduction" ? "ESI" :
@@ -276,20 +299,19 @@ export function SalarySlipPreview({ employee }: any) {
                                   key.replace(/_/g, " ")}
                         </td>
                         <td className="p-2 text-right font-semibold">
-                          PKR {val.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                          PKR {(Number.parseFloat(String(value)) || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                         </td>
                       </tr>
-                    ) : null
-                  })}
+                    ))}
                   {employee.leaves_deducted && employee.leaves_deducted > 0 && (
-                    <tr className="border-b border-gray-300">
+                    <tr key="leaves-deduction" className="border-b border-gray-300">
                       <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
                       <td className="p-2 text-right font-semibold">
                         PKR {leavesDeductedAmount.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                       </td>
                     </tr>
                   )}
-                  <tr className="bg-red-50 font-semibold border-b border-gray-300">
+                  <tr key="total-deductions" className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
                       PKR {totalDeductionsWithLeaves.toLocaleString("en-PK", { maximumFractionDigits: 0 })}

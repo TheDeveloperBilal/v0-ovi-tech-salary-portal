@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { FileText, Download, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SalarySlipPreview } from "@/components/salary-slip-preview"
@@ -55,7 +55,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     try {
       const { data, error } = await supabase
         .from("salary_slips")
-        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken)")
+        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date)")
         .order("created_at", { ascending: false })
 
       if (error) throw error
@@ -73,7 +73,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       console.log("[v0] Fetching employees...")
       const { data, error } = await supabase
         .from("employees")
-        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken")
+        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date")
         .order("first_name", { ascending: true })
 
       if (error) {
@@ -129,7 +129,33 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         formData.loan_deduction +
         formData.other_deduction
 
-      const netSalary = totalEarnings - totalDeductions
+      // Get the selected employee to check probation status
+      const selectedEmployee = employees.find(e => e.id === formData.employee_id)
+      const isProbation = selectedEmployee?.is_probation === true
+
+      // Calculate leave deduction based on probation status
+      let leavesDeductionAmount = 0
+      if (formData.leaves_deducted > 0 && formData.basic_salary > 0) {
+        const dailyRate = formData.basic_salary / 26
+        if (isProbation) {
+          // For probation: deduct ALL leaves immediately
+          leavesDeductionAmount = dailyRate * formData.leaves_deducted
+        } else {
+          // For permanent: only deduct if total leaves >= 14
+          const slipsUpToThisMonth = slips.filter(s => 
+            s.employee_id === formData.employee_id && 
+            (s.year < formData.year || (s.year === formData.year && s.month <= formData.month))
+          )
+          const totalLeavesDeductedSoFar = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
+          const totalLeavesUsed = (selectedEmployee?.leaves_taken || 0) + totalLeavesDeductedSoFar + formData.leaves_deducted
+          
+          if (totalLeavesUsed >= 14) {
+            leavesDeductionAmount = dailyRate * formData.leaves_deducted
+          }
+        }
+      }
+
+      const netSalary = totalEarnings - (totalDeductions + leavesDeductionAmount)
 
       const { error } = await supabase.from("salary_slips").insert([
         {
@@ -141,6 +167,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           deductions: deductions,
           leaves_deducted: formData.leaves_deducted,
           net_salary: netSalary,
+          is_probation: isProbation,
         },
       ])
 
@@ -321,7 +348,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                   <div>
                     <p className="text-muted-foreground">Deductions</p>
                     <p className="font-semibold text-red-600">
-                      PKR {Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted ? (slip.basic_salary / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
@@ -386,6 +413,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         <DialogContent className="max-w-7xl w-[95vw] mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Salary Slip Preview</DialogTitle>
+            <DialogDescription>View and download employee salary slip</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
@@ -397,6 +425,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         <DialogContent className="max-w-3xl max-h-96 overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Salary Slip</DialogTitle>
+            <DialogDescription>Create a new salary slip for an employee</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
