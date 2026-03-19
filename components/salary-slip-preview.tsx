@@ -58,13 +58,13 @@ export function SalarySlipPreview({ employee }: any) {
   // For probation employees: ALL leaves are deducted from salary
   // For permanent employees: Only deduct leaves if all 14 annual leaves have been used
   const isProbation = employee.is_probation === true
-  const totalLeavesUsed = employee.total_leaves_used !== undefined 
-    ? employee.total_leaves_used 
+  const totalLeavesUsed = employee.total_leaves_used !== undefined
+    ? employee.total_leaves_used
     : (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
-  
+
   // Probation: deduct all leaves, Permanent: only after 14 leaves are used
   const leavesDeductedAmount = base > 0 && employee.leaves_deducted > 0
-    ? isProbation 
+    ? isProbation
       ? (base / 26) * employee.leaves_deducted  // Deduct all for probation
       : totalLeavesUsed >= 14 ? (base / 26) * employee.leaves_deducted : 0  // Only after 14 for permanent
     : 0
@@ -164,7 +164,7 @@ export function SalarySlipPreview({ employee }: any) {
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-primary pb-4">
             <div className="flex items-center gap-3">
-              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" style={{ width: 'auto', height: 'auto' }} />
+              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" style={{ width: '25%', height: 'auto' }} />
               <div>
                 <h2 className="text-2xl font-bold text-primary">OviTech Global Pvt Ltd</h2>
                 <p className="text-xs text-gray-600">Digital Marketing Agency</p>
