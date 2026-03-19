@@ -400,7 +400,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="employee_id">Employee ID *</Label>
                 <Input
                   id="employee_id"
-                  value={formData.employee_id}
+                  value={formData.employee_id ?? ""}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
                   required
                 />
@@ -445,7 +445,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="department">Department</Label>
                 <Input
                   id="department"
-                  value={formData.department}
+                  value={formData.department ?? ""}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                 />
               </div>
@@ -453,7 +453,7 @@ export function EmployeeManagement() {
                 <Label htmlFor="designation">Designation</Label>
                 <Input
                   id="designation"
-                  value={formData.designation}
+                  value={formData.designation ?? ""}
                   onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                 />
               </div>
@@ -462,7 +462,7 @@ export function EmployeeManagement() {
                 <Input
                   id="date_of_joining"
                   type="date"
-                  value={formData.date_of_joining}
+                  value={formData.date_of_joining ?? ""}
                   onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
                 />
               </div>
@@ -473,7 +473,7 @@ export function EmployeeManagement() {
                     id="password"
                     type="text"
                     placeholder={editingId ? "Leave blank to keep current password" : "Enter or generate password"}
-                    value={formData.password}
+                    value={formData.password ?? ""}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     required={!editingId}
                   />
@@ -502,7 +502,7 @@ export function EmployeeManagement() {
                 <input
                   type="checkbox"
                   id="is_probation"
-                  checked={Boolean(formData.is_probation)}
+                  checked={Boolean(formData.is_probation ?? false)}
                   onChange={(e) => setFormData({ 
                     ...formData, 
                     is_probation: e.target.checked,
@@ -520,7 +520,7 @@ export function EmployeeManagement() {
                   <Input
                     id="probation_end_date"
                     type="date"
-                    value={formData.probation_end_date}
+                    value={formData.probation_end_date ?? ""}
                     onChange={(e) => setFormData({ ...formData, probation_end_date: e.target.value })}
                     required={formData.is_probation}
                   />

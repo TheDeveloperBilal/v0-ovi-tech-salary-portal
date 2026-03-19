@@ -109,7 +109,7 @@ export function CompanySettings() {
                   <Label htmlFor="company_name">Company Name</Label>
                   <Input
                     id="company_name"
-                    value={formData.company_name}
+                    value={formData.company_name ?? ""}
                     onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   />
                 </div>
@@ -117,7 +117,7 @@ export function CompanySettings() {
                   <Label htmlFor="company_phone">Phone</Label>
                   <Input
                     id="company_phone"
-                    value={formData.company_phone}
+                    value={formData.company_phone ?? ""}
                     onChange={(e) => setFormData({ ...formData, company_phone: e.target.value })}
                   />
                 </div>
@@ -125,7 +125,7 @@ export function CompanySettings() {
                   <Label htmlFor="company_address">Address</Label>
                   <Input
                     id="company_address"
-                    value={formData.company_address}
+                    value={formData.company_address ?? ""}
                     onChange={(e) => setFormData({ ...formData, company_address: e.target.value })}
                   />
                 </div>
@@ -134,7 +134,7 @@ export function CompanySettings() {
                   <Input
                     id="company_email"
                     type="email"
-                    value={formData.company_email}
+                    value={formData.company_email ?? ""}
                     onChange={(e) => setFormData({ ...formData, company_email: e.target.value })}
                   />
                 </div>
@@ -142,7 +142,7 @@ export function CompanySettings() {
                   <Label htmlFor="company_website">Website</Label>
                   <Input
                     id="company_website"
-                    value={formData.company_website}
+                    value={formData.company_website ?? ""}
                     onChange={(e) => setFormData({ ...formData, company_website: e.target.value })}
                   />
                 </div>
@@ -160,7 +160,7 @@ export function CompanySettings() {
                   <Label htmlFor="cin">CIN</Label>
                   <Input
                     id="cin"
-                    value={formData.cin}
+                    value={formData.cin ?? ""}
                     onChange={(e) => setFormData({ ...formData, cin: e.target.value })}
                   />
                 </div>
@@ -168,7 +168,7 @@ export function CompanySettings() {
                   <Label htmlFor="pan">PAN</Label>
                   <Input
                     id="pan"
-                    value={formData.pan}
+                    value={formData.pan ?? ""}
                     onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
                   />
                 </div>
@@ -176,7 +176,7 @@ export function CompanySettings() {
                   <Label htmlFor="esi_code">ESI Code</Label>
                   <Input
                     id="esi_code"
-                    value={formData.esi_code}
+                    value={formData.esi_code ?? ""}
                     onChange={(e) => setFormData({ ...formData, esi_code: e.target.value })}
                   />
                 </div>
@@ -184,7 +184,7 @@ export function CompanySettings() {
                   <Label htmlFor="pf_code">PF Code</Label>
                   <Input
                     id="pf_code"
-                    value={formData.pf_code}
+                    value={formData.pf_code ?? ""}
                     onChange={(e) => setFormData({ ...formData, pf_code: e.target.value })}
                   />
                 </div>
@@ -202,7 +202,7 @@ export function CompanySettings() {
                   <Label htmlFor="bank_name">Bank Name</Label>
                   <Input
                     id="bank_name"
-                    value={formData.bank_name}
+                    value={formData.bank_name ?? ""}
                     onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                   />
                 </div>
@@ -210,7 +210,7 @@ export function CompanySettings() {
                   <Label htmlFor="bank_account">Account Number</Label>
                   <Input
                     id="bank_account"
-                    value={formData.bank_account}
+                    value={formData.bank_account ?? ""}
                     onChange={(e) => setFormData({ ...formData, bank_account: e.target.value })}
                   />
                 </div>
@@ -218,7 +218,7 @@ export function CompanySettings() {
                   <Label htmlFor="ifsc_code">IFSC Code</Label>
                   <Input
                     id="ifsc_code"
-                    value={formData.ifsc_code}
+                    value={formData.ifsc_code ?? ""}
                     onChange={(e) => setFormData({ ...formData, ifsc_code: e.target.value })}
                   />
                 </div>

@@ -25,8 +25,8 @@ export function Header({ user }: { user: any }) {
               alt="OviTech Logo" 
               width={40} 
               height={40} 
-              className="h-10 w-10"
-              style={{ width: 'auto', height: '40px' }}
+              className="h-10"
+              style={{ width: 'auto', height: 'auto' }}
             />
             <div>
               <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>

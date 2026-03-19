@@ -291,24 +291,20 @@ export function SalarySlipPreview({ employee }: any) {
                           const val = Number.parseFloat(String(value))
                           return !isNaN(val) && val > 0
                         })
-                        .map(([key, value]: any) => {
-                          const val = Number.parseFloat(String(value)) || 0
-                          if (val <= 0) return null
-                          return (
-                            <tr key={`deduction-${key}`} className="border-b border-gray-300">
-                              <td className="p-2 capitalize">
-                                {key === "pf_deduction" ? "PF" :
-                                  key === "esi_deduction" ? "ESI" :
-                                    key === "professional_tax" ? "Professional Tax" :
-                                      key === "loan_deduction" ? "Loan Deduction" :
-                                        key.replace(/_/g, " ")}
-                              </td>
-                              <td className="p-2 text-right font-semibold">
-                                PKR {val.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                              </td>
-                            </tr>
-                          )
-                        })}
+                        .map(([key, value]: any) => (
+                          <tr key={`deduction-${key}`} className="border-b border-gray-300">
+                            <td className="p-2 capitalize">
+                              {key === "pf_deduction" ? "PF" :
+                                key === "esi_deduction" ? "ESI" :
+                                  key === "professional_tax" ? "Professional Tax" :
+                                    key === "loan_deduction" ? "Loan Deduction" :
+                                      key.replace(/_/g, " ")}
+                            </td>
+                            <td className="p-2 text-right font-semibold">
+                              PKR {(Number.parseFloat(String(value)) || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                            </td>
+                          </tr>
+                        ))}
                       {employee.leaves_deducted && employee.leaves_deducted > 0 && (
                         <tr key="leaves-deduction" className="border-b border-gray-300">
                           <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
