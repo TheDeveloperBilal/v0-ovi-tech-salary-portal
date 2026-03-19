@@ -348,7 +348,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                   <div>
                     <p className="text-muted-foreground">Deductions</p>
                     <p className="font-semibold text-red-600">
-                      PKR {Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted ? (slip.basic_salary / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>

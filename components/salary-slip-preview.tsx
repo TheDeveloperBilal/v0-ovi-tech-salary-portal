@@ -164,7 +164,7 @@ export function SalarySlipPreview({ employee }: any) {
           {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-primary pb-4">
             <div className="flex items-center gap-3">
-              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" />
+              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={50} height={50} className="h-12 w-auto" style={{ width: 'auto', height: 'auto' }} />
               <div>
                 <h2 className="text-2xl font-bold text-primary">OviTech Global Pvt Ltd</h2>
                 <p className="text-xs text-gray-600">Digital Marketing Agency</p>
@@ -283,38 +283,34 @@ export function SalarySlipPreview({ employee }: any) {
                   </tr>
                 </thead>
                 <tbody>
-                  {deductions && typeof deductions === 'object' ? (
-                    <>
-                      {Object.entries(deductions)
-                        .filter(([key, value]: any) => {
-                          if (!key || typeof key !== 'string' || key === '0') return false
-                          const val = Number.parseFloat(String(value))
-                          return !isNaN(val) && val > 0
-                        })
-                        .map(([key, value]: any) => (
-                          <tr key={`deduction-${key}`} className="border-b border-gray-300">
-                            <td className="p-2 capitalize">
-                              {key === "pf_deduction" ? "PF" :
-                                key === "esi_deduction" ? "ESI" :
-                                  key === "professional_tax" ? "Professional Tax" :
-                                    key === "loan_deduction" ? "Loan Deduction" :
-                                      key.replace(/_/g, " ")}
-                            </td>
-                            <td className="p-2 text-right font-semibold">
-                              PKR {(Number.parseFloat(String(value)) || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                            </td>
-                          </tr>
-                        ))}
-                      {employee.leaves_deducted && employee.leaves_deducted > 0 && (
-                        <tr key="leaves-deduction" className="border-b border-gray-300">
-                          <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
-                          <td className="p-2 text-right font-semibold">
-                            PKR {leavesDeductedAmount.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  ) : null}
+                  {deductions && typeof deductions === 'object' && Object.entries(deductions)
+                    .filter(([key, value]: any) => {
+                      if (!key || typeof key !== 'string' || key === '0') return false
+                      const val = Number.parseFloat(String(value))
+                      return !isNaN(val) && val > 0
+                    })
+                    .map(([key, value]: any) => (
+                      <tr key={`deduction-${key}`} className="border-b border-gray-300">
+                        <td className="p-2 capitalize">
+                          {key === "pf_deduction" ? "PF" :
+                            key === "esi_deduction" ? "ESI" :
+                              key === "professional_tax" ? "Professional Tax" :
+                                key === "loan_deduction" ? "Loan Deduction" :
+                                  key.replace(/_/g, " ")}
+                        </td>
+                        <td className="p-2 text-right font-semibold">
+                          PKR {(Number.parseFloat(String(value)) || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                        </td>
+                      </tr>
+                    ))}
+                  {employee.leaves_deducted && employee.leaves_deducted > 0 && (
+                    <tr key="leaves-deduction" className="border-b border-gray-300">
+                      <td className="p-2 capitalize">Leaves Deducted ({employee.leaves_deducted} days)</td>
+                      <td className="p-2 text-right font-semibold">
+                        PKR {leavesDeductedAmount.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  )}
                   <tr key="total-deductions" className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
