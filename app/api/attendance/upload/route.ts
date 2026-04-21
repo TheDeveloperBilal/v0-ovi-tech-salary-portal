@@ -87,7 +87,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     // Read file as text to handle tab-separated format
     const text = await file.text()
-    const lines = text.trim().split('\n')
+    // Handle different line endings (CRLF, LF, CR)
+    const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const lines = normalizedText.trim().split('\n').filter(line => line.trim().length > 0)
+
+    console.log(`[v0] File parsing - Total lines: ${lines.length}`)
+    console.log(`[v0] First line raw: "${lines[0]}"`)
+    if (lines[0]) {
+      const firstColumns = lines[0].split('\t')
+      console.log(`[v0] First line columns count: ${firstColumns.length}`)
+      console.log(`[v0] First line columns:`, firstColumns.map((c, i) => `[${i}]="${c}"`))
+    }
 
     if (lines.length === 0) {
       return NextResponse.json<UploadResponse>(
@@ -115,11 +125,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
         const columns = line.split('\t')
         
+        // If no tabs found, try space-separated
+        let parsedColumns = columns
+        if (columns.length < 5) {
+          const spaceColumns = line.split(/\s+/)
+          if (spaceColumns.length > columns.length) {
+            parsedColumns = spaceColumns
+            if (i < 3) {
+              console.log(`[v0] Row ${i + 1}: Using space-separated parsing (found ${spaceColumns.length} columns)`)
+            }
+          }
+        }
+        
+        // Debug first few rows
+        if (i < 3) {
+          console.log(`[v0] Row ${i + 1}: columns.length=${parsedColumns.length}, raw="${line.substring(0, 100)}"`)
+          console.log(`[v0] Row ${i + 1} columns:`, parsedColumns.map((c, idx) => `[${idx}]="${c}"`))
+        }
+        
         // Extract columns based on file structure:
         // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Employee Name, Col 6: I/O Type
-        const rawEmployeeId = columns[1]?.trim()
-        const dateTime = columns[2]?.trim()
-        const ioType = columns[6]?.trim()
+        const rawEmployeeId = parsedColumns[1]?.trim()
+        const dateTime = parsedColumns[2]?.trim()
+        const ioType = parsedColumns[6]?.trim()
 
         if (!rawEmployeeId || !dateTime || !ioType) {
           if (errors.length < MAX_ERRORS) {
