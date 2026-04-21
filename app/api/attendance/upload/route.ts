@@ -3,6 +3,19 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { processAttendanceRecord } from '@/lib/attendance-calculations'
 
+// Standardized response interface for consistency
+interface UploadResponse {
+  success: boolean
+  recordsProcessed?: number
+  errors?: string[]
+  error?: string
+  details?: {
+    totalLines: number
+    totalErrors: number
+    sampleErrors?: string[]
+  }
+}
+
 interface ParsedRow {
   [key: string]: any
 }
@@ -12,19 +25,64 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function POST(request: NextRequest) {
+// Input validation function
+function validateInput(month: number, year: number, file: File): { valid: boolean; error?: string } {
+  // Validate month
+  if (month < 1 || month > 12) {
+    return { valid: false, error: 'Month must be between 1 and 12' }
+  }
+
+  // Validate year
+  const currentYear = new Date().getFullYear()
+  if (year < 2020 || year > currentYear + 1) {
+    return { valid: false, error: `Year must be between 2020 and ${currentYear + 1}` }
+  }
+
+  // Validate file size (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    return { valid: false, error: 'File size exceeds 10MB limit' }
+  }
+
+  // Validate file type
+  const validTypes = ['.txt', '.csv']
+  const fileName = file.name.toLowerCase()
+  const hasValidExtension = validTypes.some(ext => fileName.endsWith(ext))
+  if (!hasValidExtension) {
+    return { valid: false, error: 'File must be .txt or .csv format' }
+  }
+
+  return { valid: true }
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const month = parseInt(formData.get('month') as string)
     const year = parseInt(formData.get('year') as string)
 
+    // Validate inputs
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: 'No file provided', errors: [] },
+        { status: 400 }
+      )
     }
 
     if (!month || !year) {
-      return NextResponse.json({ error: 'Month and year are required' }, { status: 400 })
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: 'Month and year are required', errors: [] },
+        { status: 400 }
+      )
+    }
+
+    // Validate inputs before processing
+    const validation = validateInput(month, year, file)
+    if (!validation.valid) {
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: validation.error!, errors: [] },
+        { status: 400 }
+      )
     }
 
     // Read file as text to handle tab-separated format
@@ -32,13 +90,23 @@ export async function POST(request: NextRequest) {
     const lines = text.trim().split('\n')
 
     if (lines.length === 0) {
-      return NextResponse.json({ error: 'No data found in file' }, { status: 400 })
+      return NextResponse.json<UploadResponse>(
+        { 
+          success: false, 
+          error: 'No data found in file', 
+          errors: [],
+          details: { totalLines: 0, totalErrors: 0 }
+        },
+        { status: 400 }
+      )
     }
 
     // Parse tab-separated records
     const records = []
-    const errors = []
+    const errors: string[] = []
     const employeeCache: { [key: string]: any } = {}
+    const errorCategories = { notFound: 0, parseError: 0, wrongDate: 0, missingFields: 0 }
+    const MAX_ERRORS = 1000 // Prevent memory issues from huge error lists
 
     for (let i = 0; i < lines.length; i++) {
       try {
@@ -54,7 +122,10 @@ export async function POST(request: NextRequest) {
         const ioType = columns[6]?.trim()
 
         if (!rawEmployeeId || !dateTime || !ioType) {
-          errors.push(`Row ${i + 1}: Missing required fields (ID: ${rawEmployeeId}, DateTime: ${dateTime}, Type: ${ioType})`)
+          if (errors.length < MAX_ERRORS) {
+            errors.push(`Row ${i + 1}: Missing required fields (ID: ${rawEmployeeId}, DateTime: ${dateTime}, Type: ${ioType})`)
+          }
+          errorCategories.missingFields++
           continue
         }
 
@@ -65,6 +136,7 @@ export async function POST(request: NextRequest) {
         // Check if this is for the correct month/year
         const dateObj = new Date(attendanceDate)
         if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
+          errorCategories.wrongDate++
           continue
         }
 
@@ -79,7 +151,10 @@ export async function POST(request: NextRequest) {
             .single()
 
           if (queryError || !employee) {
-            errors.push(`Row ${i + 1}: Employee ID "${rawEmployeeId}" not found in database`)
+            if (errors.length < MAX_ERRORS) {
+              errors.push(`Row ${i + 1}: Employee ID "${rawEmployeeId}" not found in database`)
+            }
+            errorCategories.notFound++
             continue
           }
 
@@ -112,19 +187,27 @@ export async function POST(request: NextRequest) {
           })
         }
       } catch (error) {
-        errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        if (errors.length < MAX_ERRORS) {
+          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown parsing error'}`)
+        }
+        errorCategories.parseError++
       }
     }
 
     if (records.length === 0) {
-      console.error('[v0] No records processed. Total lines: ' + lines.length + ', Errors: ' + errors.length)
+      console.error('[v0] No records processed. Total lines:', lines.length, 'Total errors:', errors.length)
+      console.error('[v0] Error categories:', errorCategories)
       console.error('[v0] First 10 errors:', errors.slice(0, 10))
-      return NextResponse.json(
+      return NextResponse.json<UploadResponse>(
         { 
+          success: false,
           error: 'No valid records to process', 
-          details: errors.length > 0 ? errors.slice(0, 10) : 'No matching records found for the selected month',
-          totalLines: lines.length,
-          totalErrors: errors.length
+          errors: errors,
+          details: { 
+            totalLines: lines.length, 
+            totalErrors: errors.length,
+            sampleErrors: errors.slice(0, 5)
+          }
         },
         { status: 400 }
       )
@@ -167,18 +250,36 @@ export async function POST(request: NextRequest) {
 
     if (upsertError) {
       console.error('Upsert error:', upsertError)
-      return NextResponse.json({ error: 'Failed to save records', details: upsertError.message }, { status: 500 })
+      return NextResponse.json<UploadResponse>(
+        { 
+          success: false,
+          error: 'Failed to save records to database', 
+          errors: [upsertError.message]
+        },
+        { status: 500 }
+      )
     }
 
-    return NextResponse.json({
+    console.log('[v0] Upload successful. Records processed:', processedRecords.length)
+    return NextResponse.json<UploadResponse>({
       success: true,
       recordsProcessed: processedRecords.length,
-      errors: errors.length > 0 ? errors.slice(0, 10) : null,
+      errors: errors.length > 0 ? errors.slice(0, 10) : [],
+      details: {
+        totalLines: lines.length,
+        totalErrors: errors.length,
+        sampleErrors: errors.slice(0, 3)
+      }
     })
   } catch (error) {
-    console.error('Upload error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process file', details: error instanceof Error ? error.message : 'Unknown error' },
+    console.error('[v0] Upload error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json<UploadResponse>(
+      { 
+        success: false,
+        error: 'Failed to process file', 
+        errors: [errorMessage]
+      },
       { status: 500 }
     )
   }

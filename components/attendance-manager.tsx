@@ -11,6 +11,55 @@ import { useToast } from '@/hooks/use-toast'
 
 const supabase = createClient()
 
+// Type-safe response interface
+interface UploadResponse {
+  success: boolean
+  recordsProcessed?: number
+  error?: string
+  errors?: string[]
+  details?: {
+    totalLines: number
+    totalErrors: number
+    sampleErrors?: string[]
+  }
+}
+
+// Helper function to safely extract error details
+function getErrorDetails(result: unknown): string[] {
+  if (!result || typeof result !== 'object') {
+    return ['Unknown error']
+  }
+
+  const res = result as Record<string, unknown>
+
+  // If errors array exists and is an array, return it
+  if (Array.isArray(res.errors)) {
+    return res.errors.map(e => String(e))
+  }
+
+  // If details has sampleErrors array, return those
+  if (res.details && typeof res.details === 'object') {
+    const details = res.details as Record<string, unknown>
+    if (Array.isArray(details.sampleErrors)) {
+      return details.sampleErrors.map(e => String(e))
+    }
+  }
+
+  // Fallback to error string
+  if (res.error && typeof res.error === 'string') {
+    return [res.error]
+  }
+
+  return ['Unknown error occurred']
+}
+
+// Helper function to format error display
+function formatErrorDisplay(details: string[], totalErrors?: number): string {
+  const displayErrors = details.slice(0, 5).join('\n')
+  const errorCountMsg = totalErrors && totalErrors > 5 ? `\n\n...and ${totalErrors - 5} more errors` : ''
+  return displayErrors + errorCountMsg
+}
+
 export function AttendanceManager() {
   const { toast } = useToast()
   const [month, setMonth] = useState(new Date().getMonth() + 1)
@@ -80,7 +129,7 @@ export function AttendanceManager() {
         body: formData,
       })
 
-      const result = await response.json()
+      const result = await response.json() as UploadResponse
 
       if (result.success) {
         toast({
@@ -89,12 +138,13 @@ export function AttendanceManager() {
         })
         loadAttendanceData()
       } else {
-        // Show detailed error information
-        const errorMsg = result.details?.join('\n') || result.error || 'Upload failed'
-        const debugInfo = result.totalLines ? `\n\nDebug: ${result.totalLines} lines processed, ${result.totalErrors} errors found` : ''
+        // Safely extract error details with type guards
+        const errorDetails = getErrorDetails(result)
+        const formattedMessage = formatErrorDisplay(errorDetails, result.details?.totalErrors)
+        
         toast({
-          title: 'Error',
-          description: errorMsg + debugInfo,
+          title: 'Upload Error',
+          description: formattedMessage,
           variant: 'destructive',
         })
         console.error('[v0] Upload error details:', result)
