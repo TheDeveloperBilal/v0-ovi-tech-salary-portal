@@ -1,7 +1,6 @@
 // app/api/attendance/upload/route.ts
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import * as XLSX from 'xlsx'
 import { processAttendanceRecord } from '@/lib/attendance-calculations'
 
 const supabase = createClient(
@@ -28,72 +27,91 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Month and year are required' }, { status: 400 })
     }
 
-    // Read file
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const data = XLSX.utils.sheet_to_json(sheet) as ParsedRow[]
+    // Read file as text to handle tab-separated format
+    const text = await file.text()
+    const lines = text.trim().split('\n')
 
-    if (data.length === 0) {
+    if (lines.length === 0) {
       return NextResponse.json({ error: 'No data found in file' }, { status: 400 })
     }
 
-    // Parse and process attendance records
+    // Parse tab-separated records
     const records = []
     const errors = []
+    const employeeCache: { [key: string]: any } = {}
 
-    for (let i = 0; i < data.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       try {
-        const row = data[i]
+        const line = lines[i].trim()
+        if (!line) continue
 
-        // Map CSV columns (adjust based on your file format)
-        const employeeName = row['Employee Name'] || row['Name'] || row['employee_name']
-        const date = row['Date'] || row['date']
-        const checkIn = row['Check In'] || row['check_in'] || null
-        const checkOut = row['Check Out'] || row['check_out'] || null
+        const columns = line.split('\t')
+        
+        // Extract columns based on file structure:
+        // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Employee Name, Col 6: I/O Type
+        const employeeId = columns[1]?.trim()
+        const employeeName = columns[5]?.trim()
+        const dateTime = columns[2]?.trim()
+        const ioType = columns[6]?.trim()
 
-        if (!employeeName || !date) {
-          errors.push(`Row ${i + 1}: Missing employee name or date`)
+        if (!employeeName || !dateTime || !ioType) {
+          errors.push(`Row ${i + 1}: Missing required fields`)
           continue
         }
 
-        // Get employee from database
-        const { data: employee } = await supabase
-          .from('employees')
-          .select('id')
-          .ilike('first_name', `%${employeeName}%`)
-          .or(`last_name.ilike.%${employeeName}%`)
-          .single()
+        // Parse datetime
+        const [datePart, timePart] = dateTime.split(' ')
+        const attendanceDate = datePart
 
-        if (!employee) {
-          errors.push(`Row ${i + 1}: Employee "${employeeName}" not found`)
+        // Check if this is for the correct month/year
+        const dateObj = new Date(attendanceDate)
+        if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
           continue
         }
 
-        // Process attendance
-        const processed = processAttendanceRecord({
-          employeName: employeeName,
-          employeeId: employee.id,
-          date: formatDate(date),
-          checkIn: formatTime(checkIn),
-          checkOut: formatTime(checkOut),
-        })
+        // Try to get employee from cache first, then database
+        let employeeData = employeeCache[employeeName]
 
-        records.push({
-          employee_id: employee.id,
-          employee_name: employeeName,
-          attendance_date: processed.date,
-          check_in: processed.checkIn,
-          check_out: processed.checkOut,
-          work_hours: processed.workHours,
-          status: processed.status,
-          is_late: processed.isLate,
-          is_early_out: processed.isEarlyOut,
-          is_absent: processed.isAbsent,
-          nine_hour_waiver: processed.nineHourWaiver,
-          month,
-          year,
-        })
+        if (!employeeData) {
+          const { data: employee } = await supabase
+            .from('employees')
+            .select('id, first_name, last_name')
+            .or(`first_name.ilike.%${employeeName}%,last_name.ilike.%${employeeName}%`)
+            .limit(1)
+            .single()
+
+          if (!employee) {
+            errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
+            continue
+          }
+
+          employeeData = employee
+          employeeCache[employeeName] = employee
+        }
+
+        // Aggregate check-in and check-out for the day
+        const existingRecord = records.find(
+          r => r.employee_name === employeeName && r.attendance_date === attendanceDate
+        )
+
+        if (existingRecord) {
+          if (ioType === 'I' && !existingRecord.check_in) {
+            existingRecord.check_in = timePart
+          } else if (ioType === 'O' && !existingRecord.check_out) {
+            existingRecord.check_out = timePart
+          }
+        } else {
+          records.push({
+            employee_id: employeeData.id,
+            employee_name: employeeName,
+            attendance_date: attendanceDate,
+            check_in: ioType === 'I' ? timePart : null,
+            check_out: ioType === 'O' ? timePart : null,
+            status: 'pending',
+            month,
+            year,
+          })
+        }
       } catch (error) {
         errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
@@ -101,15 +119,46 @@ export async function POST(request: NextRequest) {
 
     if (records.length === 0) {
       return NextResponse.json(
-        { error: 'No valid records to process', details: errors },
+        { 
+          error: 'No valid records to process', 
+          details: errors.length > 0 ? errors.slice(0, 5) : 'No matching records found for the selected month' 
+        },
         { status: 400 }
       )
+    }
+
+    // Process records with calculations
+    const processedRecords = []
+    for (const record of records) {
+      const processed = processAttendanceRecord({
+        employeName: record.employee_name,
+        employeeId: record.employee_id,
+        date: record.attendance_date,
+        checkIn: record.check_in,
+        checkOut: record.check_out,
+      })
+
+      processedRecords.push({
+        employee_id: record.employee_id,
+        employee_name: record.employee_name,
+        attendance_date: record.attendance_date,
+        check_in: record.check_in,
+        check_out: record.check_out,
+        work_hours: processed.workHours,
+        status: processed.status,
+        is_late: processed.isLate,
+        is_early_out: processed.isEarlyOut,
+        is_absent: processed.isAbsent,
+        nine_hour_waiver: processed.nineHourWaiver,
+        month: record.month,
+        year: record.year,
+      })
     }
 
     // Upsert records to database
     const { error: upsertError } = await supabase
       .from('attendance_records')
-      .upsert(records, {
+      .upsert(processedRecords, {
         onConflict: 'employee_id,attendance_date',
       })
 
@@ -120,8 +169,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      recordsProcessed: records.length,
-      errors: errors.length > 0 ? errors : null,
+      recordsProcessed: processedRecords.length,
+      errors: errors.length > 0 ? errors.slice(0, 10) : null,
     })
   } catch (error) {
     console.error('Upload error:', error)
@@ -132,14 +181,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper functions
-function formatDate(date: any): string {
-  if (!date) return ''
-  if (typeof date === 'number') {
-    // Excel serial number
-    const excelDate = new Date((date - 25569) * 86400 * 1000)
-    return excelDate.toISOString().split('T')[0]
-  }
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+interface ParsedRow {
+  [key: string]: any
+}
   if (typeof date === 'string') {
     return date.split('T')[0] // ISO format
   }
