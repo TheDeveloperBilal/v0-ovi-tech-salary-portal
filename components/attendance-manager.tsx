@@ -2,19 +2,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Upload, Search, Download, Trash2 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient()
 
-interface AttendanceRecord {
+  const { toast } = useToast()
+
+  interface AttendanceRecord {
   id: string
   employee_name: string
   attendance_date: string
@@ -123,21 +123,75 @@ export function AttendanceManager() {
       const result = await response.json()
 
       if (result.success) {
-        alert(`Successfully uploaded ${result.recordsProcessed} records`)
+        toast({
+          title: "Success",
+          description: `Successfully uploaded ${result.recordsProcessed} records`,
+        })
         loadAttendanceData()
       } else {
-        alert(`Error: ${result.error}`)
+        toast({
+          title: "Error",
+          description: `Error: ${result.error}`,
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      alert('Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: "destructive",
+      })
     } finally {
       setUploading(false)
     }
   }
 
-  async function deleteRecord(id: string) {
-    if (!confirm('Are you sure you want to delete this record?')) return
+  async function calculateAndApplyLeaves() {
+    try {
+      setLoading(true)
+      
+      // Get unique employees from records
+      const uniqueEmployees = [...new Set(records.map(r => r.employee_name))]
+      
+      if (uniqueEmployees.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No attendance records found for this month",
+          variant: "destructive",
+        })
+        return
+      }
 
+      // Calculate leaves for each employee
+      const results = await Promise.all(
+        uniqueEmployees.map(employeeId =>
+          fetch('/api/attendance/calculate-leaves', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ month: parseInt(month), year: parseInt(year), employeeId }),
+          }).then(res => res.json())
+        )
+      )
+
+      const successful = results.filter(r => r.success).length
+      const failed = results.filter(r => !r.success).length
+
+      toast({
+        title: "Leaves Applied",
+        description: `Successfully applied leaves for ${successful} employee(s)${failed > 0 ? `. ${failed} failed.` : '.'}`,
+      })
+
+      loadAttendanceData()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to calculate leaves',
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
     try {
       const response = await fetch('/api/attendance/records', {
         method: 'DELETE',
@@ -146,10 +200,24 @@ export function AttendanceManager() {
       })
 
       if (response.ok) {
+        toast({
+          title: "Record Deleted",
+          description: "Attendance record has been deleted successfully",
+        })
         loadAttendanceData()
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to delete record",
+          variant: "destructive",
+        })
       }
     } catch (error) {
-      console.error('Error deleting record:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete record',
+        variant: "destructive",
+      })
     }
   }
 
@@ -215,6 +283,16 @@ export function AttendanceManager() {
                 </label>
               </Button>
             </label>
+
+            {records.length > 0 && (
+              <Button 
+                onClick={calculateAndApplyLeaves} 
+                disabled={loading}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {loading ? 'Calculating...' : 'Apply Leaves to Payroll'}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
