@@ -1,4 +1,3 @@
-// components/attendance-manager.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -7,14 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, Search, Download, Trash2 } from 'lucide-react'
+import { Upload, Search, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
-const supabase = createClient()
-
-  const { toast } = useToast()
-
-  interface AttendanceRecord {
+interface AttendanceRecord {
   id: string
   employee_name: string
   attendance_date: string
@@ -28,7 +23,7 @@ const supabase = createClient()
   nine_hour_waiver: boolean
 }
 
-interface SummaryStats {
+interface AttendanceSummary {
   total_days: number
   present_days: number
   late_count: number
@@ -38,14 +33,15 @@ interface SummaryStats {
 }
 
 export function AttendanceManager() {
-  const [month, setMonth] = useState<string>(new Date().getMonth() + 1 < 10 ? '0' + (new Date().getMonth() + 1) : String(new Date().getMonth() + 1))
-  const [year, setYear] = useState<string>(String(new Date().getFullYear()))
+  const supabase = createClient()
+  const { toast } = useToast()
+  const [month, setMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'))
+  const [year, setYear] = useState(String(new Date().getFullYear()))
   const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [stats, setStats] = useState<SummaryStats>({
+  const [stats, setStats] = useState<AttendanceSummary>({
     total_days: 0,
     present_days: 0,
     late_count: 0,
@@ -54,52 +50,43 @@ export function AttendanceManager() {
     leaves_deducted: 0,
   })
 
-  // Load attendance data
   useEffect(() => {
     loadAttendanceData()
   }, [month, year])
 
-  // Filter records on search
-  useEffect(() => {
-    if (searchTerm) {
-      setFilteredRecords(
-        records.filter((r) =>
-          r.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-      )
-    } else {
-      setFilteredRecords(records)
-    }
-  }, [searchTerm, records])
-
   async function loadAttendanceData() {
     try {
       setLoading(true)
-      const response = await fetch(
-        `/api/attendance/records?month=${month}&year=${year}`
-      )
-      const { data } = await response.json()
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('month', parseInt(month))
+        .eq('year', parseInt(year))
+        .order('attendance_date', { ascending: true })
 
-      setRecords(data || [])
+      if (error) throw error
+
+      setRecords((data || []) as AttendanceRecord[])
       calculateStats(data || [])
     } catch (error) {
-      console.error('Error loading attendance data:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load attendance data',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  function calculateStats(data: AttendanceRecord[]) {
-    const stats: SummaryStats = {
-      total_days: data.length > 0 ? new Set(data.map((r) => r.attendance_date)).size : 0,
-      present_days: data.filter((r) => r.status !== 'Absent').length,
-      late_count: data.filter((r) => r.is_late && !r.nine_hour_waiver).length,
-      early_out_count: data.filter((r) => r.is_early_out).length,
-      absent_count: data.filter((r) => r.is_absent).length,
-      leaves_deducted: Math.floor(
-        (data.filter((r) => r.is_absent).length +
-          Math.floor((data.filter((r) => r.is_late).length + data.filter((r) => r.is_early_out).length) / 3))
-      ),
+  function calculateStats(data: any[]) {
+    const stats: AttendanceSummary = {
+      total_days: data.length,
+      present_days: data.filter(r => r.status === 'On Time').length,
+      late_count: data.filter(r => r.is_late && !r.nine_hour_waiver).length,
+      early_out_count: data.filter(r => r.is_early_out).length,
+      absent_count: data.filter(r => r.is_absent).length,
+      leaves_deducted: Math.floor((data.filter(r => r.is_absent).length + Math.floor(data.filter(r => r.is_late || r.is_early_out).length / 3)) || 0),
     }
     setStats(stats)
   }
@@ -124,22 +111,22 @@ export function AttendanceManager() {
 
       if (result.success) {
         toast({
-          title: "Success",
+          title: 'Success',
           description: `Successfully uploaded ${result.recordsProcessed} records`,
         })
         loadAttendanceData()
       } else {
         toast({
-          title: "Error",
+          title: 'Error',
           description: `Error: ${result.error}`,
-          variant: "destructive",
+          variant: 'destructive',
         })
       }
     } catch (error) {
       toast({
-        title: "Upload Failed",
+        title: 'Upload Failed',
         description: error instanceof Error ? error.message : 'Unknown error',
-        variant: "destructive",
+        variant: 'destructive',
       })
     } finally {
       setUploading(false)
@@ -149,20 +136,18 @@ export function AttendanceManager() {
   async function calculateAndApplyLeaves() {
     try {
       setLoading(true)
-      
-      // Get unique employees from records
+
       const uniqueEmployees = [...new Set(records.map(r => r.employee_name))]
-      
+
       if (uniqueEmployees.length === 0) {
         toast({
-          title: "No Data",
-          description: "No attendance records found for this month",
-          variant: "destructive",
+          title: 'No Data',
+          description: 'No attendance records found for this month',
+          variant: 'destructive',
         })
         return
       }
 
-      // Calculate leaves for each employee
       const results = await Promise.all(
         uniqueEmployees.map(employeeId =>
           fetch('/api/attendance/calculate-leaves', {
@@ -177,21 +162,23 @@ export function AttendanceManager() {
       const failed = results.filter(r => !r.success).length
 
       toast({
-        title: "Leaves Applied",
+        title: 'Leaves Applied',
         description: `Successfully applied leaves for ${successful} employee(s)${failed > 0 ? `. ${failed} failed.` : '.'}`,
       })
 
       loadAttendanceData()
     } catch (error) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to calculate leaves',
-        variant: "destructive",
+        variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
   }
+
+  async function deleteRecord(id: string) {
     try {
       const response = await fetch('/api/attendance/records', {
         method: 'DELETE',
@@ -201,25 +188,29 @@ export function AttendanceManager() {
 
       if (response.ok) {
         toast({
-          title: "Record Deleted",
-          description: "Attendance record has been deleted successfully",
+          title: 'Record Deleted',
+          description: 'Attendance record has been deleted successfully',
         })
         loadAttendanceData()
       } else {
         toast({
-          title: "Error",
-          description: "Failed to delete record",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Failed to delete record',
+          variant: 'destructive',
         })
       }
     } catch (error) {
       toast({
-        title: "Error",
+        title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to delete record',
-        variant: "destructive",
+        variant: 'destructive',
       })
     }
   }
+
+  const filteredRecords = records.filter(r =>
+    r.employee_name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const statusColor: Record<string, string> = {
     'On Time': 'text-green-600 bg-green-50',
@@ -236,7 +227,7 @@ export function AttendanceManager() {
           <CardTitle>Select Month & Year</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <Select value={month} onValueChange={setMonth}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
@@ -269,24 +260,22 @@ export function AttendanceManager() {
               </SelectContent>
             </Select>
 
-            <label className="flex gap-2">
-              <Button asChild disabled={uploading}>
-                <label className="cursor-pointer flex gap-2">
-                  <Upload className="w-4 h-4" />
-                  {uploading ? 'Uploading...' : 'Upload File'}
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    hidden
-                    onChange={handleFileUpload}
-                  />
-                </label>
-              </Button>
-            </label>
+            <Button asChild disabled={uploading}>
+              <label className="cursor-pointer flex gap-2">
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Uploading...' : 'Upload File'}
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  hidden
+                  onChange={handleFileUpload}
+                />
+              </label>
+            </Button>
 
             {records.length > 0 && (
-              <Button 
-                onClick={calculateAndApplyLeaves} 
+              <Button
+                onClick={calculateAndApplyLeaves}
                 disabled={loading}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >

@@ -87,12 +87,22 @@ export default function DashboardPage() {
     )
   }
 
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <p className="text-gray-600">Unable to load profile. Please try logging in again.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-white">
-        {profile && <Header user={profile} />}
+        <Header user={profile} />
         <main className="container mx-auto py-8 px-4">
-          {profile && <DashboardContent user={profile} />}
+          <DashboardContent user={profile} />
         </main>
       </div>
     </ProtectedRoute>
