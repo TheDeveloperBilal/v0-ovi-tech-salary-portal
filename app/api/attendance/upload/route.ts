@@ -3,21 +3,24 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { processAttendanceRecord } from '@/lib/attendance-calculations'
 
-// Standardized response interface for consistency
+// Standardized response interface
 interface UploadResponse {
   success: boolean
   recordsProcessed?: number
-  errors?: string[]
   error?: string
+  errors?: string[]
   details?: {
     totalLines: number
     totalErrors: number
     sampleErrors?: string[]
+    delimiters?: {
+      detected: string
+      tabCount: number
+      pipeCount: number
+      commaCount: number
+      spaceCount: number
+    }
   }
-}
-
-interface ParsedRow {
-  [key: string]: any
 }
 
 const supabase = createClient(
@@ -25,29 +28,65 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Input validation function
+// Phase 1: Diagnostic Helper - Detect file delimiter
+function detectDelimiter(line: string): { delimiter: string; count: number } {
+  const tabCount = (line.match(/\t/g) || []).length
+  const pipeCount = (line.match(/\|/g) || []).length
+  const commaCount = (line.match(/,/g) || []).length
+  const spaceCount = (line.match(/ {2,}/g) || []).length // Multiple spaces
+
+  console.log(`[v0] Delimiter detection - Tabs: ${tabCount}, Pipes: ${pipeCount}, Commas: ${commaCount}, Multi-space: ${spaceCount}`)
+
+  // Prefer tabs, then pipes, then commas, then spaces
+  if (tabCount >= 5) return { delimiter: '\t', count: tabCount }
+  if (pipeCount >= 5) return { delimiter: '|', count: pipeCount }
+  if (commaCount >= 5) return { delimiter: ',', count: commaCount }
+  if (spaceCount >= 5) return { delimiter: ' ', count: spaceCount }
+  
+  // Default to tab
+  return { delimiter: '\t', count: tabCount }
+}
+
+// Phase 1: Diagnostic Helper - Log file bytes for debugging
+function logFileBytes(text: string, maxChars: number = 200): void {
+  const firstLine = text.split('\n')[0]
+  console.log(`[v0] First line length: ${firstLine.length}`)
+  console.log(`[v0] First line (first 200 chars): "${firstLine.substring(0, 200)}"`)
+  
+  // Log character codes for debugging
+  const chars = firstLine.substring(0, 50).split('').map((c, i) => {
+    const code = c.charCodeAt(0)
+    if (code === 9) return `[${i}]=TAB`
+    if (code === 32) return `[${i}]=SPACE`
+    if (code === 124) return `[${i}]=PIPE`
+    if (code === 44) return `[${i}]=COMMA`
+    return `[${i}]="${c}"(${code})`
+  })
+  console.log(`[v0] Character breakdown: ${chars.slice(0, 15).join(', ')}...`)
+}
+
+// Phase 1 & 3: Input validation function
 function validateInput(month: number, year: number, file: File): { valid: boolean; error?: string } {
-  // Validate month
+  if (!month || !year) {
+    return { valid: false, error: 'Month and year are required' }
+  }
+  
   if (month < 1 || month > 12) {
     return { valid: false, error: 'Month must be between 1 and 12' }
   }
 
-  // Validate year
   const currentYear = new Date().getFullYear()
   if (year < 2020 || year > currentYear + 1) {
     return { valid: false, error: `Year must be between 2020 and ${currentYear + 1}` }
   }
 
-  // Validate file size (max 10MB)
   if (file.size > 10 * 1024 * 1024) {
     return { valid: false, error: 'File size exceeds 10MB limit' }
   }
 
-  // Validate file type
   const validTypes = ['.txt', '.csv']
   const fileName = file.name.toLowerCase()
-  const hasValidExtension = validTypes.some(ext => fileName.endsWith(ext))
-  if (!hasValidExtension) {
+  if (!validTypes.some(ext => fileName.endsWith(ext))) {
     return { valid: false, error: 'File must be .txt or .csv format' }
   }
 
@@ -61,7 +100,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     const month = parseInt(formData.get('month') as string)
     const year = parseInt(formData.get('year') as string)
 
-    // Validate inputs
+    console.log(`[v0] Upload started - File: ${file?.name}, Size: ${file?.size}, Month: ${month}, Year: ${year}`)
+
+    // Phase 3: Input validation
     if (!file) {
       return NextResponse.json<UploadResponse>(
         { success: false, error: 'No file provided', errors: [] },
@@ -69,14 +110,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    if (!month || !year) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, error: 'Month and year are required', errors: [] },
-        { status: 400 }
-      )
-    }
-
-    // Validate inputs before processing
     const validation = validateInput(month, year, file)
     if (!validation.valid) {
       return NextResponse.json<UploadResponse>(
@@ -85,25 +118,19 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    // Read file as text to handle tab-separated format
+    // Phase 1: Read and diagnose file
     const text = await file.text()
-    // Handle different line endings (CRLF, LF, CR)
     const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
     const lines = normalizedText.trim().split('\n').filter(line => line.trim().length > 0)
 
-    console.log(`[v0] File parsing - Total lines: ${lines.length}`)
-    console.log(`[v0] First line raw: "${lines[0]}"`)
-    if (lines[0]) {
-      const firstColumns = lines[0].split('\t')
-      console.log(`[v0] First line columns count: ${firstColumns.length}`)
-      console.log(`[v0] First line columns:`, firstColumns.map((c, i) => `[${i}]="${c}"`))
-    }
+    console.log(`[v0] File read complete - Total lines: ${lines.length}`)
+    logFileBytes(text)
 
     if (lines.length === 0) {
       return NextResponse.json<UploadResponse>(
-        { 
-          success: false, 
-          error: 'No data found in file', 
+        {
+          success: false,
+          error: 'No data found in file',
           errors: [],
           details: { totalLines: 0, totalErrors: 0 }
         },
@@ -111,64 +138,68 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    // Parse tab-separated records
+    // Phase 1: Auto-detect delimiter
+    const { delimiter, count: delimCount } = detectDelimiter(lines[0])
+    console.log(`[v0] Detected delimiter: "${delimiter === '\t' ? 'TAB' : delimiter}" (count: ${delimCount})`)
+
+    // Parse records with multi-delimiter support
     const records = []
     const errors: string[] = []
     const employeeCache: { [key: string]: any } = {}
-    const errorCategories = { notFound: 0, parseError: 0, wrongDate: 0, missingFields: 0 }
-    const MAX_ERRORS = 1000 // Prevent memory issues from huge error lists
+    const MAX_ERRORS = 100 // Show first 100 errors
+    const MAX_DETAILED_ERRORS = 5 // Show first 5 detailed error messages
 
     for (let i = 0; i < lines.length; i++) {
       try {
         const line = lines[i].trim()
         if (!line) continue
 
-        const columns = line.split('\t')
+        // Phase 2: Parse with detected delimiter
+        const columns = line.split(delimiter).map(c => c.trim())
         
-        // If no tabs found, try space-separated
-        let parsedColumns = columns
-        if (columns.length < 5) {
-          const spaceColumns = line.split(/\s+/)
-          if (spaceColumns.length > columns.length) {
-            parsedColumns = spaceColumns
-            if (i < 3) {
-              console.log(`[v0] Row ${i + 1}: Using space-separated parsing (found ${spaceColumns.length} columns)`)
-            }
-          }
-        }
-        
-        // Debug first few rows
+        // Log first 3 rows for debugging
         if (i < 3) {
-          console.log(`[v0] Row ${i + 1}: columns.length=${parsedColumns.length}, raw="${line.substring(0, 100)}"`)
-          console.log(`[v0] Row ${i + 1} columns:`, parsedColumns.map((c, idx) => `[${idx}]="${c}"`))
+          console.log(`[v0] Row ${i + 1}: Found ${columns.length} columns`)
+          console.log(`[v0] Row ${i + 1} data: Col[0]="${columns[0]}", Col[1]="${columns[1]}", Col[2]="${columns[2]}", Col[6]="${columns[6]}"`)
         }
-        
-        // Extract columns based on file structure:
-        // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Employee Name, Col 6: I/O Type
-        const rawEmployeeId = parsedColumns[1]?.trim()
-        const dateTime = parsedColumns[2]?.trim()
-        const ioType = parsedColumns[6]?.trim()
+
+        // Extract columns: Col 1 = Employee ID, Col 2 = DateTime, Col 6 = I/O Type
+        const rawEmployeeId = columns[1]?.trim()
+        const dateTime = columns[2]?.trim()
+        const ioType = columns[6]?.trim()
 
         if (!rawEmployeeId || !dateTime || !ioType) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Missing required fields (ID: ${rawEmployeeId}, DateTime: ${dateTime}, Type: ${ioType})`)
+            errors.push(
+              `Row ${i + 1}: Missing fields - ID: "${rawEmployeeId || 'EMPTY'}", DateTime: "${dateTime || 'EMPTY'}", Type: "${ioType || 'EMPTY'}" (${columns.length} total columns)`
+            )
           }
-          errorCategories.missingFields++
           continue
         }
 
-        // Parse datetime
+        // Validate date format
         const [datePart, timePart] = dateTime.split(' ')
-        const attendanceDate = datePart
-
-        // Check if this is for the correct month/year
-        const dateObj = new Date(attendanceDate)
-        if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
-          errorCategories.wrongDate++
+        if (!datePart || !timePart) {
+          if (errors.length < MAX_ERRORS) {
+            errors.push(`Row ${i + 1}: Invalid datetime format "${dateTime}"`)
+          }
           continue
         }
 
-        // Try to get employee from cache first, then database using employee_id
+        const dateObj = new Date(datePart)
+        if (isNaN(dateObj.getTime())) {
+          if (errors.length < MAX_ERRORS) {
+            errors.push(`Row ${i + 1}: Invalid date "${datePart}"`)
+          }
+          continue
+        }
+
+        // Check month/year match
+        if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
+          continue // Skip records from wrong month (don't count as error)
+        }
+
+        // Get employee from cache or database
         let employeeData = employeeCache[rawEmployeeId]
 
         if (!employeeData) {
@@ -182,7 +213,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
             if (errors.length < MAX_ERRORS) {
               errors.push(`Row ${i + 1}: Employee ID "${rawEmployeeId}" not found in database`)
             }
-            errorCategories.notFound++
             continue
           }
 
@@ -193,7 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         // Aggregate check-in and check-out for the day
         const employeeName = `${employeeData.first_name} ${employeeData.last_name}`
         const existingRecord = records.find(
-          r => r.employee_id === employeeData.id && r.attendance_date === attendanceDate
+          r => r.employee_id === employeeData.id && r.attendance_date === datePart
         )
 
         if (existingRecord) {
@@ -206,7 +236,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           records.push({
             employee_id: employeeData.id,
             employee_name: employeeName,
-            attendance_date: attendanceDate,
+            attendance_date: datePart,
             check_in: ioType === 'I' ? timePart : null,
             check_out: ioType === 'O' ? timePart : null,
             status: 'pending',
@@ -216,25 +246,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         }
       } catch (error) {
         if (errors.length < MAX_ERRORS) {
-          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown parsing error'}`)
+          errors.push(`Row ${i + 1}: Parsing error - ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
-        errorCategories.parseError++
       }
     }
 
+    console.log(`[v0] Parsing complete - Records created: ${records.length}, Errors: ${errors.length}`)
+
     if (records.length === 0) {
-      console.error('[v0] No records processed. Total lines:', lines.length, 'Total errors:', errors.length)
-      console.error('[v0] Error categories:', errorCategories)
-      console.error('[v0] First 10 errors:', errors.slice(0, 10))
       return NextResponse.json<UploadResponse>(
-        { 
+        {
           success: false,
-          error: 'No valid records to process', 
+          error: `No valid records found. Total lines: ${lines.length}, Errors: ${errors.length}`,
           errors: errors,
-          details: { 
-            totalLines: lines.length, 
+          details: {
+            totalLines: lines.length,
             totalErrors: errors.length,
-            sampleErrors: errors.slice(0, 5)
+            sampleErrors: errors.slice(0, MAX_DETAILED_ERRORS),
+            delimiters: {
+              detected: delimiter === '\t' ? 'TAB' : delimiter,
+              tabCount: (lines[0].match(/\t/g) || []).length,
+              pipeCount: (lines[0].match(/\|/g) || []).length,
+              commaCount: (lines[0].match(/,/g) || []).length,
+              spaceCount: (lines[0].match(/ {2,}/g) || []).length,
+            }
           }
         },
         { status: 400 }
@@ -277,35 +312,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       })
 
     if (upsertError) {
-      console.error('Upsert error:', upsertError)
+      console.error('[v0] Upsert failed:', upsertError)
       return NextResponse.json<UploadResponse>(
-        { 
+        {
           success: false,
-          error: 'Failed to save records to database', 
+          error: 'Failed to save records to database',
           errors: [upsertError.message]
         },
         { status: 500 }
       )
     }
 
-    console.log('[v0] Upload successful. Records processed:', processedRecords.length)
+    console.log(`[v0] Upload successful - ${processedRecords.length} records saved`)
     return NextResponse.json<UploadResponse>({
       success: true,
       recordsProcessed: processedRecords.length,
-      errors: errors.length > 0 ? errors.slice(0, 10) : [],
+      errors: errors.length > 0 ? errors.slice(0, MAX_DETAILED_ERRORS) : [],
       details: {
         totalLines: lines.length,
         totalErrors: errors.length,
-        sampleErrors: errors.slice(0, 3)
+        sampleErrors: errors.slice(0, MAX_DETAILED_ERRORS)
       }
     })
   } catch (error) {
     console.error('[v0] Upload error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json<UploadResponse>(
-      { 
+      {
         success: false,
-        error: 'Failed to process file', 
+        error: 'Failed to process file',
         errors: [errorMessage]
       },
       { status: 500 }
