@@ -3,14 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { processAttendanceRecord } from '@/lib/attendance-calculations'
 
+interface ParsedRow {
+  [key: string]: any
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
-
-interface ParsedRow {
-  [key: string]: any
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,12 +73,26 @@ export async function POST(request: NextRequest) {
         let employeeData = employeeCache[employeeName]
 
         if (!employeeData) {
-          const { data: employee } = await supabase
+          const { data: employees, error: queryError } = await supabase
             .from('employees')
             .select('id, first_name, last_name')
             .or(`first_name.ilike.%${employeeName}%,last_name.ilike.%${employeeName}%`)
-            .limit(1)
-            .single()
+            .limit(10)
+
+          if (queryError) {
+            errors.push(`Row ${i + 1}: Database error for "${employeeName}": ${queryError.message}`)
+            continue
+          }
+
+          // Find best match - exact match first, then partial
+          let employee = employees?.find(e => 
+            `${e.first_name} ${e.last_name}`.toLowerCase() === employeeName.toLowerCase() ||
+            `${e.last_name} ${e.first_name}`.toLowerCase() === employeeName.toLowerCase()
+          )
+
+          if (!employee && employees && employees.length > 0) {
+            employee = employees[0] // Take first match if no exact match
+          }
 
           if (!employee) {
             errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
@@ -179,33 +193,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-interface ParsedRow {
-  [key: string]: any
-}
-  if (typeof date === 'string') {
-    return date.split('T')[0] // ISO format
-  }
-  return ''
-}
-
-function formatTime(time: any): string | null {
-  if (!time) return null
-  if (typeof time === 'string') {
-    // Already formatted
-    return time.match(/^\d{2}:\d{2}/) ? time.substring(0, 5) : null
-  }
-  if (typeof time === 'number') {
-    // Excel time serial (fraction of 24 hours)
-    const hours = Math.floor(time * 24)
-    const minutes = Math.floor((time * 24 - hours) * 60)
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-  }
-  return null
 }
