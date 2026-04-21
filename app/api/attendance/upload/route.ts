@@ -49,13 +49,12 @@ export async function POST(request: NextRequest) {
         
         // Extract columns based on file structure:
         // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Employee Name, Col 6: I/O Type
-        const employeeId = columns[1]?.trim()
-        const employeeName = columns[5]?.trim()
+        const rawEmployeeId = columns[1]?.trim()
         const dateTime = columns[2]?.trim()
         const ioType = columns[6]?.trim()
 
-        if (!employeeName || !dateTime || !ioType) {
-          errors.push(`Row ${i + 1}: Missing required fields`)
+        if (!rawEmployeeId || !dateTime || !ioType) {
+          errors.push(`Row ${i + 1}: Missing required fields (ID: ${rawEmployeeId}, DateTime: ${dateTime}, Type: ${ioType})`)
           continue
         }
 
@@ -69,43 +68,29 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Try to get employee from cache first, then database
-        let employeeData = employeeCache[employeeName]
+        // Try to get employee from cache first, then database using employee_id
+        let employeeData = employeeCache[rawEmployeeId]
 
         if (!employeeData) {
-          const { data: employees, error: queryError } = await supabase
+          const { data: employee, error: queryError } = await supabase
             .from('employees')
-            .select('id, first_name, last_name')
-            .or(`first_name.ilike.%${employeeName}%,last_name.ilike.%${employeeName}%`)
-            .limit(10)
+            .select('id, employee_id, first_name, last_name')
+            .eq('employee_id', rawEmployeeId)
+            .single()
 
-          if (queryError) {
-            errors.push(`Row ${i + 1}: Database error for "${employeeName}": ${queryError.message}`)
-            continue
-          }
-
-          // Find best match - exact match first, then partial
-          let employee = employees?.find(e => 
-            `${e.first_name} ${e.last_name}`.toLowerCase() === employeeName.toLowerCase() ||
-            `${e.last_name} ${e.first_name}`.toLowerCase() === employeeName.toLowerCase()
-          )
-
-          if (!employee && employees && employees.length > 0) {
-            employee = employees[0] // Take first match if no exact match
-          }
-
-          if (!employee) {
-            errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
+          if (queryError || !employee) {
+            errors.push(`Row ${i + 1}: Employee ID "${rawEmployeeId}" not found in database`)
             continue
           }
 
           employeeData = employee
-          employeeCache[employeeName] = employee
+          employeeCache[rawEmployeeId] = employee
         }
 
         // Aggregate check-in and check-out for the day
+        const employeeName = `${employeeData.first_name} ${employeeData.last_name}`
         const existingRecord = records.find(
-          r => r.employee_name === employeeName && r.attendance_date === attendanceDate
+          r => r.employee_id === employeeData.id && r.attendance_date === attendanceDate
         )
 
         if (existingRecord) {
@@ -132,10 +117,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (records.length === 0) {
+      console.error('[v0] No records processed. Total lines: ' + lines.length + ', Errors: ' + errors.length)
+      console.error('[v0] First 10 errors:', errors.slice(0, 10))
       return NextResponse.json(
         { 
           error: 'No valid records to process', 
-          details: errors.length > 0 ? errors.slice(0, 5) : 'No matching records found for the selected month' 
+          details: errors.length > 0 ? errors.slice(0, 10) : 'No matching records found for the selected month',
+          totalLines: lines.length,
+          totalErrors: errors.length
         },
         { status: 400 }
       )

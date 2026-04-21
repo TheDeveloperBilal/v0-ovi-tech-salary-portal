@@ -89,11 +89,15 @@ export function AttendanceManager() {
         })
         loadAttendanceData()
       } else {
+        // Show detailed error information
+        const errorMsg = result.details?.join('\n') || result.error || 'Upload failed'
+        const debugInfo = result.totalLines ? `\n\nDebug: ${result.totalLines} lines processed, ${result.totalErrors} errors found` : ''
         toast({
           title: 'Error',
-          description: result.error || 'Upload failed',
+          description: errorMsg + debugInfo,
           variant: 'destructive',
         })
+        console.error('[v0] Upload error details:', result)
       }
     } catch (error) {
       toast({
