@@ -66,8 +66,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           columns = line.split(/\s+/)
         }
 
-        console.log(`[v0] Row ${i + 1}: ${columns.length} columns - [0]="${columns[0]}" [1]="${columns[1]}" [2]="${columns[2]}" [5]="${columns[5]}" [6]="${columns[6]}"`)
-
         // EXACT COLUMN MAPPING FOR TXT FILES:
         // Index 0: Internal ID (ignored)
         // Index 1: Date (e.g., 2026-03-03)
@@ -80,26 +78,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         const employeeName = columns[5]?.trim()
         const ioType = columns[6]?.trim()
 
+        // Extract only the date part if the raw string includes time (e.g., "2026-03-03 09:58:09" -> "2026-03-03")
+        const dateOnly = dateStr?.split(' ')[0] || ''
+        const timeOnly = timeStr?.split(' ')[0] || timeStr || ''
+
         // Validate required fields
-        if (!dateStr || !timeStr || !employeeName || !ioType) {
+        if (!dateOnly || !timeOnly || !employeeName || !ioType) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Missing fields - Date: ${dateStr}, Time: ${timeStr}, Name: ${employeeName}, Type: ${ioType}`)
+            errors.push(`Row ${i + 1}: Missing fields - Date: ${dateOnly}, Time: ${timeOnly}, Name: ${employeeName}, Type: ${ioType}`)
           }
           continue
         }
 
         // Validate date format (YYYY-MM-DD)
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid date format "${dateStr}" - expected YYYY-MM-DD`)
+            errors.push(`Row ${i + 1}: Invalid date format "${dateOnly}" - expected YYYY-MM-DD`)
           }
           continue
         }
 
         // Validate time format (HH:MM:SS)
-        if (!/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) {
+        if (!/^\d{2}:\d{2}:\d{2}$/.test(timeOnly)) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid time format "${timeStr}" - expected HH:MM:SS`)
+            errors.push(`Row ${i + 1}: Invalid time format "${timeOnly}" - expected HH:MM:SS`)
           }
           continue
         }
@@ -113,16 +115,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         }
 
         // Parse and validate date
-        const dateParts = dateStr.split('-').map(Number)
+        const dateParts = dateOnly.split('-').map(Number)
         const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
         
         if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
-          console.log(`[v0] Row ${i + 1}: Date ${dateStr} is not for month ${month}/${year}`)
           continue
         }
 
         // Combine date and time for attendance timestamp
-        const attendanceTimestamp = `${dateStr} ${timeStr}`
+        const attendanceTimestamp = `${dateOnly} ${timeOnly}`
 
         // Look up employee by name
         let employeeData = employeeCache[employeeName]
@@ -149,22 +150,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
         // Aggregate check-in/check-out for same day
         const existingRecord = records.find(
-          r => r.employee_id === employeeData.id && r.attendance_date === dateStr
+          r => r.employee_id === employeeData.id && r.attendance_date === dateOnly
         )
 
         if (existingRecord) {
           if (ioType === 'I' && !existingRecord.check_in) {
-            existingRecord.check_in = timeStr
+            existingRecord.check_in = timeOnly
           } else if (ioType === 'O' && !existingRecord.check_out) {
-            existingRecord.check_out = timeStr
+            existingRecord.check_out = timeOnly
           }
         } else {
           records.push({
             employee_id: employeeData.id,
             employee_name: `${employeeData.first_name} ${employeeData.last_name}`,
-            attendance_date: dateStr,
-            check_in: ioType === 'I' ? timeStr : null,
-            check_out: ioType === 'O' ? timeStr : null,
+            attendance_date: dateOnly,
+            check_in: ioType === 'I' ? timeOnly : null,
+            check_out: ioType === 'O' ? timeOnly : null,
             month,
             year,
           })
