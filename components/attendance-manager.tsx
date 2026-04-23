@@ -123,46 +123,16 @@ async function validateFileStructure(file: File, month: number, year: number): P
       return { valid: false, error: 'File has less than 2 rows of data' }
     }
 
-    // Check first 5 rows for structure
-    const sampleLines = lines.slice(0, 5)
-    const columnsData = []
-    
-    for (const line of sampleLines) {
-      // Try tab delimiter first
-      let columns = line.split('\t')
-      if (columns.length < 5) {
-        // Try pipe
-        columns = line.split('|')
-      }
-      if (columns.length < 5) {
-        // Try comma
-        columns = line.split(',')
-      }
-      
-      columnsData.push({
-        columnCount: columns.length,
-        hasEmployeeId: columns[1]?.trim().length > 0,
-        hasDateTime: columns[2]?.trim().length > 0,
-        hasIOType: columns[6]?.trim().length > 0,
-      })
+    // Basic file size check
+    if (file.size > 10 * 1024 * 1024) {
+      return { valid: false, error: 'File size exceeds 10MB limit' }
     }
 
-    // Check if all sample rows have required fields
-    const allValid = columnsData.every(row => row.hasEmployeeId && row.hasDateTime && row.hasIOType)
-    
-    if (!allValid) {
-      const invalid = columnsData.filter(row => !row.hasEmployeeId || !row.hasDateTime || !row.hasIOType)
-      return {
-        valid: false,
-        error: `File structure issue detected in sample rows. Expected columns: Employee ID (col 2), DateTime (col 3), I/O Type (col 7). Sample: ${JSON.stringify(invalid[0])}`
-      }
-    }
-
+    // Just verify it's a text file with data - let server handle structure validation
     return {
       valid: true,
       sampleData: {
         totalRows: lines.length,
-        sampleColumns: columnsData[0].columnCount,
         fileName: file.name,
         fileSize: file.size
       }
