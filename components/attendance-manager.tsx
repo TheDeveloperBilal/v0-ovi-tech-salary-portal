@@ -202,7 +202,6 @@ async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
         variant: 'destructive',
       })
       console.error('[v0] Upload error details:', result)
-      }
     } catch (error) {
       console.error('[v0] Upload error:', error)
       toast({

@@ -71,6 +71,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           columns = line.split(/\s+/)
         }
 
+        // Safety check: ensure we have enough columns
+        if (!columns || columns.length < 6) {
+          console.log(`[v0] Skipping row ${i + 1}: not enough columns (${columns?.length || 0})`)
+          continue
+        }
+
         // Get the timestamp column to check if this is a valid data row
         const rawTimestamp = columns[1]?.trim()
 
@@ -90,6 +96,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
         const employeeName = columns[4]?.trim()
         const punchType = columns[5]?.trim()
+
+        console.log(`[v0] Processing row ${i + 1}: timestamp="${rawTimestamp}" name="${employeeName}" type="${punchType}"`)
 
         // Split the combined timestamp into date and time
         let dateOnly = ''
@@ -209,10 +217,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     }
 
     if (records.length === 0) {
+      console.log(`[v0] No valid records found. Total lines: ${lines.length}, Total errors: ${errors.length}`)
+      const message = errors.length === 0 
+        ? 'No valid attendance data found in this file. Please check if the file format is correct.'
+        : 'No valid attendance records matched the selected month/year'
+      
       return NextResponse.json<UploadResponse>(
         {
           success: false,
-          error: 'No valid records to process',
+          error: message,
           errors: errors.slice(0, 10),
           details: { totalLines: lines.length, totalErrors: errors.length, sampleErrors: errors.slice(0, 3) }
         },
@@ -269,8 +282,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     })
   } catch (error) {
     console.error('[v0] Upload error:', error)
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.error('[v0] Error details:', errorMsg)
     return NextResponse.json<UploadResponse>(
-      { success: false, error: 'File processing failed', errors: [error instanceof Error ? error.message : 'Unknown error'] },
+      { success: false, error: `File processing failed: ${errorMsg}`, errors: [errorMsg] },
       { status: 500 }
     )
   }
