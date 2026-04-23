@@ -60,10 +60,24 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         const line = lines[i].trim()
         if (!line) continue
 
+        // Skip header/meta-data rows: lines containing common header keywords
+        if (/OUR COMPANY|Date\/Time|Location|Employee|Timestamp|punch|report|summary/i.test(line)) {
+          continue
+        }
+
         // Split by tabs first, then by multiple spaces
         let columns = line.split('\t')
         if (columns.length < 5) {
           columns = line.split(/\s+/)
+        }
+
+        // Get the timestamp column to check if this is a valid data row
+        const rawTimestamp = columns[1]?.trim()
+
+        // Skip rows where the timestamp column doesn't match a date pattern
+        // Matches both YYYY-MM-DD and M/D/YYYY formats
+        if (!rawTimestamp || !/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(rawTimestamp)) {
+          continue
         }
 
         // EXACT COLUMN MAPPING (0-indexed, tab-separated):
@@ -74,7 +88,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         // Index 4: EMPLOYEE NAME (e.g., "Hamza", "Bilal")
         // Index 5: PUNCH TYPE (e.g., "I" for In, "O" for Out)
 
-        const rawTimestamp = columns[1]?.trim()
         const employeeName = columns[4]?.trim()
         const punchType = columns[5]?.trim()
 
@@ -95,13 +108,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           continue
         }
 
-        // Validate date format (YYYY-MM-DD)
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+        // Normalize date format: convert M/D/YYYY to YYYY-MM-DD if needed
+        let normalizedDate = dateOnly
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateOnly)) {
+          // M/D/YYYY format detected
+          const slashParts = dateOnly.split('/')
+          const month = String(slashParts[0]).padStart(2, '0')
+          const day = String(slashParts[1]).padStart(2, '0')
+          const year = slashParts[2]
+          normalizedDate = `${year}-${month}-${day}`
+        }
+
+        // Validate normalized date format (YYYY-MM-DD)
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid date format "${dateOnly}" - expected YYYY-MM-DD`)
+            errors.push(`Row ${i + 1}: Invalid date format "${dateOnly}" - expected YYYY-MM-DD or M/D/YYYY`)
           }
           continue
         }
+
+        dateOnly = normalizedDate
 
         // Validate time format (HH:MM:SS)
         if (!/^\d{2}:\d{2}:\d{2}$/.test(timeOnly)) {
