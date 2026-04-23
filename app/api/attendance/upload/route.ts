@@ -68,24 +68,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
         // EXACT COLUMN MAPPING FOR TXT FILES:
         // Index 0: Internal ID (ignored)
-        // Index 1: Date (e.g., 2026-03-03)
-        // Index 2: Time (e.g., 09:58:09)
+        // Index 1: Employee ID (fallback identifier)
+        // Index 2: Combined DateTime (e.g., "2026-03-03 09:58:09") - MUST SPLIT into date and time
+        // Index 3: Terminal/Status (ignored)
+        // Index 4: Code (ignored)
         // Index 5: Employee Name
         // Index 6: I/O Type (I or O)
 
-        const dateStr = columns[1]?.trim()
-        const timeStr = columns[2]?.trim()
+        // Get the combined datetime from column 2
+        const combinedDateTime = columns[2]?.trim()
         const employeeName = columns[5]?.trim()
         const ioType = columns[6]?.trim()
 
-        // Extract only the date part if the raw string includes time (e.g., "2026-03-03 09:58:09" -> "2026-03-03")
-        const dateOnly = dateStr?.split(' ')[0] || ''
-        const timeOnly = timeStr?.split(' ')[0] || timeStr || ''
+        // Split the combined datetime into date and time
+        let dateOnly = ''
+        let timeOnly = ''
+        if (combinedDateTime) {
+          const parts = combinedDateTime.split(' ')
+          dateOnly = parts[0] || ''
+          timeOnly = parts[1] || ''
+        }
 
         // Validate required fields
         if (!dateOnly || !timeOnly || !employeeName || !ioType) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Missing fields - Date: ${dateOnly}, Time: ${timeOnly}, Name: ${employeeName}, Type: ${ioType}`)
+            errors.push(`Row ${i + 1}: Missing required fields - DateTime: ${combinedDateTime}, Name: ${employeeName}, Type: ${ioType}`)
           }
           continue
         }
