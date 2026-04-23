@@ -113,95 +113,64 @@ export function AttendanceManager() {
     }
   }
 
-// Helper function to validate file before upload (Phase 3: Client-side validation)
-async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: any }> {
-  try {
-    const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
-    
-    if (lines.length < 2) {
-      return { valid: false, error: 'File has less than 2 rows of data' }
-    }
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-    // Basic file size check
-    if (file.size > 10 * 1024 * 1024) {
-      return { valid: false, error: 'File size exceeds 10MB limit' }
-    }
+    try {
+      setUploading(true)
 
-    // Just verify it's a text file with data - let server handle structure validation
-    return {
-      valid: true,
-      sampleData: {
-        totalRows: lines.length,
-        fileName: file.name,
-        fileSize: file.size
+      // Phase 3: Client-side validation
+      console.log('[v0] Validating file structure...')
+      const validation = await validateFileStructure(file, month, year)
+      
+      if (!validation.valid) {
+        toast({
+          title: 'File Validation Error',
+          description: validation.error!,
+          variant: 'destructive',
+        })
+        console.error('[v0] Client validation failed:', validation.error)
+        setUploading(false)
+        return
       }
-    }
-  } catch (error) {
-    return {
-      valid: false,
-      error: `Failed to validate file: ${error instanceof Error ? error.message : 'Unknown error'}`
-    }
-  }
-}
 
-async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-  const file = e.target.files?.[0]
-  if (!file) return
-
-  try {
-    setUploading(true)
-
-    // Phase 3: Client-side validation
-    console.log('[v0] Validating file structure...')
-    const validation = await validateFileStructure(file, month, year)
-    
-    if (!validation.valid) {
+      console.log('[v0] File validation passed:', validation.sampleData)
       toast({
-        title: 'File Validation Error',
-        description: validation.error!,
-        variant: 'destructive',
+        title: 'File Valid',
+        description: `Processing ${validation.sampleData?.totalRows} rows...`,
       })
-      console.error('[v0] Client validation failed:', validation.error)
-      setUploading(false)
-      return
-    }
 
-    console.log('[v0] File validation passed:', validation.sampleData)
-    toast({
-      title: 'File Valid',
-      description: `Processing ${validation.sampleData?.totalRows} rows...`,
-    })
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('month', String(month))
+      formData.append('year', String(year))
 
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('month', String(month))
-    formData.append('year', String(year))
-
-    const response = await fetch('/api/attendance/upload', {
-      method: 'POST',
-      body: formData,
-    })
-
-    const result = (await response.json()) as UploadResponse
-
-    if (result.success) {
-      toast({
-        title: 'Success',
-        description: `Successfully uploaded ${result.recordsProcessed} records`,
+      const response = await fetch('/api/attendance/upload', {
+        method: 'POST',
+        body: formData,
       })
-      loadAttendanceData()
-    } else {
-      // Safely extract error details with type guards
-      const errorDetails = getErrorDetails(result)
-      const formattedMessage = formatErrorDisplay(errorDetails, result.details?.totalErrors)
 
-      toast({
-        title: 'Upload Error',
-        description: formattedMessage,
-        variant: 'destructive',
-      })
-      console.error('[v0] Upload error details:', result)
+      const result = (await response.json()) as UploadResponse
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: `Successfully uploaded ${result.recordsProcessed} records`,
+        })
+        loadAttendanceData()
+      } else {
+        // Safely extract error details with type guards
+        const errorDetails = getErrorDetails(result)
+        const formattedMessage = formatErrorDisplay(errorDetails, result.details?.totalErrors)
+
+        toast({
+          title: 'Upload Error',
+          description: formattedMessage,
+          variant: 'destructive',
+        })
+        console.error('[v0] Upload error details:', result)
+      }
     } catch (error) {
       console.error('[v0] Upload error:', error)
       toast({
