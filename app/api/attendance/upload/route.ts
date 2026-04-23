@@ -66,33 +66,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           columns = line.split(/\s+/)
         }
 
-        // EXACT COLUMN MAPPING FOR TXT FILES:
+        // EXACT COLUMN MAPPING (0-indexed, tab-separated):
         // Index 0: Internal ID (ignored)
-        // Index 1: Employee ID (fallback identifier)
-        // Index 2: Combined DateTime (e.g., "2026-03-03 09:58:09") - MUST SPLIT into date and time
-        // Index 3: Terminal/Status (ignored)
-        // Index 4: Code (ignored)
-        // Index 5: Employee Name
-        // Index 6: I/O Type (I or O)
+        // Index 1: TIMESTAMP (e.g., "2026-03-03 09:58:09") - MUST SPLIT into date and time
+        // Index 2: Numeric code (ignored) - e.g., 101
+        // Index 3: Numeric code (ignored) - e.g., 1
+        // Index 4: EMPLOYEE NAME (e.g., "Hamza", "Bilal")
+        // Index 5: PUNCH TYPE (e.g., "I" for In, "O" for Out)
 
-        // Get the combined datetime from column 2
-        const combinedDateTime = columns[2]?.trim()
-        const employeeName = columns[5]?.trim()
-        const ioType = columns[6]?.trim()
+        const rawTimestamp = columns[1]?.trim()
+        const employeeName = columns[4]?.trim()
+        const punchType = columns[5]?.trim()
 
-        // Split the combined datetime into date and time
+        // Split the combined timestamp into date and time
         let dateOnly = ''
         let timeOnly = ''
-        if (combinedDateTime) {
-          const parts = combinedDateTime.split(' ')
-          dateOnly = parts[0] || ''
-          timeOnly = parts[1] || ''
+        if (rawTimestamp) {
+          const timestampParts = rawTimestamp.split(' ')
+          dateOnly = timestampParts[0] || ''
+          timeOnly = timestampParts[1] || ''
         }
 
         // Validate required fields
-        if (!dateOnly || !timeOnly || !employeeName || !ioType) {
+        if (!dateOnly || !timeOnly || !employeeName || !punchType) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Missing required fields - DateTime: ${combinedDateTime}, Name: ${employeeName}, Type: ${ioType}`)
+            errors.push(`Row ${i + 1}: Missing required fields - Timestamp: ${rawTimestamp}, Name: ${employeeName}, Type: ${punchType}`)
           }
           continue
         }
@@ -114,9 +112,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         }
 
         // Validate I/O type
-        if (!['I', 'O'].includes(ioType)) {
+        if (!['I', 'O'].includes(punchType)) {
           if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid I/O type "${ioType}" - must be I or O`)
+            errors.push(`Row ${i + 1}: Invalid punch type "${punchType}" - must be I or O`)
           }
           continue
         }
@@ -161,9 +159,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         )
 
         if (existingRecord) {
-          if (ioType === 'I' && !existingRecord.check_in) {
+          if (punchType === 'I' && !existingRecord.check_in) {
             existingRecord.check_in = timeOnly
-          } else if (ioType === 'O' && !existingRecord.check_out) {
+          } else if (punchType === 'O' && !existingRecord.check_out) {
             existingRecord.check_out = timeOnly
           }
         } else {
@@ -171,8 +169,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
             employee_id: employeeData.id,
             employee_name: `${employeeData.first_name} ${employeeData.last_name}`,
             attendance_date: dateOnly,
-            check_in: ioType === 'I' ? timeOnly : null,
-            check_out: ioType === 'O' ? timeOnly : null,
+            check_in: punchType === 'I' ? timeOnly : null,
+            check_out: punchType === 'O' ? timeOnly : null,
             month,
             year,
           })
