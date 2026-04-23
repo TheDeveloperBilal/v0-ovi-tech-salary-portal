@@ -9,69 +9,60 @@ import { DashboardContent } from "@/components/dashboard-content"
 export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        console.log("[v0] Fetching user session...")
+        console.log("[v0] Starting dashboard profile fetch...")
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
+        console.log("[v0] Session check:", session?.user ? "Found" : "Not found")
+
         if (!session?.user) {
-          console.log("[v0] No session found, redirecting to login")
+          console.log("[v0] No session, redirecting to login")
           router.push('/auth/login')
           return
         }
 
-        console.log("[v0] Session found, fetching profile for:", session.user.email)
+        console.log("[v0] Session user email:", session.user.email)
 
-        // Try to fetch profile from database
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
+        // Create a basic profile from session
+        const basicProfile = {
+          id: session.user.id,
+          email: session.user.email,
+          is_admin: false,
+          full_name: session.user.email?.split("@")[0] || "User",
+        }
 
-        if (error) {
-          console.log("[v0] Profile fetch error:", error.message)
-          // Try to get employee data instead
-          const { data: empData } = await supabase
-            .from("employees")
-            .select("first_name, last_name, email")
-            .eq("email", session.user.email)
+        // Try to fetch extended profile from database
+        try {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
             .single()
 
-          const defaultProfile = {
-            id: session.user.id,
-            email: session.user.email,
-            is_admin: false,
-            full_name: empData ? `${empData.first_name} ${empData.last_name}` : (session.user.email?.split("@")[0] || "User"),
+          if (profileData) {
+            setProfile({ ...basicProfile, ...profileData })
+          } else {
+            setProfile(basicProfile)
           }
-          setProfile(defaultProfile)
-        } else {
-          console.log("[v0] Profile loaded:", data)
-          // If profile exists but no full_name, fetch from employee table
-          if (!data.full_name || data.full_name === "") {
-            const { data: empData } = await supabase
-              .from("employees")
-              .select("first_name, last_name")
-              .eq("email", session.user.email)
-              .single()
-
-            if (empData) {
-              data.full_name = `${empData.first_name} ${empData.last_name}`
-            }
-          }
-          setProfile(data)
+        } catch (err) {
+          console.log("[v0] Could not fetch profiles table, using basic profile")
+          setProfile(basicProfile)
         }
-      } catch (error) {
-        console.log("[v0] Error fetching profile:", error)
+      } catch (err) {
+        console.error("[v0] Error in fetchProfile:", err)
+        setError(err instanceof Error ? err.message : "Failed to load dashboard")
+        // Still set a basic profile so dashboard can load
         setProfile({
           id: "",
-          email: "",
+          email: "user@example.com",
           is_admin: false,
           full_name: "User",
         })
@@ -87,18 +78,23 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header user={profile} />
-      <main className="container mx-auto py-8 px-4">
-        <DashboardContent user={profile} />
+    <div className="min-h-screen bg-white flex flex-col">
+      {error && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
+          <p className="text-sm text-yellow-800">Warning: {error}</p>
+        </div>
+      )}
+      <Header user={profile || { full_name: "User", email: "", is_admin: false }} />
+      <main className="flex-1 container mx-auto py-8 px-4">
+        <DashboardContent user={profile || { full_name: "User", email: "", is_admin: false }} />
       </main>
     </div>
   )
