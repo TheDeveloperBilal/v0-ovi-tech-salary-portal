@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
 import { DashboardContent } from "@/components/dashboard-content"
-import { ProtectedRoute } from "@/components/protected-route"
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
@@ -20,8 +21,8 @@ export default function DashboardPage() {
         } = await supabase.auth.getSession()
 
         if (!session?.user) {
-          console.log("[v0] No session found")
-          setIsLoading(false)
+          console.log("[v0] No session found, redirecting to login")
+          router.push('/auth/login')
           return
         }
 
@@ -68,13 +69,19 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.log("[v0] Error fetching profile:", error)
+        setProfile({
+          id: "",
+          email: "",
+          is_admin: false,
+          full_name: "User",
+        })
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchProfile()
-  }, [supabase])
+  }, [supabase, router])
 
   if (isLoading) {
     return (
@@ -87,24 +94,12 @@ export default function DashboardPage() {
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <p className="text-gray-600">Unable to load profile. Please try logging in again.</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-white">
-        <Header user={profile} />
-        <main className="container mx-auto py-8 px-4">
-          <DashboardContent user={profile} />
-        </main>
-      </div>
-    </ProtectedRoute>
+    <div className="min-h-screen bg-white">
+      <Header user={profile} />
+      <main className="container mx-auto py-8 px-4">
+        <DashboardContent user={profile} />
+      </main>
+    </div>
   )
 }
