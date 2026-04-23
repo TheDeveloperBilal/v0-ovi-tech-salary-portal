@@ -115,6 +115,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         // Split by TAB
         const columns = line.split('\t')
 
+        // Extract based on FIXED column positions
+        // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Name, Col 6: I/O Type
+        const employeeIdStr = columns[1]?.trim()
+        const dateTimeStr = columns[2]?.trim()
+        const ioTypeStr = columns[6]?.trim()
+
         // Debug first 3 rows
         if (i < 3) {
           console.log(`[v0] Row ${i + 1}: ${columns.length} columns`)
@@ -122,12 +128,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           console.log(`[v0] Row ${i + 1} details - [0]="${columns[0]}" [1]="${columns[1]}" [2]="${columns[2]}" [6]="${columns[6]}"`)
           console.log(`[v0] Row ${i + 1} parsed - ID="${employeeIdStr}" DateTime="${dateTimeStr}" Type="${ioTypeStr}"`)
         }
-
-        // Extract based on FIXED column positions
-        // Col 0: Index, Col 1: Employee ID, Col 2: DateTime, Col 3: Terminal, Col 4: Code, Col 5: Name, Col 6: I/O Type
-        const employeeIdStr = columns[1]?.trim()
-        const dateTimeStr = columns[2]?.trim()
-        const ioTypeStr = columns[6]?.trim()
 
         if (!employeeIdStr || !dateTimeStr || !ioTypeStr) {
           if (errors.length < MAX_ERRORS) {
