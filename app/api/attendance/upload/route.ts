@@ -104,8 +104,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     for (let i = 0; i < lines.length; i++) {
       try {
-        const line = lines[i].trim()
-        if (!line) continue
+        let line = lines[i]
+        
+        // DON'T trim the line before splitting - trimming removes leading/trailing whitespace including tabs!
+        if (!line || line.length === 0) continue
+        
+        // Only trim trailing whitespace, not leading tabs
+        line = line.trimEnd()
 
         // Split by TAB
         const columns = line.split('\t')
@@ -113,7 +118,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         // Debug first 3 rows
         if (i < 3) {
           console.log(`[v0] Row ${i + 1}: ${columns.length} columns`)
-          console.log(`[v0] Row ${i + 1} details - [1]="${columns[1]}" [2]="${columns[2]}" [6]="${columns[6]}"`)
+          console.log(`[v0] Row ${i + 1} raw: "${line.substring(0, 100)}"`)
+          console.log(`[v0] Row ${i + 1} details - [0]="${columns[0]}" [1]="${columns[1]}" [2]="${columns[2]}" [6]="${columns[6]}"`)
+          console.log(`[v0] Row ${i + 1} parsed - ID="${employeeIdStr}" DateTime="${dateTimeStr}" Type="${ioTypeStr}"`)
         }
 
         // Extract based on FIXED column positions
