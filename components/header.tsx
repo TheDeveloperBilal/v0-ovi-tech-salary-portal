@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -20,14 +19,9 @@ export function Header({ user }: { user: any }) {
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image 
-              src="/ovitech-logo.webp" 
-              alt="OviTech Logo" 
-              width={40} 
-              height={40} 
-              className="h-10"
-              style={{ width: 'auto', height: 'auto' }}
-            />
+            <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">O</span>
+            </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>
               <p className="text-xs text-gray-500">Employee Management System</p>
@@ -35,7 +29,7 @@ export function Header({ user }: { user: any }) {
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right text-sm">
-              <p className="font-medium text-gray-900">{user?.full_name || user?.email}</p>
+              <p className="font-medium text-gray-900">{user?.full_name || user?.email || "User"}</p>
               <p className="text-xs text-gray-500 capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
             </div>
             <Button
