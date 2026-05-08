@@ -117,62 +117,104 @@ export function AttendanceManager() {
   async function loadAttendanceData() {
     try {
       setLoading(true)
-      console.log(`[v0] Loading attendance for month: ${month}, year: ${year}`)
+      setRecords([])
+      setSelectedEmployee(null)
+      console.log(`[v0] ===== LOADING ATTENDANCE DATA =====`)
+      console.log(`[v0] Requested month: ${month}, year: ${year}`)
       
       // Fetch employees first
       const { data: empData, error: empError } = await supabase
         .from('employees')
         .select('*')
       
-      if (empError) throw empError
+      if (empError) {
+        console.error(`[v0] ERROR fetching employees:`, empError)
+        throw empError
+      }
       setEmployees(empData || [])
-      console.log(`[v0] Loaded ${(empData || []).length} employees`)
+      console.log(`[v0] ✓ Loaded ${(empData || []).length} employees from database`)
 
-      // Fetch all attendance records
+      // Fetch all attendance records WITHOUT any filtering
       const { data, error } = await supabase
         .from('attendance_records')
         .select('*')
         .order('attendance_date')
 
-      if (error) throw error
+      if (error) {
+        console.error(`[v0] ERROR fetching attendance:`, error)
+        throw error
+      }
 
+      console.log(`[v0] ✓ Fetched ${(data || []).length} total attendance records from database`)
+      
+      if (!data || data.length === 0) {
+        console.warn(`[v0] ⚠ NO attendance records in database at all!`)
+        setStats({ total_days: 0, present_days: 0, absent_days: 0, late_days: 0 })
+        return
+      }
+
+      // Debug: Show first and last records
+      const firstRecord = data[0]
+      const lastRecord = data[data.length - 1]
+      console.log(`[v0] First record:`, { date: firstRecord?.attendance_date, emp: firstRecord?.employee_id })
+      console.log(`[v0] Last record:`, { date: lastRecord?.attendance_date, emp: lastRecord?.employee_id })
+      
       // Filter by month and year from attendance_date
       // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
       const filteredData = (data || []).filter(record => {
-        const dateStr = String(record.attendance_date).trim()
-        let recordMonth = -1
-        let recordYear = -1
-        
-        // Try YYYY-MM-DD format first (new format)
-        if (dateStr.includes('-')) {
-          const parts = dateStr.split('-')
-          if (parts.length === 3) {
-            recordYear = parseInt(parts[0], 10)
-            recordMonth = parseInt(parts[1], 10)
+        try {
+          const dateStr = String(record.attendance_date).trim()
+          
+          let recordMonth = -1
+          let recordYear = -1
+          
+          // Try parsing as Date first - works for most formats
+          const parsedDate = new Date(dateStr)
+          if (!isNaN(parsedDate.getTime())) {
+            recordMonth = parsedDate.getMonth() + 1
+            recordYear = parsedDate.getFullYear()
+          } else {
+            // Manual parsing as fallback
+            // Try YYYY-MM-DD format first (new format)
+            if (dateStr.includes('-')) {
+              const parts = dateStr.split('-')
+              if (parts.length === 3) {
+                recordYear = parseInt(parts[0], 10)
+                recordMonth = parseInt(parts[1], 10)
+              }
+            } 
+            // Try M/D/YYYY format (old format from toLocaleDateString)
+            else if (dateStr.includes('/')) {
+              const parts = dateStr.split('/')
+              if (parts.length === 3) {
+                recordMonth = parseInt(parts[0], 10)
+                recordYear = parseInt(parts[2], 10)
+              }
+            }
           }
-        } 
-        // Try M/D/YYYY format (old format from toLocaleDateString)
-        else if (dateStr.includes('/')) {
-          const parts = dateStr.split('/')
-          if (parts.length === 3) {
-            recordMonth = parseInt(parts[0], 10)
-            recordYear = parseInt(parts[2], 10)
+          
+          // Validate parsed values
+          if (recordMonth < 1 || recordMonth > 12 || recordYear < 2000 || recordYear > 2100) {
+            return false
           }
-        }
-        
-        if (recordMonth === -1 || recordYear === -1) {
-          console.log(`[v0] Could not parse date: "${dateStr}"`)
+          
+          // Only return records matching the selected month/year
+          return recordMonth === month && recordYear === year
+        } catch (err) {
+          console.error(`[v0] Error parsing date "${record.attendance_date}":`, err)
           return false
         }
-        
-        // Only return records matching the selected month/year
-        return recordMonth === month && recordYear === year
       })
 
-      console.log(`[v0] Filtering for month: ${month}, year: ${year}`)
-      console.log(`[v0] Total records in DB: ${(data || []).length}`)
+      console.log(`[v0] ===== FILTERING RESULTS =====`)
+      console.log(`[v0] Looking for month: ${month}, year: ${year}`)
       console.log(`[v0] Sample dates in DB:`, (data || []).slice(0, 5).map(r => r.attendance_date))
-      console.log(`[v0] After filtering: ${filteredData.length} records match month/year`)
+      console.log(`[v0] Matched ${filteredData.length}/${(data || []).length} records for this month/year`)
+      
+      if (filteredData.length === 0) {
+        console.warn(`[v0] ⚠ No records found for month ${month}, year ${year}`)
+      }
+      console.log(`[v0] ===== END FILTERING =====`)
 
       // Enrich records with employee data
       const enrichedRecords = filteredData.map(record => {
@@ -200,6 +242,7 @@ export function AttendanceManager() {
           absent_days: absent,
           late_days: late,
         })
+        console.log(`[v0] ✓ Stats calculated:`, { total_days: unique.length, present_days: enrichedRecords.length - absent })
       } else {
         setStats({
           total_days: 0,
@@ -209,7 +252,12 @@ export function AttendanceManager() {
         })
       }
     } catch (error) {
-      console.error('Error loading attendance:', error)
+      console.error('[v0] Error loading attendance:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load attendance records',
+        variant: 'destructive'
+      })
     } finally {
       setLoading(false)
     }
