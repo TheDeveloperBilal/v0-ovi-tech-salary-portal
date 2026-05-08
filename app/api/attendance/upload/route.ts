@@ -252,8 +252,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    // Save to database
-    const { error: saveError } = await supabase.from('attendance_records').insert(recordsToSave)
+    // Save to database using upsert to handle duplicate entries
+    const { error: saveError } = await supabase.from('attendance_records').upsert(recordsToSave, {
+      onConflict: 'employee_id,attendance_date'
+    })
 
     if (saveError) {
       console.error('[v0] Database save error:', saveError)
