@@ -60,6 +60,38 @@ function formatErrorDisplay(details: string[], totalErrors?: number): string {
   return displayErrors + errorCountMsg
 }
 
+// Helper function to validate file before upload (Phase 3: Client-side validation)
+async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: any }> {
+  try {
+    const text = await file.text()
+    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    
+    if (lines.length < 2) {
+      return { valid: false, error: 'File has less than 2 rows of data' }
+    }
+
+    // Basic file size check
+    if (file.size > 10 * 1024 * 1024) {
+      return { valid: false, error: 'File size exceeds 10MB limit' }
+    }
+
+    // Just verify it's a text file with data - let server handle structure validation
+    return {
+      valid: true,
+      sampleData: {
+        totalRows: lines.length,
+        fileName: file.name,
+        fileSize: file.size
+      }
+    }
+  } catch (error) {
+    return {
+      valid: false,
+      error: `Failed to validate file: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
+  }
+}
+
 export function AttendanceManager() {
   const { toast } = useToast()
   const [month, setMonth] = useState(new Date().getMonth() + 1)
