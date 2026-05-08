@@ -252,8 +252,15 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
+    // Deduplicate records by employee_id and attendance_date to avoid "duplicate key" error
+    const deduplicatedRecords = Array.from(
+      new Map(recordsToSave.map(r => [`${r.employee_id}_${r.attendance_date}`, r])).values()
+    )
+
+    console.log(`[v0] After deduplication: ${deduplicatedRecords.length} unique records`)
+
     // Save to database using upsert to handle duplicate entries
-    const { error: saveError } = await supabase.from('attendance_records').upsert(recordsToSave, {
+    const { error: saveError } = await supabase.from('attendance_records').upsert(deduplicatedRecords, {
       onConflict: 'employee_id,attendance_date'
     })
 
