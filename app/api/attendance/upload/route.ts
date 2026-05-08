@@ -134,10 +134,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateOnly)) {
           // M/D/YYYY format detected
           const slashParts = dateOnly.split('/')
-          const month = String(slashParts[0]).padStart(2, '0')
-          const day = String(slashParts[1]).padStart(2, '0')
-          const year = slashParts[2]
-          normalizedDate = `${year}-${month}-${day}`
+          const datePrefixMonth = String(slashParts[0]).padStart(2, '0')
+          const dateDay = String(slashParts[1]).padStart(2, '0')
+          const dateYear = slashParts[2]
+          normalizedDate = `${dateYear}-${datePrefixMonth}-${dateDay}`
         }
 
         // Validate normalized date format (YYYY-MM-DD)
