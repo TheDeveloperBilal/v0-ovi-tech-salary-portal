@@ -168,23 +168,50 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         let employeeData = employeeCache[employeeName]
 
         if (!employeeData) {
-          // Search for employee by name in database
-          const { data: employee, error: queryError } = await supabase
+          // Search for employee by name in database - try exact match first, then fuzzy match
+          let employee = null
+          let queryError = null
+
+          // First try: exact match on first_name or last_name (case-insensitive)
+          const { data: exactMatch, error: exactError } = await supabase
             .from('employees')
             .select('id, employee_id, first_name, last_name')
             .or(`first_name.ilike.${employeeName},last_name.ilike.${employeeName}`)
             .limit(1)
-            .maybeSingle()
+            .single()
+            .catch(() => ({ data: null, error: null }))
 
-          if (queryError || !employee) {
+          if (exactMatch) {
+            employee = exactMatch
+          } else {
+            // Second try: partial match (if name contains part of first_name or last_name)
+            const { data: partialMatches } = await supabase
+              .from('employees')
+              .select('id, employee_id, first_name, last_name')
+              .limit(10)
+
+            if (partialMatches && partialMatches.length > 0) {
+              // Find best match using string similarity
+              employee = partialMatches.find(e => 
+                e.first_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
+                e.last_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
+                employeeName.toLowerCase().includes(e.first_name?.toLowerCase() || '') ||
+                employeeName.toLowerCase().includes(e.last_name?.toLowerCase() || '')
+              )
+            }
+          }
+
+          if (!employee) {
             if (errors.length < MAX_ERRORS) {
               errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
             }
+            console.log(`[v0] Employee not found: "${employeeName}"`)
             continue
           }
 
           employeeData = employee
           employeeCache[employeeName] = employee
+          console.log(`[v0] Employee matched: "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
         }
 
         // Aggregate check-in/check-out for same day
@@ -195,8 +222,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         if (existingRecord) {
           if (punchType === 'I' && !existingRecord.check_in) {
             existingRecord.check_in = timeOnly
+            console.log(`[v0] Updated check-in for ${employeeData.first_name} on ${dateOnly}: ${timeOnly}`)
           } else if (punchType === 'O' && !existingRecord.check_out) {
             existingRecord.check_out = timeOnly
+            console.log(`[v0] Updated check-out for ${employeeData.first_name} on ${dateOnly}: ${timeOnly}`)
           }
         } else {
           records.push({
@@ -208,6 +237,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
             month,
             year,
           })
+          console.log(`[v0] New record created: ${employeeData.first_name} ${employeeData.last_name} on ${dateOnly}`)
         }
       } catch (error) {
         if (errors.length < MAX_ERRORS) {
@@ -273,7 +303,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    console.log(`[v0] Upload successful: ${processedRecords.length} records`)
+    console.log(`[v0] Upload complete: ${processedRecords.length} records processed`)
+    console.log(`[v0] Total lines parsed: ${lines.length}`)
+    console.log(`[v0] Total errors: ${errors.length}`)
+    if (errors.length > 0) {
+      console.log(`[v0] Sample errors:`, errors.slice(0, 3))
+    }
+
     return NextResponse.json<UploadResponse>({
       success: true,
       recordsProcessed: processedRecords.length,
