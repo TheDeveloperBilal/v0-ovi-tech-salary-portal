@@ -179,9 +179,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
       if (!jsDate || isNaN(jsDate.getTime())) continue
 
-      // Filter by month/year
-      if (jsDate.getMonth() + 1 !== month || jsDate.getFullYear() !== year) continue
-
       const dateKey = jsDate.toLocaleDateString()
       const uniqueKey = `${name}_${dateKey}`
 
