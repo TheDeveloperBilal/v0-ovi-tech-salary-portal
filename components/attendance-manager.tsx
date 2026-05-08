@@ -136,27 +136,26 @@ export function AttendanceManager() {
 
       if (error) throw error
 
-      console.log(`[v0] Fetched ${(data || []).length} total records from database`)
-
       // Filter by month and year from attendance_date
       const filteredData = (data || []).filter(record => {
-        // Parse the date string - attendance_date is stored as "M/D/YYYY" format
-        const dateParts = record.attendance_date.split('/')
-        if (dateParts.length !== 3) {
-          console.log(`[v0] Invalid date format: ${record.attendance_date}`)
+        // Parse the date string - attendance_date is stored as "M/D/YYYY" format from toLocaleDateString()
+        // Examples: "3/3/2026", "10/15/2026"
+        const parts = String(record.attendance_date).split('/')
+        
+        if (parts.length !== 3) {
+          console.log(`[v0] Invalid date format (expected M/D/YYYY): "${record.attendance_date}"`)
           return false
         }
         
-        const recordMonth = parseInt(dateParts[0])
-        const recordYear = parseInt(dateParts[2])
+        const recordMonth = parseInt(parts[0], 10)
+        const recordYear = parseInt(parts[2], 10)
         
-        const matches = recordMonth === month && recordYear === year
-        if (!matches && data && data.length < 100) {
-          console.log(`[v0] Filtered out: ${record.attendance_date} (${recordMonth}/${recordYear}) looking for ${month}/${year}`)
-        }
-        return matches
+        // Only return records matching the selected month/year
+        return recordMonth === month && recordYear === year
       })
 
+      console.log(`[v0] Filtering for month: ${month}, year: ${year}`)
+      console.log(`[v0] Sample dates in DB:`, (data || []).slice(0, 5).map(r => r.attendance_date))
       console.log(`[v0] After filtering: ${filteredData.length} records match month/year`)
 
       // Enrich records with employee data
