@@ -114,28 +114,43 @@ export function AttendanceManager() {
   async function loadAttendanceData() {
     try {
       setLoading(true)
+      // Fetch all records and filter by month/year on the client side
+      // since attendance_records doesn't have month/year columns
       const { data, error } = await supabase
         .from('attendance_records')
         .select('*')
-        .eq('month', month)
-        .eq('year', year)
         .order('attendance_date')
 
       if (error) throw error
 
-      setRecords(data || [])
+      // Filter by month and year from attendance_date
+      const filteredData = (data || []).filter(record => {
+        const recordDate = new Date(record.attendance_date)
+        const recordMonth = recordDate.getMonth() + 1
+        const recordYear = recordDate.getFullYear()
+        return recordMonth === month && recordYear === year
+      })
+
+      setRecords(filteredData)
 
       // Calculate stats
-      if (data) {
-        const unique = [...new Set(data.map(r => r.attendance_date))]
-        const absent = data.filter(r => r.is_absent).length
-        const late = data.filter(r => r.is_late && !r.nine_hour_waiver).length
+      if (filteredData.length > 0) {
+        const unique = [...new Set(filteredData.map(r => r.attendance_date))]
+        const absent = filteredData.filter(r => r.is_absent).length
+        const late = filteredData.filter(r => r.is_late && !r.nine_hour_waiver).length
 
         setStats({
           total_days: unique.length,
-          present_days: data.length - absent,
+          present_days: filteredData.length - absent,
           absent_days: absent,
           late_days: late,
+        })
+      } else {
+        setStats({
+          total_days: 0,
+          present_days: 0,
+          absent_days: 0,
+          late_days: 0,
         })
       }
     } catch (error) {
