@@ -53,7 +53,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     const records: any[] = []
     const errors: string[] = []
     const employeeCache: { [key: string]: any } = {}
-    const errors: string[] = []
     const MAX_ERRORS = 100
 
     let successfulRows = 0
@@ -98,27 +97,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         // Debug first few data rows
         if (successfulRows < 3) {
           console.log(`[v0] Row ${i + 1}: timestamp="${rawTimestamp}" name="${columns[4]}" type="${columns[5]}"`)
-        }
-
-        // Split by tabs first, then by multiple spaces
-        let columns = line.split('\t')
-        if (columns.length < 5) {
-          columns = line.split(/\s+/)
-        }
-
-        // Safety check: ensure we have enough columns
-        if (!columns || columns.length < 6) {
-          console.log(`[v0] Skipping row ${i + 1}: not enough columns (${columns?.length || 0})`)
-          continue
-        }
-
-        // Get the timestamp column to check if this is a valid data row
-        const rawTimestamp = columns[1]?.trim()
-
-        // Skip rows where the timestamp column doesn't match a date pattern
-        // Matches both YYYY-MM-DD and M/D/YYYY formats
-        if (!rawTimestamp || !/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(rawTimestamp)) {
-          continue
         }
 
         // EXACT COLUMN MAPPING (0-indexed, tab-separated):
