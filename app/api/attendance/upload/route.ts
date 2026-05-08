@@ -236,9 +236,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
                 minute: '2-digit',
                 second: '2-digit'
               })
-            : null,
-        month: month,
-        year: year
+            : null
       })
     }
 
