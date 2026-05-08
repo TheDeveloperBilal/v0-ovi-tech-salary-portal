@@ -53,7 +53,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     const records: any[] = []
     const errors: string[] = []
     const employeeCache: { [key: string]: any } = {}
+    const errors: string[] = []
     const MAX_ERRORS = 100
+
+    let successfulRows = 0
+    let skippedRows = 0
+
+    console.log(`[v0] Starting file parsing: ${lines.length} total lines`)
 
     for (let i = 0; i < lines.length; i++) {
       try {
@@ -62,7 +68,36 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
         // Skip header/meta-data rows: lines containing common header keywords
         if (/OUR COMPANY|Date\/Time|Location|Employee|Timestamp|punch|report|summary/i.test(line)) {
+          skippedRows++
           continue
+        }
+
+        // Split by tabs first, then by multiple spaces
+        let columns = line.split('\t')
+        if (columns.length < 6) {
+          columns = line.split(/\s+/)
+        }
+
+        // Safety check: ensure we have enough columns
+        if (!columns || columns.length < 6) {
+          if (i === 0) console.log(`[v0] Row ${i + 1}: Header detected (skipping)`)
+          skippedRows++
+          continue
+        }
+
+        // Get the timestamp column to check if this is a valid data row
+        const rawTimestamp = columns[1]?.trim()
+
+        // Skip rows where the timestamp column doesn't match a date pattern
+        // Matches both YYYY-MM-DD and M/D/YYYY formats
+        if (!rawTimestamp || !/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(rawTimestamp)) {
+          skippedRows++
+          continue
+        }
+
+        // Debug first few data rows
+        if (successfulRows < 3) {
+          console.log(`[v0] Row ${i + 1}: timestamp="${rawTimestamp}" name="${columns[4]}" type="${columns[5]}"`)
         }
 
         // Split by tabs first, then by multiple spaces
@@ -168,36 +203,42 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         let employeeData = employeeCache[employeeName]
 
         if (!employeeData) {
-          // Search for employee by name in database - try exact match first, then fuzzy match
+          // Search for employee by name in database
           let employee = null
-          let queryError = null
 
-          // First try: exact match on first_name or last_name (case-insensitive)
-          const { data: exactMatch, error: exactError } = await supabase
+          // First try: search by first_name (case-insensitive)
+          const { data: byFirstName } = await supabase
             .from('employees')
             .select('id, employee_id, first_name, last_name')
-            .or(`first_name.ilike.${employeeName},last_name.ilike.${employeeName}`)
+            .ilike('first_name', employeeName)
             .limit(1)
-            .single()
-            .catch(() => ({ data: null, error: null }))
 
-          if (exactMatch) {
-            employee = exactMatch
+          if (byFirstName && byFirstName.length > 0) {
+            employee = byFirstName[0]
           } else {
-            // Second try: partial match (if name contains part of first_name or last_name)
-            const { data: partialMatches } = await supabase
+            // Second try: search by last_name (case-insensitive)
+            const { data: byLastName } = await supabase
               .from('employees')
               .select('id, employee_id, first_name, last_name')
-              .limit(10)
+              .ilike('last_name', employeeName)
+              .limit(1)
 
-            if (partialMatches && partialMatches.length > 0) {
-              // Find best match using string similarity
-              employee = partialMatches.find(e => 
-                e.first_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
-                e.last_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
-                employeeName.toLowerCase().includes(e.first_name?.toLowerCase() || '') ||
-                employeeName.toLowerCase().includes(e.last_name?.toLowerCase() || '')
-              )
+            if (byLastName && byLastName.length > 0) {
+              employee = byLastName[0]
+            } else {
+              // Third try: get all employees and do partial matching
+              const { data: allEmployees } = await supabase
+                .from('employees')
+                .select('id, employee_id, first_name, last_name')
+
+              if (allEmployees && allEmployees.length > 0) {
+                employee = allEmployees.find(e => 
+                  e.first_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
+                  e.last_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
+                  employeeName.toLowerCase().includes(e.first_name?.toLowerCase() || '') ||
+                  employeeName.toLowerCase().includes(e.last_name?.toLowerCase() || '')
+                )
+              }
             }
           }
 
@@ -211,7 +252,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
           employeeData = employee
           employeeCache[employeeName] = employee
-          console.log(`[v0] Employee matched: "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
+          console.log(`[v0] Row ${i + 1}: Employee matched: "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
         }
 
         // Aggregate check-in/check-out for same day
@@ -222,10 +263,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         if (existingRecord) {
           if (punchType === 'I' && !existingRecord.check_in) {
             existingRecord.check_in = timeOnly
-            console.log(`[v0] Updated check-in for ${employeeData.first_name} on ${dateOnly}: ${timeOnly}`)
           } else if (punchType === 'O' && !existingRecord.check_out) {
             existingRecord.check_out = timeOnly
-            console.log(`[v0] Updated check-out for ${employeeData.first_name} on ${dateOnly}: ${timeOnly}`)
           }
         } else {
           records.push({
@@ -237,8 +276,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
             month,
             year,
           })
-          console.log(`[v0] New record created: ${employeeData.first_name} ${employeeData.last_name} on ${dateOnly}`)
         }
+
+        successfulRows++
       } catch (error) {
         if (errors.length < MAX_ERRORS) {
           errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Parsing error'}`)
@@ -247,7 +287,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     }
 
     if (records.length === 0) {
-      console.log(`[v0] No valid records found. Total lines: ${lines.length}, Total errors: ${errors.length}`)
+      console.log(`[v0] *** PARSING SUMMARY ***`)
+      console.log(`[v0] Total lines: ${lines.length}`)
+      console.log(`[v0] Successful rows processed: ${successfulRows}`)
+      console.log(`[v0] Skipped rows (headers/invalid): ${skippedRows}`)
+      console.log(`[v0] Validation errors: ${errors.length}`)
+      console.log(`[v0] Employee lookup failures: ${errors.filter(e => e.includes('not found')).length}`)
+      if (errors.length > 0) {
+        console.log(`[v0] First 3 errors:`, errors.slice(0, 3))
+      }
+      
       const message = errors.length === 0 
         ? 'No valid attendance data found in this file. Please check if the file format is correct.'
         : 'No valid attendance records matched the selected month/year'
