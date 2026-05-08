@@ -97,15 +97,18 @@ export function AttendanceManager() {
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [records, setRecords] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
   const [stats, setStats] = useState({
     total_days: 0,
     present_days: 0,
     absent_days: 0,
     late_days: 0,
   })
+  const [employeeStats, setEmployeeStats] = useState<any>(null)
 
   useEffect(() => {
     loadAttendanceData()
@@ -114,8 +117,18 @@ export function AttendanceManager() {
   async function loadAttendanceData() {
     try {
       setLoading(true)
-      // Fetch all records and filter by month/year on the client side
-      // since attendance_records doesn't have month/year columns
+      console.log(`[v0] Loading attendance for month: ${month}, year: ${year}`)
+      
+      // Fetch employees first
+      const { data: empData, error: empError } = await supabase
+        .from('employees')
+        .select('*')
+      
+      if (empError) throw empError
+      setEmployees(empData || [])
+      console.log(`[v0] Loaded ${(empData || []).length} employees`)
+
+      // Fetch all attendance records
       const { data, error } = await supabase
         .from('attendance_records')
         .select('*')
@@ -123,25 +136,52 @@ export function AttendanceManager() {
 
       if (error) throw error
 
+      console.log(`[v0] Fetched ${(data || []).length} total records from database`)
+
       // Filter by month and year from attendance_date
       const filteredData = (data || []).filter(record => {
-        const recordDate = new Date(record.attendance_date)
-        const recordMonth = recordDate.getMonth() + 1
-        const recordYear = recordDate.getFullYear()
-        return recordMonth === month && recordYear === year
+        // Parse the date string - attendance_date is stored as "M/D/YYYY" format
+        const dateParts = record.attendance_date.split('/')
+        if (dateParts.length !== 3) {
+          console.log(`[v0] Invalid date format: ${record.attendance_date}`)
+          return false
+        }
+        
+        const recordMonth = parseInt(dateParts[0])
+        const recordYear = parseInt(dateParts[2])
+        
+        const matches = recordMonth === month && recordYear === year
+        if (!matches && data && data.length < 100) {
+          console.log(`[v0] Filtered out: ${record.attendance_date} (${recordMonth}/${recordYear}) looking for ${month}/${year}`)
+        }
+        return matches
       })
 
-      setRecords(filteredData)
+      console.log(`[v0] After filtering: ${filteredData.length} records match month/year`)
+
+      // Enrich records with employee data
+      const enrichedRecords = filteredData.map(record => {
+        const employee = empData?.find(e => e.id === record.employee_id)
+        return {
+          ...record,
+          employee_name: employee ? `${employee.first_name} ${employee.last_name}` : record.employee_name,
+          designation: employee?.designation || '-',
+          base_salary: employee?.base_salary || 0,
+          employee_data: employee
+        }
+      })
+
+      setRecords(enrichedRecords)
 
       // Calculate stats
-      if (filteredData.length > 0) {
-        const unique = [...new Set(filteredData.map(r => r.attendance_date))]
-        const absent = filteredData.filter(r => r.is_absent).length
-        const late = filteredData.filter(r => r.is_late && !r.nine_hour_waiver).length
+      if (enrichedRecords.length > 0) {
+        const unique = [...new Set(enrichedRecords.map(r => r.attendance_date))]
+        const absent = enrichedRecords.filter(r => r.is_absent).length
+        const late = enrichedRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
 
         setStats({
           total_days: unique.length,
-          present_days: filteredData.length - absent,
+          present_days: enrichedRecords.length - absent,
           absent_days: absent,
           late_days: late,
         })
@@ -257,6 +297,32 @@ export function AttendanceManager() {
     r.employee_name?.toLowerCase().includes(search.toLowerCase())
   )
 
+  function handleEmployeeClick(record: any) {
+    const employeeRecords = records.filter(r => r.employee_id === record.employee_id)
+    const uniqueDates = [...new Set(employeeRecords.map(r => r.attendance_date))]
+    const absent = employeeRecords.filter(r => r.is_absent).length
+    const late = employeeRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
+    const earlyOut = employeeRecords.filter(r => r.is_early_out && !r.nine_hour_waiver).length
+    const leavesDeducted = employeeRecords.filter(r => r.leaves_deducted).reduce((sum, r) => sum + (r.leaves_deducted || 0), 0)
+
+    const baseSalary = record.base_salary || 0
+    const deductions = (absent * (baseSalary / 30)) + (late * 100) + (earlyOut * 100)
+    const netPayable = baseSalary - deductions
+
+    setSelectedEmployee(record)
+    setEmployeeStats({
+      total_days: uniqueDates.length,
+      present_days: employeeRecords.length - absent,
+      absent_days: absent,
+      late_days: late,
+      early_out_days: earlyOut,
+      leaves_deducted: leavesDeducted,
+      base_salary: baseSalary,
+      deductions: Math.round(deductions),
+      net_payable: Math.round(netPayable),
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with Month/Year Selector */}
@@ -359,6 +425,48 @@ export function AttendanceManager() {
         </Card>
       </div>
 
+      {/* Payroll Cards - Show when employee is selected */}
+      {selectedEmployee && employeeStats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Designation</p>
+              <p className="text-xl font-bold text-blue-600">{selectedEmployee.designation}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Base Salary</p>
+              <p className="text-xl font-bold">₨ {employeeStats.base_salary?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Deductions</p>
+              <p className="text-xl font-bold text-red-600">₨ {employeeStats.deductions?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Net Payable</p>
+              <p className="text-xl font-bold text-green-600">₨ {employeeStats.net_payable?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Early Out Days</p>
+              <p className="text-2xl font-bold text-orange-600">{employeeStats.early_out_days}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Leaves Deducted</p>
+              <p className="text-2xl font-bold">{employeeStats.leaves_deducted}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Records Table */}
       <Card>
         <CardHeader>
@@ -382,8 +490,12 @@ export function AttendanceManager() {
                 </thead>
                 <tbody>
                   {filteredRecords.map((record) => (
-                    <tr key={record.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{record.employee_name}</td>
+                    <tr 
+                      key={record.id} 
+                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleEmployeeClick(record)}
+                    >
+                      <td className="p-2 font-medium">{record.employee_name}</td>
                       <td className="p-2">{record.attendance_date}</td>
                       <td className="p-2">{record.check_in || '-'}</td>
                       <td className="p-2">{record.check_out || '-'}</td>
@@ -391,16 +503,20 @@ export function AttendanceManager() {
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           record.is_absent ? 'bg-red-100 text-red-800' :
                           record.is_late ? 'bg-yellow-100 text-yellow-800' :
+                          record.is_early_out ? 'bg-orange-100 text-orange-800' :
                           'bg-green-100 text-green-800'
                         }`}>
-                          {record.status || 'Present'}
+                          {record.status || (record.is_absent ? 'Absent' : record.is_late ? 'Late' : record.is_early_out ? 'Early Out' : 'Present')}
                         </span>
                       </td>
                       <td className="p-2 text-center">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteRecord(record.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteRecord(record.id)
+                          }}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
