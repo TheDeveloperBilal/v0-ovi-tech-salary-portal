@@ -137,24 +137,40 @@ export function AttendanceManager() {
       if (error) throw error
 
       // Filter by month and year from attendance_date
+      // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
       const filteredData = (data || []).filter(record => {
-        // Parse the date string - attendance_date is stored as "M/D/YYYY" format from toLocaleDateString()
-        // Examples: "3/3/2026", "10/15/2026"
-        const parts = String(record.attendance_date).split('/')
+        const dateStr = String(record.attendance_date).trim()
+        let recordMonth = -1
+        let recordYear = -1
         
-        if (parts.length !== 3) {
-          console.log(`[v0] Invalid date format (expected M/D/YYYY): "${record.attendance_date}"`)
-          return false
+        // Try YYYY-MM-DD format first (new format)
+        if (dateStr.includes('-')) {
+          const parts = dateStr.split('-')
+          if (parts.length === 3) {
+            recordYear = parseInt(parts[0], 10)
+            recordMonth = parseInt(parts[1], 10)
+          }
+        } 
+        // Try M/D/YYYY format (old format from toLocaleDateString)
+        else if (dateStr.includes('/')) {
+          const parts = dateStr.split('/')
+          if (parts.length === 3) {
+            recordMonth = parseInt(parts[0], 10)
+            recordYear = parseInt(parts[2], 10)
+          }
         }
         
-        const recordMonth = parseInt(parts[0], 10)
-        const recordYear = parseInt(parts[2], 10)
+        if (recordMonth === -1 || recordYear === -1) {
+          console.log(`[v0] Could not parse date: "${dateStr}"`)
+          return false
+        }
         
         // Only return records matching the selected month/year
         return recordMonth === month && recordYear === year
       })
 
       console.log(`[v0] Filtering for month: ${month}, year: ${year}`)
+      console.log(`[v0] Total records in DB: ${(data || []).length}`)
       console.log(`[v0] Sample dates in DB:`, (data || []).slice(0, 5).map(r => r.attendance_date))
       console.log(`[v0] After filtering: ${filteredData.length} records match month/year`)
 

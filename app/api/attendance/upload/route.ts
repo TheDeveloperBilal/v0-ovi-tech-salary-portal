@@ -179,7 +179,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
       if (!jsDate || isNaN(jsDate.getTime())) continue
 
-      const dateKey = jsDate.toLocaleDateString()
+      // Store date in consistent YYYY-MM-DD format to avoid locale issues
+      const year = jsDate.getFullYear()
+      const month = String(jsDate.getMonth() + 1).padStart(2, '0')
+      const day = String(jsDate.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
       const uniqueKey = `${name}_${dateKey}`
 
       if (!grouped[uniqueKey]) {
