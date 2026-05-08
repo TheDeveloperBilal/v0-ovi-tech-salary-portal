@@ -1,23 +1,99 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { processAttendanceRecord } from '@/lib/attendance-calculations'
 
 interface UploadResponse {
   success: boolean
   recordsProcessed?: number
   error?: string
-  errors?: string[]
-  details?: {
-    totalLines: number
-    totalErrors: number
-    sampleErrors?: string[]
-  }
 }
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Parse text file into rows
+function parseTxt(content: string): string[][] {
+  const lines = content.split(/\r?\n/)
+  return lines
+    .map(line => {
+      line = line.trim()
+      if (!line) return []
+      if (line.includes('\t')) {
+        return line.split('\t').map(c => c.trim())
+      }
+      return line.split(/\s+/)
+    })
+    .filter(r => r.length > 3)
+}
+
+// Parse any date format
+function parseAnyDate(input: any): Date | null {
+  if (input instanceof Date) return input
+  if (typeof input === 'string') {
+    const parsed = new Date(input)
+    return isNaN(parsed.getTime()) ? null : parsed
+  }
+  return null
+}
+
+// Detect columns from first row
+function detectColumns(firstRow: string[]): { timestamp: number; date: number; time: number; name: number; valid: boolean } {
+  let result = { timestamp: -1, date: -1, time: -1, name: -1, valid: false }
+
+  // Pattern 1: Space-separated Date/Time (YYYY-MM-DD HH:MM:SS)
+  if (
+    firstRow.length >= 6 &&
+    /^\d{4}-\d{2}-\d{2}$/.test(firstRow[1]) &&
+    /^\d{1,2}:\d{2}:\d{2}$/.test(firstRow[2])
+  ) {
+    console.log('[v0] Format: Space-separated Date/Time')
+    return { timestamp: -1, date: 1, time: 2, name: 4, valid: true }
+  }
+
+  // Pattern 2: Combined timestamp (YYYY-MM-DD HH:MM:SS in single column)
+  if (firstRow.length >= 5 && /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}$/.test(firstRow[1])) {
+    console.log('[v0] Format: Combined timestamp')
+    return { timestamp: 1, date: -1, time: -1, name: 4, valid: true }
+  }
+
+  // Pattern 3: Smart detection - look for date/time patterns
+  let dateCol = -1
+  let timeCol = -1
+  let timestampCol = -1
+
+  firstRow.forEach((cell, idx) => {
+    const s = String(cell).trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dateCol = idx
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)) timeCol = idx
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}$/.test(s)) timestampCol = idx
+  })
+
+  if (timestampCol !== -1) {
+    let nameCol = -1
+    firstRow.forEach((cell, idx) => {
+      const s = String(cell).trim()
+      if (idx !== timestampCol && isNaN(parseFloat(s)) && s.length > 2 && s.length < 50) {
+        if (nameCol === -1) nameCol = idx
+      }
+    })
+    if (nameCol === -1) nameCol = timestampCol + 1
+    return { timestamp: timestampCol, date: -1, time: -1, name: nameCol, valid: true }
+  }
+
+  if (dateCol !== -1 && timeCol !== -1) {
+    let nameCol = -1
+    firstRow.forEach((cell, idx) => {
+      const s = String(cell).trim()
+      if (idx !== dateCol && idx !== timeCol && isNaN(parseFloat(s)) && s.length > 2) {
+        if (nameCol === -1) nameCol = idx
+      }
+    })
+    return { timestamp: -1, date: dateCol, time: timeCol, name: nameCol, valid: true }
+  }
+
+  return result
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
   try {
@@ -28,264 +104,191 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     if (!file) {
       return NextResponse.json<UploadResponse>(
-        { success: false, error: 'No file provided', errors: [] },
+        { success: false, error: 'No file provided' },
         { status: 400 }
       )
     }
 
-    if (!month || !year) {
+    const content = await file.text()
+    const rows = parseTxt(content)
+
+    console.log(`[v0] File parsed: ${rows.length} rows`)
+
+    if (rows.length < 2) {
       return NextResponse.json<UploadResponse>(
-        { success: false, error: 'Month and year required', errors: [] },
+        { success: false, error: 'File appears empty' },
         { status: 400 }
       )
     }
 
-    const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    // Detect columns
+    const colMap = detectColumns(rows[0])
+    console.log('[v0] Column mapping:', colMap)
 
-    if (lines.length === 0) {
+    if (!colMap.valid) {
       return NextResponse.json<UploadResponse>(
-        { success: false, error: 'No data in file', errors: [], details: { totalLines: 0, totalErrors: 0 } },
+        { success: false, error: 'Could not detect date/name columns in file' },
         { status: 400 }
       )
     }
 
-    const records: any[] = []
-    const errors: string[] = []
-    const employeeCache: { [key: string]: any } = {}
-    const MAX_ERRORS = 100
+    // Fetch all employees
+    const { data: employees, error: empError } = await supabase
+      .from('employees')
+      .select('id, employee_id, first_name, last_name')
 
-    for (let i = 0; i < lines.length; i++) {
-      try {
-        const line = lines[i].trim()
-        if (!line) continue
+    if (empError) {
+      console.error('[v0] Employee fetch error:', empError)
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: `Database error: ${empError.message}` },
+        { status: 500 }
+      )
+    }
 
-        // Skip header/meta-data rows: lines containing common header keywords
-        if (/OUR COMPANY|Date\/Time|Location|Employee|Timestamp|punch|report|summary/i.test(line)) {
-          continue
-        }
+    if (!employees || employees.length === 0) {
+      console.error('[v0] No employees found')
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: 'No employees found in database' },
+        { status: 400 }
+      )
+    }
 
-        // Split by tabs first, then by multiple spaces
-        let columns = line.split('\t')
-        if (columns.length < 5) {
-          columns = line.split(/\s+/)
-        }
+    console.log(`[v0] Loaded ${employees.length} employees`)
 
-        // Safety check: ensure we have enough columns
-        if (!columns || columns.length < 6) {
-          console.log(`[v0] Skipping row ${i + 1}: not enough columns (${columns?.length || 0})`)
-          continue
-        }
+    // Group attendance by employee and date
+    const grouped: { [key: string]: any } = {}
 
-        // Get the timestamp column to check if this is a valid data row
-        const rawTimestamp = columns[1]?.trim()
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (!row || row.length === 0) continue
 
-        // Skip rows where the timestamp column doesn't match a date pattern
-        // Matches both YYYY-MM-DD and M/D/YYYY formats
-        if (!rawTimestamp || !/\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(rawTimestamp)) {
-          continue
-        }
+      // Extract name
+      let name = colMap.name !== -1 ? String(row[colMap.name]).trim() : null
+      if (!name) continue
 
-        // EXACT COLUMN MAPPING (0-indexed, tab-separated):
-        // Index 0: Internal ID (ignored)
-        // Index 1: TIMESTAMP (e.g., "2026-03-03 09:58:09") - MUST SPLIT into date and time
-        // Index 2: Numeric code (ignored) - e.g., 101
-        // Index 3: Numeric code (ignored) - e.g., 1
-        // Index 4: EMPLOYEE NAME (e.g., "Hamza", "Bilal")
-        // Index 5: PUNCH TYPE (e.g., "I" for In, "O" for Out)
+      // Extract and parse date/time
+      let jsDate: Date | null = null
 
-        const employeeName = columns[4]?.trim()
-        const punchType = columns[5]?.trim()
+      if (colMap.timestamp !== -1 && row[colMap.timestamp]) {
+        jsDate = parseAnyDate(row[colMap.timestamp])
+      } else if (colMap.date !== -1 && colMap.time !== -1) {
+        const dateStr = String(row[colMap.date]).trim()
+        const timeStr = String(row[colMap.time]).trim()
+        jsDate = parseAnyDate(`${dateStr} ${timeStr}`)
+      }
 
-        console.log(`[v0] Processing row ${i + 1}: timestamp="${rawTimestamp}" name="${employeeName}" type="${punchType}"`)
+      if (!jsDate || isNaN(jsDate.getTime())) continue
 
-        // Split the combined timestamp into date and time
-        let dateOnly = ''
-        let timeOnly = ''
-        if (rawTimestamp) {
-          const timestampParts = rawTimestamp.split(' ')
-          dateOnly = timestampParts[0] || ''
-          timeOnly = timestampParts[1] || ''
-        }
+      // Store date in consistent YYYY-MM-DD format to avoid locale issues
+      const year = jsDate.getFullYear()
+      const month = String(jsDate.getMonth() + 1).padStart(2, '0')
+      const day = String(jsDate.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
+      const uniqueKey = `${name}_${dateKey}`
 
-        // Validate required fields
-        if (!dateOnly || !timeOnly || !employeeName || !punchType) {
-          if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Missing required fields - Timestamp: ${rawTimestamp}, Name: ${employeeName}, Type: ${punchType}`)
-          }
-          continue
-        }
-
-        // Normalize date format: convert M/D/YYYY to YYYY-MM-DD if needed
-        let normalizedDate = dateOnly
-        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateOnly)) {
-          // M/D/YYYY format detected
-          const slashParts = dateOnly.split('/')
-          const month = String(slashParts[0]).padStart(2, '0')
-          const day = String(slashParts[1]).padStart(2, '0')
-          const year = slashParts[2]
-          normalizedDate = `${year}-${month}-${day}`
-        }
-
-        // Validate normalized date format (YYYY-MM-DD)
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
-          if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid date format "${dateOnly}" - expected YYYY-MM-DD or M/D/YYYY`)
-          }
-          continue
-        }
-
-        dateOnly = normalizedDate
-
-        // Validate time format (HH:MM:SS)
-        if (!/^\d{2}:\d{2}:\d{2}$/.test(timeOnly)) {
-          if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid time format "${timeOnly}" - expected HH:MM:SS`)
-          }
-          continue
-        }
-
-        // Validate I/O type
-        if (!['I', 'O'].includes(punchType)) {
-          if (errors.length < MAX_ERRORS) {
-            errors.push(`Row ${i + 1}: Invalid punch type "${punchType}" - must be I or O`)
-          }
-          continue
-        }
-
-        // Parse and validate date
-        const dateParts = dateOnly.split('-').map(Number)
-        const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
-        
-        if (dateObj.getMonth() + 1 !== month || dateObj.getFullYear() !== year) {
-          continue
-        }
-
-        // Combine date and time for attendance timestamp
-        const attendanceTimestamp = `${dateOnly} ${timeOnly}`
-
-        // Look up employee by name
-        let employeeData = employeeCache[employeeName]
-
-        if (!employeeData) {
-          // Search for employee by name in database
-          const { data: employee, error: queryError } = await supabase
-            .from('employees')
-            .select('id, employee_id, first_name, last_name')
-            .or(`first_name.ilike.${employeeName},last_name.ilike.${employeeName}`)
-            .limit(1)
-            .maybeSingle()
-
-          if (queryError || !employee) {
-            if (errors.length < MAX_ERRORS) {
-              errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
-            }
-            continue
-          }
-
-          employeeData = employee
-          employeeCache[employeeName] = employee
-        }
-
-        // Aggregate check-in/check-out for same day
-        const existingRecord = records.find(
-          r => r.employee_id === employeeData.id && r.attendance_date === dateOnly
-        )
-
-        if (existingRecord) {
-          if (punchType === 'I' && !existingRecord.check_in) {
-            existingRecord.check_in = timeOnly
-          } else if (punchType === 'O' && !existingRecord.check_out) {
-            existingRecord.check_out = timeOnly
-          }
-        } else {
-          records.push({
-            employee_id: employeeData.id,
-            employee_name: `${employeeData.first_name} ${employeeData.last_name}`,
-            attendance_date: dateOnly,
-            check_in: punchType === 'I' ? timeOnly : null,
-            check_out: punchType === 'O' ? timeOnly : null,
-            month,
-            year,
-          })
-        }
-      } catch (error) {
-        if (errors.length < MAX_ERRORS) {
-          errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : 'Parsing error'}`)
+      if (!grouped[uniqueKey]) {
+        grouped[uniqueKey] = {
+          name: name,
+          date: dateKey,
+          dateObj: jsDate,
+          scans: []
         }
       }
+      grouped[uniqueKey].scans.push(jsDate)
     }
 
-    if (records.length === 0) {
-      console.log(`[v0] No valid records found. Total lines: ${lines.length}, Total errors: ${errors.length}`)
-      const message = errors.length === 0 
-        ? 'No valid attendance data found in this file. Please check if the file format is correct.'
-        : 'No valid attendance records matched the selected month/year'
-      
+    console.log(`[v0] Grouped records: ${Object.keys(grouped).length}`)
+
+    // Process and save records
+    const recordsToSave: any[] = []
+
+    for (const entry of Object.values(grouped) as any[]) {
+      // Find matching employee
+      const employee = employees.find(
+        e =>
+          e.first_name?.toLowerCase() === entry.name.toLowerCase() ||
+          e.last_name?.toLowerCase() === entry.name.toLowerCase() ||
+          e.first_name?.toLowerCase().includes(entry.name.toLowerCase()) ||
+          e.last_name?.toLowerCase().includes(entry.name.toLowerCase()) ||
+          entry.name.toLowerCase().includes(e.first_name?.toLowerCase() || '') ||
+          entry.name.toLowerCase().includes(e.last_name?.toLowerCase() || '')
+      )
+
+      if (!employee) {
+        console.log(`[v0] Employee not found: "${entry.name}"`)
+        continue
+      }
+
+      const scans = (entry.scans as Date[]).sort((a, b) => a.getTime() - b.getTime())
+      const firstScan = scans[0]
+      const lastScan = scans[scans.length - 1]
+
+      recordsToSave.push({
+        employee_id: employee.id,
+        attendance_date: entry.date,
+        check_in: firstScan.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }),
+        check_out:
+          scans.length > 1
+            ? lastScan.toLocaleTimeString('en-US', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              })
+            : null
+      })
+    }
+
+    console.log(`[v0] Records to save: ${recordsToSave.length}`)
+
+    if (recordsToSave.length === 0) {
       return NextResponse.json<UploadResponse>(
         {
           success: false,
-          error: message,
-          errors: errors.slice(0, 10),
-          details: { totalLines: lines.length, totalErrors: errors.length, sampleErrors: errors.slice(0, 3) }
+          error: 'No valid attendance records found. Check if employee names match database.'
         },
         { status: 400 }
       )
     }
 
-    // Process records with attendance calculations
-    const processedRecords = []
-    for (const record of records) {
-      const processed = processAttendanceRecord({
-        employeName: record.employee_name,
-        employeeId: record.employee_id,
-        date: record.attendance_date,
-        checkIn: record.check_in,
-        checkOut: record.check_out,
-      })
+    // Deduplicate records by employee_id and attendance_date to avoid "duplicate key" error
+    const deduplicatedRecords = Array.from(
+      new Map(recordsToSave.map(r => [`${r.employee_id}_${r.attendance_date}`, r])).values()
+    )
 
-      processedRecords.push({
-        employee_id: record.employee_id,
-        employee_name: record.employee_name,
-        attendance_date: record.attendance_date,
-        check_in: record.check_in,
-        check_out: record.check_out,
-        work_hours: processed.workHours,
-        status: processed.status,
-        is_late: processed.isLate,
-        is_early_out: processed.isEarlyOut,
-        is_absent: processed.isAbsent,
-        nine_hour_waiver: processed.nineHourWaiver,
-        month: record.month,
-        year: record.year,
-      })
-    }
+    console.log(`[v0] After deduplication: ${deduplicatedRecords.length} unique records`)
 
-    // Upsert to database
-    const { error: upsertError } = await supabase
-      .from('attendance_records')
-      .upsert(processedRecords, { onConflict: 'employee_id,attendance_date' })
+    // Save to database using upsert to handle duplicate entries
+    const { error: saveError } = await supabase.from('attendance_records').upsert(deduplicatedRecords, {
+      onConflict: 'employee_id,attendance_date'
+    })
 
-    if (upsertError) {
+    if (saveError) {
+      console.error('[v0] Database save error:', saveError)
       return NextResponse.json<UploadResponse>(
-        { success: false, error: 'Failed to save records', errors: [upsertError.message] },
+        { success: false, error: `Failed to save records: ${saveError.message}` },
         { status: 500 }
       )
     }
 
-    console.log(`[v0] Upload successful: ${processedRecords.length} records`)
+    console.log(`[v0] Successfully saved ${recordsToSave.length} records`)
+
     return NextResponse.json<UploadResponse>({
       success: true,
-      recordsProcessed: processedRecords.length,
-      errors: errors.slice(0, 10),
-      details: { totalLines: lines.length, totalErrors: errors.length, sampleErrors: errors.slice(0, 3) }
+      recordsProcessed: recordsToSave.length
     })
   } catch (error) {
     console.error('[v0] Upload error:', error)
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error occurred'
-    console.error('[v0] Error details:', errorMsg)
     return NextResponse.json<UploadResponse>(
-      { success: false, error: `File processing failed: ${errorMsg}`, errors: [errorMsg] },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      },
       { status: 500 }
     )
   }

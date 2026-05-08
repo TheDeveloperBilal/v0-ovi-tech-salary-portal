@@ -60,20 +60,55 @@ function formatErrorDisplay(details: string[], totalErrors?: number): string {
   return displayErrors + errorCountMsg
 }
 
+// Helper function to validate file before upload (Phase 3: Client-side validation)
+async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: any }> {
+  try {
+    const text = await file.text()
+    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    
+    if (lines.length < 2) {
+      return { valid: false, error: 'File has less than 2 rows of data' }
+    }
+
+    // Basic file size check
+    if (file.size > 10 * 1024 * 1024) {
+      return { valid: false, error: 'File size exceeds 10MB limit' }
+    }
+
+    // Just verify it's a text file with data - let server handle structure validation
+    return {
+      valid: true,
+      sampleData: {
+        totalRows: lines.length,
+        fileName: file.name,
+        fileSize: file.size
+      }
+    }
+  } catch (error) {
+    return {
+      valid: false,
+      error: `Failed to validate file: ${error instanceof Error ? error.message : 'Unknown error'}`
+    }
+  }
+}
+
 export function AttendanceManager() {
   const { toast } = useToast()
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [records, setRecords] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
   const [stats, setStats] = useState({
     total_days: 0,
     present_days: 0,
     absent_days: 0,
     late_days: 0,
   })
+  const [employeeStats, setEmployeeStats] = useState<any>(null)
 
   useEffect(() => {
     loadAttendanceData()
@@ -82,32 +117,147 @@ export function AttendanceManager() {
   async function loadAttendanceData() {
     try {
       setLoading(true)
+      setRecords([])
+      setSelectedEmployee(null)
+      console.log(`[v0] ===== LOADING ATTENDANCE DATA =====`)
+      console.log(`[v0] Requested month: ${month}, year: ${year}`)
+      
+      // Fetch employees first
+      const { data: empData, error: empError } = await supabase
+        .from('employees')
+        .select('*')
+      
+      if (empError) {
+        console.error(`[v0] ERROR fetching employees:`, empError)
+        throw empError
+      }
+      setEmployees(empData || [])
+      console.log(`[v0] ✓ Loaded ${(empData || []).length} employees from database`)
+
+      // Fetch all attendance records WITHOUT any filtering
       const { data, error } = await supabase
         .from('attendance_records')
         .select('*')
-        .eq('month', month)
-        .eq('year', year)
         .order('attendance_date')
 
-      if (error) throw error
+      if (error) {
+        console.error(`[v0] ERROR fetching attendance:`, error)
+        throw error
+      }
 
-      setRecords(data || [])
+      console.log(`[v0] ✓ Fetched ${(data || []).length} total attendance records from database`)
+      
+      if (!data || data.length === 0) {
+        console.warn(`[v0] ⚠ NO attendance records in database at all!`)
+        setStats({ total_days: 0, present_days: 0, absent_days: 0, late_days: 0 })
+        return
+      }
+
+      // Debug: Show first and last records
+      const firstRecord = data[0]
+      const lastRecord = data[data.length - 1]
+      console.log(`[v0] First record:`, { date: firstRecord?.attendance_date, emp: firstRecord?.employee_id })
+      console.log(`[v0] Last record:`, { date: lastRecord?.attendance_date, emp: lastRecord?.employee_id })
+      
+      // Filter by month and year from attendance_date
+      // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
+      const filteredData = (data || []).filter(record => {
+        try {
+          const dateStr = String(record.attendance_date).trim()
+          
+          let recordMonth = -1
+          let recordYear = -1
+          
+          // Try parsing as Date first - works for most formats
+          const parsedDate = new Date(dateStr)
+          if (!isNaN(parsedDate.getTime())) {
+            recordMonth = parsedDate.getMonth() + 1
+            recordYear = parsedDate.getFullYear()
+          } else {
+            // Manual parsing as fallback
+            // Try YYYY-MM-DD format first (new format)
+            if (dateStr.includes('-')) {
+              const parts = dateStr.split('-')
+              if (parts.length === 3) {
+                recordYear = parseInt(parts[0], 10)
+                recordMonth = parseInt(parts[1], 10)
+              }
+            } 
+            // Try M/D/YYYY format (old format from toLocaleDateString)
+            else if (dateStr.includes('/')) {
+              const parts = dateStr.split('/')
+              if (parts.length === 3) {
+                recordMonth = parseInt(parts[0], 10)
+                recordYear = parseInt(parts[2], 10)
+              }
+            }
+          }
+          
+          // Validate parsed values
+          if (recordMonth < 1 || recordMonth > 12 || recordYear < 2000 || recordYear > 2100) {
+            return false
+          }
+          
+          // Only return records matching the selected month/year
+          return recordMonth === month && recordYear === year
+        } catch (err) {
+          console.error(`[v0] Error parsing date "${record.attendance_date}":`, err)
+          return false
+        }
+      })
+
+      console.log(`[v0] ===== FILTERING RESULTS =====`)
+      console.log(`[v0] Looking for month: ${month}, year: ${year}`)
+      console.log(`[v0] Sample dates in DB:`, (data || []).slice(0, 5).map(r => r.attendance_date))
+      console.log(`[v0] Matched ${filteredData.length}/${(data || []).length} records for this month/year`)
+      
+      if (filteredData.length === 0) {
+        console.warn(`[v0] ⚠ No records found for month ${month}, year ${year}`)
+      }
+      console.log(`[v0] ===== END FILTERING =====`)
+
+      // Enrich records with employee data
+      const enrichedRecords = filteredData.map(record => {
+        const employee = empData?.find(e => e.id === record.employee_id)
+        return {
+          ...record,
+          employee_name: employee ? `${employee.first_name} ${employee.last_name}` : record.employee_name,
+          designation: employee?.designation || '-',
+          base_salary: employee?.base_salary || 0,
+          employee_data: employee
+        }
+      })
+
+      setRecords(enrichedRecords)
 
       // Calculate stats
-      if (data) {
-        const unique = [...new Set(data.map(r => r.attendance_date))]
-        const absent = data.filter(r => r.is_absent).length
-        const late = data.filter(r => r.is_late && !r.nine_hour_waiver).length
+      if (enrichedRecords.length > 0) {
+        const unique = [...new Set(enrichedRecords.map(r => r.attendance_date))]
+        const absent = enrichedRecords.filter(r => r.is_absent).length
+        const late = enrichedRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
 
         setStats({
           total_days: unique.length,
-          present_days: data.length - absent,
+          present_days: enrichedRecords.length - absent,
           absent_days: absent,
           late_days: late,
         })
+        console.log(`[v0] ✓ Stats calculated:`, { total_days: unique.length, present_days: enrichedRecords.length - absent })
+      } else {
+        setStats({
+          total_days: 0,
+          present_days: 0,
+          absent_days: 0,
+          late_days: 0,
+        })
       }
     } catch (error) {
-      console.error('Error loading attendance:', error)
+      console.error('[v0] Error loading attendance:', error)
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load attendance records',
+        variant: 'destructive'
+      })
     } finally {
       setLoading(false)
     }
@@ -209,6 +359,32 @@ export function AttendanceManager() {
   const filteredRecords = records.filter(r =>
     r.employee_name?.toLowerCase().includes(search.toLowerCase())
   )
+
+  function handleEmployeeClick(record: any) {
+    const employeeRecords = records.filter(r => r.employee_id === record.employee_id)
+    const uniqueDates = [...new Set(employeeRecords.map(r => r.attendance_date))]
+    const absent = employeeRecords.filter(r => r.is_absent).length
+    const late = employeeRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
+    const earlyOut = employeeRecords.filter(r => r.is_early_out && !r.nine_hour_waiver).length
+    const leavesDeducted = employeeRecords.filter(r => r.leaves_deducted).reduce((sum, r) => sum + (r.leaves_deducted || 0), 0)
+
+    const baseSalary = record.base_salary || 0
+    const deductions = (absent * (baseSalary / 30)) + (late * 100) + (earlyOut * 100)
+    const netPayable = baseSalary - deductions
+
+    setSelectedEmployee(record)
+    setEmployeeStats({
+      total_days: uniqueDates.length,
+      present_days: employeeRecords.length - absent,
+      absent_days: absent,
+      late_days: late,
+      early_out_days: earlyOut,
+      leaves_deducted: leavesDeducted,
+      base_salary: baseSalary,
+      deductions: Math.round(deductions),
+      net_payable: Math.round(netPayable),
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -312,6 +488,48 @@ export function AttendanceManager() {
         </Card>
       </div>
 
+      {/* Payroll Cards - Show when employee is selected */}
+      {selectedEmployee && employeeStats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Designation</p>
+              <p className="text-xl font-bold text-blue-600">{selectedEmployee.designation}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Base Salary</p>
+              <p className="text-xl font-bold">₨ {employeeStats.base_salary?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Deductions</p>
+              <p className="text-xl font-bold text-red-600">₨ {employeeStats.deductions?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Net Payable</p>
+              <p className="text-xl font-bold text-green-600">₨ {employeeStats.net_payable?.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Early Out Days</p>
+              <p className="text-2xl font-bold text-orange-600">{employeeStats.early_out_days}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-gray-600">Leaves Deducted</p>
+              <p className="text-2xl font-bold">{employeeStats.leaves_deducted}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Records Table */}
       <Card>
         <CardHeader>
@@ -335,8 +553,12 @@ export function AttendanceManager() {
                 </thead>
                 <tbody>
                   {filteredRecords.map((record) => (
-                    <tr key={record.id} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{record.employee_name}</td>
+                    <tr 
+                      key={record.id} 
+                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleEmployeeClick(record)}
+                    >
+                      <td className="p-2 font-medium">{record.employee_name}</td>
                       <td className="p-2">{record.attendance_date}</td>
                       <td className="p-2">{record.check_in || '-'}</td>
                       <td className="p-2">{record.check_out || '-'}</td>
@@ -344,16 +566,20 @@ export function AttendanceManager() {
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           record.is_absent ? 'bg-red-100 text-red-800' :
                           record.is_late ? 'bg-yellow-100 text-yellow-800' :
+                          record.is_early_out ? 'bg-orange-100 text-orange-800' :
                           'bg-green-100 text-green-800'
                         }`}>
-                          {record.status || 'Present'}
+                          {record.status || (record.is_absent ? 'Absent' : record.is_late ? 'Late' : record.is_early_out ? 'Early Out' : 'Present')}
                         </span>
                       </td>
                       <td className="p-2 text-center">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteRecord(record.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteRecord(record.id)
+                          }}
                         >
                           <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
