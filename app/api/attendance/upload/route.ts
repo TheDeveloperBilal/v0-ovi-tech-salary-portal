@@ -181,48 +181,38 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         let employeeData = employeeCache[employeeName]
 
         if (!employeeData) {
-          // Search for employee by name in database
-          let employee = null
-
-          // First try: search by first_name (case-insensitive)
-          const { data: byFirstName } = await supabase
-            .from('employees')
-            .select('id, employee_id, first_name, last_name')
-            .ilike('first_name', employeeName)
-            .limit(1)
-
-          if (byFirstName && byFirstName.length > 0) {
-            employee = byFirstName[0]
-          } else {
-            // Second try: search by last_name (case-insensitive)
-            const { data: byLastName } = await supabase
+          // Fetch ALL employees once (on first iteration, if not in cache)
+          let allEmployees = employeeCache['_ALL_'] as any[] | undefined
+          
+          if (!allEmployees) {
+            const { data } = await supabase
               .from('employees')
               .select('id, employee_id, first_name, last_name')
-              .ilike('last_name', employeeName)
-              .limit(1)
+            
+            allEmployees = data || []
+            employeeCache['_ALL_'] = allEmployees
+            console.log(`[v0] Loaded ${allEmployees.length} employees from database`)
+          }
 
-            if (byLastName && byLastName.length > 0) {
-              employee = byLastName[0]
-            } else {
-              // Third try: get all employees and do partial matching
-              const { data: allEmployees } = await supabase
-                .from('employees')
-                .select('id, employee_id, first_name, last_name')
+          // Find exact match first (case-insensitive)
+          let employee = allEmployees.find(e => 
+            e.first_name?.toLowerCase() === employeeName.toLowerCase() ||
+            e.last_name?.toLowerCase() === employeeName.toLowerCase()
+          )
 
-              if (allEmployees && allEmployees.length > 0) {
-                employee = allEmployees.find(e => 
-                  e.first_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
-                  e.last_name?.toLowerCase().includes(employeeName.toLowerCase()) ||
-                  employeeName.toLowerCase().includes(e.first_name?.toLowerCase() || '') ||
-                  employeeName.toLowerCase().includes(e.last_name?.toLowerCase() || '')
-                )
-              }
-            }
+          // If no exact match, find partial match
+          if (!employee) {
+            employee = allEmployees.find(e => 
+              (e.first_name?.toLowerCase().includes(employeeName.toLowerCase())) ||
+              (e.last_name?.toLowerCase().includes(employeeName.toLowerCase())) ||
+              (employeeName.toLowerCase().includes(e.first_name?.toLowerCase() || '')) ||
+              (employeeName.toLowerCase().includes(e.last_name?.toLowerCase() || ''))
+            )
           }
 
           if (!employee) {
             if (errors.length < MAX_ERRORS) {
-              errors.push(`Row ${i + 1}: Employee "${employeeName}" not found in database`)
+              errors.push(`Row ${i + 1}: Employee "${employeeName}" not found`)
             }
             console.log(`[v0] Employee not found: "${employeeName}"`)
             continue
@@ -230,7 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
           employeeData = employee
           employeeCache[employeeName] = employee
-          console.log(`[v0] Row ${i + 1}: Employee matched: "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
+          console.log(`[v0] Row ${i + 1}: Found employee "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
         }
 
         // Aggregate check-in/check-out for same day
@@ -271,13 +261,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       console.log(`[v0] Skipped rows (headers/invalid): ${skippedRows}`)
       console.log(`[v0] Validation errors: ${errors.length}`)
       console.log(`[v0] Employee lookup failures: ${errors.filter(e => e.includes('not found')).length}`)
+      console.log(`[v0] Employees in cache: ${Object.keys(employeeCache).length}`)
+      if (employeeCache['_ALL_']) {
+        console.log(`[v0] Employees in database: ${(employeeCache['_ALL_'] as any[]).length}`)
+      }
       if (errors.length > 0) {
-        console.log(`[v0] First 3 errors:`, errors.slice(0, 3))
+        console.log(`[v0] First 5 errors:`, errors.slice(0, 5))
       }
       
       const message = errors.length === 0 
         ? 'No valid attendance data found in this file. Please check if the file format is correct.'
-        : 'No valid attendance records matched the selected month/year'
+        : 'No valid attendance records could be created. Please check the employee names in your file.'
       
       return NextResponse.json<UploadResponse>(
         {
