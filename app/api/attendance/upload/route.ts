@@ -110,7 +110,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         const employeeName = columns[4]?.trim()
         const punchType = columns[5]?.trim()
 
-        console.log(`[v0] Processing row ${i + 1}: timestamp="${rawTimestamp}" name="${employeeName}" type="${punchType}"`)
+        // Debug first few data rows
+        if (successfulRows < 3) {
+          console.log(`[v0] Row ${i + 1}: timestamp="${rawTimestamp}" | name="${employeeName}" | type="${punchType}"`)
+        }
 
         // Split the combined timestamp into date and time
         let dateOnly = ''
@@ -119,6 +122,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           const timestampParts = rawTimestamp.split(' ')
           dateOnly = timestampParts[0] || ''
           timeOnly = timestampParts[1] || ''
+        }
+
+        // Validate required fields
+        if (!dateOnly || !timeOnly || !employeeName || !punchType) {
+          if (errors.length < MAX_ERRORS) {
+            errors.push(`Row ${i + 1}: Missing fields - timestamp="${rawTimestamp}" name="${employeeName}" type="${punchType}"`)
+          }
+          continue
         }
 
         // Validate required fields
@@ -185,13 +196,25 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           let allEmployees = employeeCache['_ALL_'] as any[] | undefined
           
           if (!allEmployees) {
-            const { data } = await supabase
+            console.log(`[v0] First row - fetching all employees from database...`)
+            const { data, error } = await supabase
               .from('employees')
               .select('id, employee_id, first_name, last_name')
             
+            if (error) {
+              console.error(`[v0] CRITICAL: Failed to fetch employees:`, error)
+              throw new Error(`Database error fetching employees: ${error.message}`)
+            }
+
             allEmployees = data || []
             employeeCache['_ALL_'] = allEmployees
-            console.log(`[v0] Loaded ${allEmployees.length} employees from database`)
+            console.log(`[v0] SUCCESS: Loaded ${allEmployees.length} employees from database`)
+            
+            if (allEmployees.length === 0) {
+              console.error(`[v0] WARNING: No employees found in database!`)
+            } else {
+              console.log(`[v0] Sample employees:`, allEmployees.slice(0, 3).map(e => `${e.first_name} ${e.last_name}`))
+            }
           }
 
           // Find exact match first (case-insensitive)
@@ -214,13 +237,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
             if (errors.length < MAX_ERRORS) {
               errors.push(`Row ${i + 1}: Employee "${employeeName}" not found`)
             }
-            console.log(`[v0] Employee not found: "${employeeName}"`)
             continue
           }
 
           employeeData = employee
           employeeCache[employeeName] = employee
-          console.log(`[v0] Row ${i + 1}: Found employee "${employeeName}" -> ${employee.first_name} ${employee.last_name}`)
+          if (i < 5) {
+            console.log(`[v0] Row ${i + 1}: Found employee "${employeeName}"`)
+          }
         }
 
         // Aggregate check-in/check-out for same day
