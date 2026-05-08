@@ -221,7 +221,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
       recordsToSave.push({
         employee_id: employee.id,
-        employee_name: `${employee.first_name} ${employee.last_name}`,
         attendance_date: entry.date,
         check_in: firstScan.toLocaleTimeString('en-US', {
           hour12: false,
