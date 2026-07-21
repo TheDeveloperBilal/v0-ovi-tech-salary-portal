@@ -2,6 +2,8 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { EmployeeDashboard } from "@/components/employee-dashboard"
 
+export const dynamic = 'force-dynamic'
+
 export default async function EmployeePage() {
   const supabase = await createClient()
 

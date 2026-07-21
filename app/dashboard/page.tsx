@@ -6,14 +6,16 @@ import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
 import { DashboardContent } from "@/components/dashboard-content"
 
+export const dynamic = 'force-dynamic'
+
 export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
     const fetchProfile = async () => {
       try {
         console.log("[v0] Starting dashboard profile fetch...")
