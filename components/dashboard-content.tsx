@@ -35,7 +35,7 @@ export function DashboardContent({ user }: { user: any }) {
     }
 
     fetchStats()
-  }, [supabase])
+  }, [])
 
   const isAdmin = user?.is_admin === true
 
