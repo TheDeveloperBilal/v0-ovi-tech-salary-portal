@@ -53,7 +53,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       subscription?.unsubscribe()
     }
-  }, [supabase, router])
+  }, [router])
 
   if (isLoading) {
     return (

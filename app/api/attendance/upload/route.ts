@@ -7,10 +7,12 @@ interface UploadResponse {
   error?: string
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  )
+}
 
 // Parse text file into rows
 function parseTxt(content: string): string[][] {
@@ -97,6 +99,7 @@ function detectColumns(firstRow: string[]): { timestamp: number; date: number; t
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
   try {
+    const supabase = getSupabaseClient()
     const formData = await request.formData()
     const file = formData.get('file') as File
     const month = parseInt(formData.get('month') as string)
