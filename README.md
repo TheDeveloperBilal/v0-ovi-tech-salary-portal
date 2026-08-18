@@ -493,7 +493,7 @@ Errors such as `Could not find the 'month' column` or `Could not find the 'emplo
 
 ## Legacy PHP Files
 
-The repository contains earlier PHP implementation files such as `login.php`, `dashboard.php`, `salary-slip.php`, `bulk-salary.php`, and `database/ovitech_salary.sql`. They are retained for historical/reference purposes and are separate from the Next.js/Supabase application. Do not run both applications against the same domain without an explicit migration plan.
+The earlier PHP implementation lives in `legacy/` (PHP entry points such as `login.php`, `dashboard.php`, `salary-slip.php`, `bulk-salary.php`, plus `legacy/config/`, `legacy/includes/`, and `legacy/database/ovitech_salary.sql`). Historical setup/fix documentation lives in `docs/`. They are retained for historical/reference purposes and are separate from the Next.js/Supabase application. Do not run both applications against the same domain without an explicit migration plan.
 
 ## Troubleshooting Vercel Builds
 
