@@ -41,7 +41,7 @@ function parseAnyDate(input: any): Date | null {
 
 // Detect columns from first row
 function detectColumns(firstRow: string[]): { timestamp: number; date: number; time: number; name: number; valid: boolean } {
-  let result = { timestamp: -1, date: -1, time: -1, name: -1, valid: false }
+  const result = { timestamp: -1, date: -1, time: -1, name: -1, valid: false }
 
   // Pattern 1: Space-separated Date/Time (YYYY-MM-DD HH:MM:SS)
   if (
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       if (!row || row.length === 0) continue
 
       // Extract name
-      let name = colMap.name !== -1 ? String(row[colMap.name]).trim() : null
+      const name = colMap.name !== -1 ? String(row[colMap.name]).trim() : null
       if (!name) continue
 
       // Extract and parse date/time
