@@ -1,17 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 interface UploadResponse {
   success: boolean
   recordsProcessed?: number
   error?: string
-}
-
-function getSupabaseClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  )
 }
 
 // Parse text file into rows
@@ -99,7 +92,43 @@ function detectColumns(firstRow: string[]): { timestamp: number; date: number; t
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = await createClient()
+
+    // Verify Bearer token — only authenticated admins can upload attendance
+    const authHeader = request.headers.get('authorization')
+    let currentUser = null
+
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7)
+        const { data: { user } } = await supabase.auth.getUser(token)
+        currentUser = user
+      } catch (err) {
+        console.log('[v0] Token verification failed:', err)
+      }
+    }
+
+    if (!currentUser) {
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user is admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', currentUser.id)
+      .single()
+
+    if (!profile?.is_admin) {
+      return NextResponse.json<UploadResponse>(
+        { success: false, error: 'Only admins can upload attendance data' },
+        { status: 403 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const month = parseInt(formData.get('month') as string)

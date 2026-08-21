@@ -1,17 +1,43 @@
 // app/api/attendance/calculate-leaves/route.ts
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-function getSupabaseClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-  )
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = await createClient()
+
+    // Verify Bearer token — only authenticated admins can calculate leaves
+    const authHeader = request.headers.get('authorization')
+    let currentUser = null
+
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7)
+        const { data: { user } } = await supabase.auth.getUser(token)
+        currentUser = user
+      } catch (err) {
+        console.log('[v0] Token verification failed:', err)
+      }
+    }
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if user is admin
+    const { data: adminProfile } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', currentUser.id)
+      .single()
+
+    if (!adminProfile?.is_admin) {
+      return NextResponse.json(
+        { error: 'Only admins can calculate leaves' },
+        { status: 403 }
+      )
+    }
+
     const { month, year, employeeId } = await request.json()
 
     if (!month || !year) {
@@ -35,8 +61,8 @@ export async function POST(request: NextRequest) {
 
     // Calculate leaves deducted based on business rules
     let leavesDeducted = 0
-    const absences = (records || []).filter(r => r.is_absent).length
-    const violations = (records || []).filter(r => (r.is_late || r.is_early_out) && !r.nine_hour_waiver).length
+    const absences = (records || []).filter((r: any) => r.is_absent).length
+    const violations = (records || []).filter((r: any) => (r.is_late || r.is_early_out) && !r.nine_hour_waiver).length
 
     // 1 absent = 1 leave
     leavesDeducted += absences
@@ -74,9 +100,9 @@ export async function POST(request: NextRequest) {
         month,
         year,
         total_days: records?.length || 0,
-        present_days: (records || []).filter(r => !r.is_absent).length,
-        late_count: (records || []).filter(r => r.is_late && !r.nine_hour_waiver).length,
-        early_out_count: (records || []).filter(r => r.is_early_out).length,
+        present_days: (records || []).filter((r: any) => !r.is_absent).length,
+        late_count: (records || []).filter((r: any) => r.is_late && !r.nine_hour_waiver).length,
+        early_out_count: (records || []).filter((r: any) => r.is_early_out).length,
         absent_count: absences,
         leaves_deducted: leavesDeducted,
       }, {

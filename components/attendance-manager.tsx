@@ -291,6 +291,15 @@ export function AttendanceManager() {
         description: `Processing ${validation.sampleData?.totalRows} rows...`,
       })
 
+      // Get the current session to send auth token
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        toast({ title: 'Error', description: 'You must be logged in to upload attendance', variant: 'destructive' })
+        setUploading(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('file', file)
       formData.append('month', String(month))
@@ -298,6 +307,9 @@ export function AttendanceManager() {
 
       const response = await fetch('/api/attendance/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: formData,
       })
 

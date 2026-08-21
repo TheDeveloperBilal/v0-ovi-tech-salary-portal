@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
           department: department || null,
           designation: designation || null,
           date_of_joining: date_of_joining || null,
+          user_id: userId,
         },
       ])
       .select()
