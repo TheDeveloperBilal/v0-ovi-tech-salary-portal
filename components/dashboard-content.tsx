@@ -26,7 +26,6 @@ export function DashboardContent({ user }: { user: any }) {
           totalSalarySlips: slipCount || 0,
         })
       } catch (error) {
-        console.log("[v0] Tables not yet created, showing default stats")
         setStats({
           totalEmployees: 0,
           totalSalarySlips: 0,

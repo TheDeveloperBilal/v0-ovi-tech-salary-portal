@@ -119,8 +119,6 @@ export function AttendanceManager() {
       setLoading(true)
       setRecords([])
       setSelectedEmployee(null)
-      console.log(`[v0] ===== LOADING ATTENDANCE DATA =====`)
-      console.log(`[v0] Requested month: ${month}, year: ${year}`)
       
       // Fetch employees first
       const { data: empData, error: empError } = await supabase
@@ -128,11 +126,9 @@ export function AttendanceManager() {
         .select('*')
       
       if (empError) {
-        console.error(`[v0] ERROR fetching employees:`, empError)
         throw empError
       }
       setEmployees(empData || [])
-      console.log(`[v0] ✓ Loaded ${(empData || []).length} employees from database`)
 
       // Fetch all attendance records WITHOUT any filtering
       const { data, error } = await supabase
@@ -141,14 +137,11 @@ export function AttendanceManager() {
         .order('attendance_date')
 
       if (error) {
-        console.error(`[v0] ERROR fetching attendance:`, error)
         throw error
       }
 
-      console.log(`[v0] ✓ Fetched ${(data || []).length} total attendance records from database`)
       
       if (!data || data.length === 0) {
-        console.warn(`[v0] ⚠ NO attendance records in database at all!`)
         setStats({ total_days: 0, present_days: 0, absent_days: 0, late_days: 0 })
         return
       }
@@ -156,8 +149,6 @@ export function AttendanceManager() {
       // Debug: Show first and last records
       const firstRecord = data[0]
       const lastRecord = data[data.length - 1]
-      console.log(`[v0] First record:`, { date: firstRecord?.attendance_date, emp: firstRecord?.employee_id })
-      console.log(`[v0] Last record:`, { date: lastRecord?.attendance_date, emp: lastRecord?.employee_id })
       
       // Filter by month and year from attendance_date
       // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
@@ -201,20 +192,13 @@ export function AttendanceManager() {
           // Only return records matching the selected month/year
           return recordMonth === month && recordYear === year
         } catch (err) {
-          console.error(`[v0] Error parsing date "${record.attendance_date}":`, err)
           return false
         }
       })
 
-      console.log(`[v0] ===== FILTERING RESULTS =====`)
-      console.log(`[v0] Looking for month: ${month}, year: ${year}`)
-      console.log(`[v0] Sample dates in DB:`, (data || []).slice(0, 5).map(r => r.attendance_date))
-      console.log(`[v0] Matched ${filteredData.length}/${(data || []).length} records for this month/year`)
       
       if (filteredData.length === 0) {
-        console.warn(`[v0] ⚠ No records found for month ${month}, year ${year}`)
       }
-      console.log(`[v0] ===== END FILTERING =====`)
 
       // Enrich records with employee data
       const enrichedRecords = filteredData.map(record => {
@@ -242,7 +226,6 @@ export function AttendanceManager() {
           absent_days: absent,
           late_days: late,
         })
-        console.log(`[v0] ✓ Stats calculated:`, { total_days: unique.length, present_days: enrichedRecords.length - absent })
       } else {
         setStats({
           total_days: 0,
@@ -252,7 +235,6 @@ export function AttendanceManager() {
         })
       }
     } catch (error) {
-      console.error('[v0] Error loading attendance:', error)
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to load attendance records',
@@ -271,7 +253,6 @@ export function AttendanceManager() {
       setUploading(true)
 
       // Phase 3: Client-side validation
-      console.log('[v0] Validating file structure...')
       const validation = await validateFileStructure(file, month, year)
       
       if (!validation.valid) {
@@ -280,12 +261,10 @@ export function AttendanceManager() {
           description: validation.error!,
           variant: 'destructive',
         })
-        console.error('[v0] Client validation failed:', validation.error)
         setUploading(false)
         return
       }
 
-      console.log('[v0] File validation passed:', validation.sampleData)
       toast({
         title: 'File Valid',
         description: `Processing ${validation.sampleData?.totalRows} rows...`,
@@ -331,10 +310,8 @@ export function AttendanceManager() {
           description: formattedMessage,
           variant: 'destructive',
         })
-        console.error('[v0] Upload error details:', result)
       }
     } catch (error) {
-      console.error('[v0] Upload error:', error)
       toast({
         title: 'Upload Failed',
         description: error instanceof Error ? error.message : 'Unknown error occurred during upload',

@@ -80,13 +80,11 @@ export function SalarySlipPreview({ employee }: any) {
 
   const handlePDFDownload = async () => {
     if (!slipRef.current) {
-      console.log("[v0] No slip ref found")
       return
     }
 
     try {
       setIsGeneratingPDF(true)
-      console.log("[v0] Generating PDF for:", employeeName)
 
       // Import dynamically to avoid SSR issues
       const html2canvas = (await import('html2canvas')).default
@@ -119,10 +117,8 @@ export function SalarySlipPreview({ employee }: any) {
 
       const fileName = `${employeeName}_SalarySlip_${year}_${month}.pdf`
       pdf.save(fileName)
-      console.log("[v0] PDF generated successfully")
       toast({ title: "Success", description: "PDF downloaded successfully" })
     } catch (error) {
-      console.log("[v0] PDF generation error:", error)
       toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" })
     } finally {
       setIsGeneratingPDF(false)

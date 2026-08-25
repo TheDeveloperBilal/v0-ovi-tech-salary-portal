@@ -34,7 +34,6 @@ export function AdminUsers() {
       if (error) throw error
       setUsers(data || [])
     } catch (error) {
-      console.error('[v0] Error fetching users:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch users',
@@ -65,7 +64,6 @@ export function AdminUsers() {
         description: `User ${!currentStatus ? 'promoted to' : 'demoted from'} admin`,
       })
     } catch (error) {
-      console.error('[v0] Error updating user:', error)
       toast({
         title: 'Error',
         description: 'Failed to update user status',

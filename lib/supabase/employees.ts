@@ -8,7 +8,6 @@ export async function fetchEmployees() {
     .order("first_name")
 
   if (error) {
-    console.error("[v0] Error fetching employees:", error.message)
     return []
   }
 

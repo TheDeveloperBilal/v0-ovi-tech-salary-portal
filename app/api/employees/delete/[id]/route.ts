@@ -15,7 +15,6 @@ export async function DELETE(
       );
     }
 
-    console.log("[v0] Deleting employee:", employeeId);
 
     const supabase = await createClient();
 
@@ -30,7 +29,6 @@ export async function DELETE(
         const { data: { user } } = await supabase.auth.getUser(token);
         currentUser = user;
       } catch (err) {
-        console.log("[v0] Token verification failed:", err);
       }
     }
 
@@ -60,14 +58,12 @@ export async function DELETE(
       .single();
 
     if (fetchError || !employee) {
-      console.log("[v0] Employee not found:", fetchError);
       return NextResponse.json(
         { error: "Employee not found" },
         { status: 404 }
       );
     }
 
-    console.log("[v0] Found employee:", employee.email);
 
     // Delete the employee record
     const { error: deleteError } = await supabase
@@ -76,14 +72,12 @@ export async function DELETE(
       .eq("id", employeeId);
 
     if (deleteError) {
-      console.log("[v0] Error deleting employee record:", deleteError);
       return NextResponse.json(
         { error: `Failed to delete employee: ${deleteError.message}` },
         { status: 400 }
       );
     }
 
-    console.log("[v0] Employee record deleted successfully");
 
     return NextResponse.json(
       {
@@ -93,7 +87,6 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error: any) {
-    console.log("[v0] Error in delete employee API:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

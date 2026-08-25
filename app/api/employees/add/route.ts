@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
       password,
     } = body;
 
-    console.log("[v0] Creating employee via API:", { email, first_name, last_name });
 
     const supabase = await createClient();
 
@@ -31,7 +30,6 @@ export async function POST(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser(authHeader.substring(7));
         currentUser = user;
       } catch (err) {
-        console.log("[v0] Token verification failed:", err);
       }
     }
 
@@ -54,7 +52,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists with this email
-    console.log("[v0] Checking if user exists with email:", email);
 
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find(u => u.email === email);
@@ -62,11 +59,9 @@ export async function POST(request: NextRequest) {
     let userId: string;
 
     if (existingUser) {
-      console.log("[v0] User already exists:", existingUser.id);
       userId = existingUser.id;
     } else {
       // Create auth account using admin.createUser (service role method)
-      console.log("[v0] Creating new auth user for:", email);
 
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
@@ -78,7 +73,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (authError) {
-        console.log("[v0] Auth creation error:", authError);
         return NextResponse.json(
           { error: `Failed to create auth account: ${authError.message}` },
           { status: 400 }
@@ -92,7 +86,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log("[v0] Auth user created:", authData.user.id);
       userId = authData.user.id;
 
       // Wait a moment for profile trigger to create the profile
@@ -100,7 +93,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create employee record with service role (bypass RLS for admin operations)
-    console.log("[v0] Creating employee record");
 
     const { data: empData, error: empError } = await supabase
       .from("employees")
@@ -121,15 +113,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (empError) {
-      console.log("[v0] Employee creation error:", empError);
-      console.log("[v0] Error details:", { message: empError.message, code: empError.code, details: empError.details });
       return NextResponse.json(
         { error: `Failed to create employee record: ${empError.message}` },
         { status: 400 }
       );
     }
 
-    console.log("[v0] Employee created successfully:", empData);
 
     return NextResponse.json(
       {
@@ -139,7 +128,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.log("[v0] Error in add employee API:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

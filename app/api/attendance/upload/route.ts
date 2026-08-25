@@ -42,13 +42,11 @@ function detectColumns(firstRow: string[]): { timestamp: number; date: number; t
     /^\d{4}-\d{2}-\d{2}$/.test(firstRow[1]) &&
     /^\d{1,2}:\d{2}:\d{2}$/.test(firstRow[2])
   ) {
-    console.log('[v0] Format: Space-separated Date/Time')
     return { timestamp: -1, date: 1, time: 2, name: 4, valid: true }
   }
 
   // Pattern 2: Combined timestamp (YYYY-MM-DD HH:MM:SS in single column)
   if (firstRow.length >= 5 && /^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}$/.test(firstRow[1])) {
-    console.log('[v0] Format: Combined timestamp')
     return { timestamp: 1, date: -1, time: -1, name: 4, valid: true }
   }
 
@@ -104,7 +102,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         const { data: { user } } = await supabase.auth.getUser(token)
         currentUser = user
       } catch (err) {
-        console.log('[v0] Token verification failed:', err)
       }
     }
 
@@ -144,7 +141,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     const content = await file.text()
     const rows = parseTxt(content)
 
-    console.log(`[v0] File parsed: ${rows.length} rows`)
 
     if (rows.length < 2) {
       return NextResponse.json<UploadResponse>(
@@ -155,7 +151,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     // Detect columns
     const colMap = detectColumns(rows[0])
-    console.log('[v0] Column mapping:', colMap)
 
     if (!colMap.valid) {
       return NextResponse.json<UploadResponse>(
@@ -170,7 +165,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       .select('id, employee_id, first_name, last_name')
 
     if (empError) {
-      console.error('[v0] Employee fetch error:', empError)
       return NextResponse.json<UploadResponse>(
         { success: false, error: `Database error: ${empError.message}` },
         { status: 500 }
@@ -178,14 +172,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     }
 
     if (!employees || employees.length === 0) {
-      console.error('[v0] No employees found')
       return NextResponse.json<UploadResponse>(
         { success: false, error: 'No employees found in database' },
         { status: 400 }
       )
     }
 
-    console.log(`[v0] Loaded ${employees.length} employees`)
 
     // Group attendance by employee and date
     const grouped: { [key: string]: any } = {}
@@ -229,7 +221,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       grouped[uniqueKey].scans.push(jsDate)
     }
 
-    console.log(`[v0] Grouped records: ${Object.keys(grouped).length}`)
 
     // Process and save records
     const recordsToSave: any[] = []
@@ -247,7 +238,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
 
       if (!employee) {
-        console.log(`[v0] Employee not found: "${entry.name}"`)
         continue
       }
 
@@ -276,7 +266,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       })
     }
 
-    console.log(`[v0] Records to save: ${recordsToSave.length}`)
 
     if (recordsToSave.length === 0) {
       return NextResponse.json<UploadResponse>(
@@ -293,7 +282,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       new Map(recordsToSave.map(r => [`${r.employee_id}_${r.attendance_date}`, r])).values()
     )
 
-    console.log(`[v0] After deduplication: ${deduplicatedRecords.length} unique records`)
 
     // Save to database using upsert to handle duplicate entries
     const { error: saveError } = await supabase.from('attendance_records').upsert(deduplicatedRecords, {
@@ -301,21 +289,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     })
 
     if (saveError) {
-      console.error('[v0] Database save error:', saveError)
       return NextResponse.json<UploadResponse>(
         { success: false, error: `Failed to save records: ${saveError.message}` },
         { status: 500 }
       )
     }
 
-    console.log(`[v0] Successfully saved ${recordsToSave.length} records`)
 
     return NextResponse.json<UploadResponse>({
       success: true,
       recordsProcessed: recordsToSave.length
     })
   } catch (error) {
-    console.error('[v0] Upload error:', error)
     return NextResponse.json<UploadResponse>(
       {
         success: false,

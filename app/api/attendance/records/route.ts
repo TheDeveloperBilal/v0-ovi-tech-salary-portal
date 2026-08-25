@@ -18,7 +18,6 @@ async function authenticateAdmin(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser(token)
       currentUser = user
     } catch (err) {
-      console.log('[v0] Token verification failed:', err)
     }
   }
 

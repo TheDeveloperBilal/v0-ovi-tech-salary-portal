@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[v0] Password reset API called for employee:", employeeId);
 
     const supabase = await createClient();
 
@@ -34,12 +33,10 @@ export async function POST(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser(token);
         currentUser = user;
       } catch (err) {
-        console.log("[v0] Token verification failed:", err);
       }
     }
 
     if (!currentUser) {
-      console.log("[v0] No authenticated user");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,7 +47,6 @@ export async function POST(request: NextRequest) {
       .eq("id", currentUser.id)
       .single();
 
-    console.log("[v0] User is admin:", profile?.is_admin);
 
     if (!profile?.is_admin) {
       return NextResponse.json(
@@ -67,18 +63,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (empError || !employee) {
-      console.log("[v0] Employee not found:", empError);
       return NextResponse.json(
         { error: "Employee not found" },
         { status: 404 }
       );
     }
 
-    console.log("[v0] Found employee:", employee.email);
 
     // Update the auth user's password using admin API
     try {
-      console.log("[v0] Updating password for employee with email:", employee.email);
 
       // Get the user by email from auth
       const { data: authUsers } = await supabase.auth.admin.listUsers();
@@ -86,8 +79,6 @@ export async function POST(request: NextRequest) {
 
       // If auth user doesn't exist, create one with a temporary password
       if (!authUser) {
-        console.log("[v0] Auth user not found for email:", employee.email);
-        console.log("[v0] Creating new auth user for employee:", employee.email);
 
         const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
           email: employee.email,
@@ -99,7 +90,6 @@ export async function POST(request: NextRequest) {
         });
 
         if (createError) {
-          console.log("[v0] Error creating auth user:", createError);
           return NextResponse.json(
             { error: `Failed to create auth account: ${createError.message}` },
             { status: 400 }
@@ -107,16 +97,13 @@ export async function POST(request: NextRequest) {
         }
 
         authUser = newAuthUser.user;
-        console.log("[v0] Auth user created successfully for:", employee.email);
       } else {
         // Update existing auth user's password
         await supabase.auth.admin.updateUserById(authUser.id, {
           password: newPassword,
         });
-        console.log("[v0] Password updated for existing auth user:", employee.email);
       }
 
-      console.log("[v0] Password reset successfully for employee:", employee.email);
 
       return NextResponse.json(
         {
@@ -126,14 +113,12 @@ export async function POST(request: NextRequest) {
         { status: 200 }
       );
     } catch (authError: any) {
-      console.log("[v0] Auth update error:", authError);
       return NextResponse.json(
         { error: `Failed to reset password: ${authError.message}` },
         { status: 500 }
       );
     }
   } catch (error: any) {
-    console.log("[v0] Error in password reset:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

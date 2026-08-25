@@ -94,7 +94,6 @@ export function EmployeeManagement() {
           return
         }
 
-        console.log("[v0] Submitting new employee via API:", formData.email)
 
         // Get the current session to send auth token
         const { data: { session } } = await supabase.auth.getSession();
@@ -118,7 +117,6 @@ export function EmployeeManagement() {
           throw new Error(data.error || "Failed to add employee")
         }
 
-        console.log("[v0] Employee created via API:", data)
 
         toast({
           title: "Success",
@@ -137,12 +135,13 @@ export function EmployeeManagement() {
         designation: "",
         date_of_joining: "",
         password: "",
+        is_probation: false,
+        probation_end_date: "",
       })
       setEditingId(null)
       setIsOpen(false)
       fetchEmployees()
     } catch (error: any) {
-      console.log("[v0] Error in handleSubmit:", error)
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }
@@ -151,7 +150,6 @@ export function EmployeeManagement() {
     if (!confirm("Are you sure you want to delete this employee? This action cannot be undone.")) return
 
     try {
-      console.log("[v0] Deleting employee with ID:", id)
 
       // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession();
@@ -174,7 +172,6 @@ export function EmployeeManagement() {
         throw new Error(data.error || "Failed to delete employee")
       }
 
-      console.log("[v0] Employee deleted successfully:", data)
 
       // Update local state immediately
       setEmployees(employees.filter(emp => emp.id !== id))
@@ -184,7 +181,6 @@ export function EmployeeManagement() {
       // Refresh from server to ensure consistency
       setTimeout(() => fetchEmployees(), 500)
     } catch (error: any) {
-      console.log("[v0] Error during delete:", error)
       toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
     }
   }
@@ -224,7 +220,6 @@ export function EmployeeManagement() {
     }
 
     try {
-      console.log("[v0] Resetting password for employee:", resetPasswordData.employeeId)
 
       // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession();
@@ -263,7 +258,6 @@ export function EmployeeManagement() {
       })
       setIsResetPasswordOpen(false)
     } catch (error: any) {
-      console.log("[v0] Password reset error:", error)
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
   }

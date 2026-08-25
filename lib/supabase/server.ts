@@ -29,5 +29,6 @@ export async function createClient() {
     )
   }
 
-  return createSupabaseClient(url, serviceRoleKey)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createSupabaseClient<any>(url, serviceRoleKey)
 }

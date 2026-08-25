@@ -61,7 +61,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       if (error) throw error
       setSlips(data || [])
     } catch (error: any) {
-      console.log("[v0] Error fetching salary slips:", error.message)
       toast({ title: "Error", description: error.message, variant: "destructive" })
     } finally {
       setIsLoading(false)
@@ -70,20 +69,16 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
 
   const fetchEmployeesData = async () => {
     try {
-      console.log("[v0] Fetching employees...")
       const { data, error } = await supabase
         .from("employees")
         .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date")
         .order("first_name", { ascending: true })
 
       if (error) {
-        console.log("[v0] Error fetching employees:", error)
         throw error
       }
-      console.log("[v0] Employees fetched:", data)
       setEmployees(data || [])
     } catch (error: any) {
-      console.log("[v0] Exception in fetchEmployeesData:", error.message)
       toast({ title: "Error", description: `Failed to load employees: ${error.message}`, variant: "destructive" })
       setEmployees([])
     }
@@ -96,7 +91,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     }
 
     try {
-      console.log("[v0] Creating salary slip for employee:", formData.employee_id)
 
       const allowances = {
         hra: formData.hra,
@@ -172,7 +166,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       ])
 
       if (error) {
-        console.log("[v0] Error creating salary slip:", error.message)
         throw error
       }
 
@@ -187,11 +180,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           .eq("id", formData.employee_id)
 
         if (updateError) {
-          console.log("[v0] Warning: Could not update leaves_taken:", updateError)
         }
       }
 
-      console.log("[v0] Salary slip created successfully")
       toast({ title: "Success", description: "Salary slip created successfully" })
       setIsCreateOpen(false)
       setFormData({
@@ -215,7 +206,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       })
       fetchSalarySlips()
     } catch (error: any) {
-      console.log("[v0] Exception creating salary slip:", error.message)
       toast({ title: "Error", description: `Failed to create salary slip: ${error.message}`, variant: "destructive" })
     }
   }
@@ -259,7 +249,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         }
       }, 300)
     } catch (error) {
-      console.log("[v0] Error preparing PDF:", error)
       toast({ title: "Error", description: "Failed to prepare salary slip for download", variant: "destructive" })
     }
   }
@@ -268,7 +257,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     if (!confirm("Are you sure you want to delete this salary slip? This action cannot be undone.")) return
 
     try {
-      console.log("[v0] Deleting salary slip:", slipId)
 
       // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession()
@@ -291,14 +279,12 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         throw new Error(data.error || "Failed to delete salary slip")
       }
 
-      console.log("[v0] Salary slip deleted successfully")
 
       // Remove from local state
       setSlips(slips.filter(slip => slip.id !== slipId))
 
       toast({ title: "Success", description: "Salary slip deleted successfully" })
     } catch (error: any) {
-      console.log("[v0] Error deleting salary slip:", error)
       toast({ title: "Error", description: error.message || "Failed to delete salary slip", variant: "destructive" })
     }
   }

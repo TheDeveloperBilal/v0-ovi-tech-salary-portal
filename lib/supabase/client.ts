@@ -1,23 +1,24 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
 
-let supabaseClient: ReturnType<typeof createSupabaseClient> | null = null
-
+/**
+ * Browser-side Supabase client using @supabase/ssr.
+ *
+ * createBrowserClient stores auth tokens in cookies (not localStorage),
+ * which lets Next.js middleware read the session for route protection.
+ * The API surface is identical to the old createClient — no component
+ * changes needed.
+ */
 export function createClient() {
-  if (!supabaseClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    // Only create client if both URL and key are available
-    // This prevents errors during static build
-    if (url && key) {
-      supabaseClient = createSupabaseClient(url, key)
-    } else {
-      // Return a mock client for build-time - it won't be used in browser
-      supabaseClient = createSupabaseClient(
-        'https://placeholder.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
-      )
-    }
+  if (url && key) {
+    return createBrowserClient(url, key)
   }
-  return supabaseClient
+
+  // Mock client for build-time — won't be used in the actual browser
+  return createBrowserClient(
+    'https://placeholder.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
+  )
 }

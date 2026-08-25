@@ -56,7 +56,6 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       setSalarySlips(slips || [])
     } catch (error: any) {
-      console.log('[v0] Error fetching employee data:', error.message)
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
     } finally {
       setIsLoading(false)

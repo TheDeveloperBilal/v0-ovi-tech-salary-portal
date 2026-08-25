@@ -15,21 +15,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('[v0] Checking authentication...')
         
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('[v0] Session status:', session ? 'Found' : 'Not found')
         
         if (session?.user) {
-          console.log('[v0] User authenticated:', session.user.email)
           setIsAuthenticated(true)
           setIsLoading(false)
         } else {
-          console.log('[v0] No session found, redirecting to login')
           router.push('/auth/login')
         }
       } catch (error) {
-        console.log('[v0] Auth check error:', error)
         router.push('/auth/login')
       }
     }
@@ -40,7 +35,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[v0] Auth state changed:', event, session?.user?.email)
       if (session?.user) {
         setIsAuthenticated(true)
       } else {

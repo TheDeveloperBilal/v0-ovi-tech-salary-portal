@@ -15,7 +15,6 @@ export async function DELETE(
       )
     }
 
-    console.log("[v0] Deleting salary slip:", slipId)
 
     const supabase = await createClient()
 
@@ -29,7 +28,6 @@ export async function DELETE(
         const { data: { user } } = await supabase.auth.getUser(token)
         currentUser = user
       } catch (err) {
-        console.log("[v0] Token verification failed:", err)
       }
     }
 
@@ -58,21 +56,18 @@ export async function DELETE(
       .eq("id", slipId)
 
     if (deleteError) {
-      console.log("[v0] Error deleting salary slip:", deleteError)
       return NextResponse.json(
         { error: `Failed to delete salary slip: ${deleteError.message}` },
         { status: 400 }
       )
     }
 
-    console.log("[v0] Salary slip deleted successfully")
 
     return NextResponse.json(
       { message: "Salary slip deleted successfully" },
       { status: 200 }
     )
   } catch (error: any) {
-    console.log("[v0] Error in delete salary slip API:", error)
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

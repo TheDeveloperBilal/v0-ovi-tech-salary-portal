@@ -18,20 +18,16 @@ export default function DashboardPage() {
     const supabase = createClient()
     const fetchProfile = async () => {
       try {
-        console.log("[v0] Starting dashboard profile fetch...")
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
-        console.log("[v0] Session check:", session?.user ? "Found" : "Not found")
 
         if (!session?.user) {
-          console.log("[v0] No session, redirecting to login")
           router.push('/auth/login')
           return
         }
 
-        console.log("[v0] Session user email:", session.user.email)
 
         // Create a basic profile from session
         const basicProfile = {
@@ -49,17 +45,15 @@ export default function DashboardPage() {
             .eq("id", session.user.id)
             .single()
 
-          if (profileData) {
-            setProfile({ ...basicProfile, ...profileData })
+          if (profileData && typeof profileData === 'object') {
+            setProfile({ ...basicProfile, ...(profileData as Record<string, unknown>) })
           } else {
             setProfile(basicProfile)
           }
         } catch (err) {
-          console.log("[v0] Could not fetch profiles table, using basic profile")
           setProfile(basicProfile)
         }
       } catch (err) {
-        console.error("[v0] Error in fetchProfile:", err)
         setError(err instanceof Error ? err.message : "Failed to load dashboard")
         // Still set a basic profile so dashboard can load
         setProfile({

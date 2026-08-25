@@ -28,33 +28,27 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      console.log("[v0] Attempting login with email:", email)
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
       if (error) {
-        console.log("[v0] Login error:", error.message)
         throw error
       }
       
       if (!data.user) {
-        console.log("[v0] No user data returned")
         throw new Error("Invalid credentials")
       }
       
-      console.log("[v0] Login successful, user:", data.user.email)
       
       // Wait for session to be fully established and propagated
       await new Promise(resolve => setTimeout(resolve, 1200))
       
-      console.log("[v0] Redirecting to dashboard")
       // Force a hard reload to ensure session is recognized
       window.location.href = "/dashboard"
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Login failed - check console for details"
-      console.log("[v0] Error during login:", errorMessage)
       setError(errorMessage)
     } finally {
       setIsLoading(false)
