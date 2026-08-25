@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, Search, Download, Trash2 } from 'lucide-react'
+import { Upload, Search, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import type { Employee, EnrichedAttendanceRecord } from '@/lib/types'
 
 const supabase = createClient()
 
@@ -61,7 +62,8 @@ function formatErrorDisplay(details: string[], totalErrors?: number): string {
 }
 
 // Helper function to validate file before upload (Phase 3: Client-side validation)
-async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: any }> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: Record<string, unknown> }> {
   try {
     const text = await file.text()
     const lines = text.split('\n').filter(line => line.trim().length > 0)
@@ -96,22 +98,23 @@ export function AttendanceManager() {
   const { toast } = useToast()
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
-  const [records, setRecords] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
+  const [records, setRecords] = useState<EnrichedAttendanceRecord[]>([])
+  const [, setEmployees] = useState<Employee[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
+  const [, setLoading] = useState(false)
+  const [selectedEmployee, setSelectedEmployee] = useState<EnrichedAttendanceRecord | null>(null)
   const [stats, setStats] = useState({
     total_days: 0,
     present_days: 0,
     absent_days: 0,
     late_days: 0,
   })
-  const [employeeStats, setEmployeeStats] = useState<any>(null)
+  const [employeeStats, setEmployeeStats] = useState<Record<string, number> | null>(null)
 
   useEffect(() => {
     loadAttendanceData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, year])
 
   async function loadAttendanceData() {
@@ -146,10 +149,6 @@ export function AttendanceManager() {
         return
       }
 
-      // Debug: Show first and last records
-      const firstRecord = data[0]
-      const lastRecord = data[data.length - 1]
-      
       // Filter by month and year from attendance_date
       // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
       const filteredData = (data || []).filter(record => {
@@ -191,7 +190,7 @@ export function AttendanceManager() {
           
           // Only return records matching the selected month/year
           return recordMonth === month && recordYear === year
-        } catch (err) {
+        } catch {
           return false
         }
       })
@@ -349,7 +348,7 @@ export function AttendanceManager() {
     r.employee_name?.toLowerCase().includes(search.toLowerCase())
   )
 
-  function handleEmployeeClick(record: any) {
+  function handleEmployeeClick(record: EnrichedAttendanceRecord) {
     const employeeRecords = records.filter(r => r.employee_id === record.employee_id)
     const uniqueDates = [...new Set(employeeRecords.map(r => r.attendance_date))]
     const absent = employeeRecords.filter(r => r.is_absent).length

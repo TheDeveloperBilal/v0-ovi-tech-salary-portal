@@ -9,7 +9,7 @@ import { DashboardContent } from "@/components/dashboard-content"
 export const dynamic = 'force-dynamic'
 
 export default function DashboardPage() {
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -50,7 +50,7 @@ export default function DashboardPage() {
           } else {
             setProfile(basicProfile)
           }
-        } catch (err) {
+        } catch {
           setProfile(basicProfile)
         }
       } catch (err) {

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         const token = authHeader.substring(7)
         const { data: { user } } = await supabase.auth.getUser(token)
         currentUser = user
-      } catch (err) {
+      } catch {
       }
     }
 
@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
 
     // Calculate leaves deducted based on business rules
     let leavesDeducted = 0
-    const absences = (records || []).filter((r: any) => r.is_absent).length
-    const violations = (records || []).filter((r: any) => (r.is_late || r.is_early_out) && !r.nine_hour_waiver).length
+    const absences = (records || []).filter((r: Record<string, unknown>) => r.is_absent).length
+    const violations = (records || []).filter((r: Record<string, unknown>) => (r.is_late || r.is_early_out) && !r.nine_hour_waiver).length
 
     // 1 absent = 1 leave
     leavesDeducted += absences
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
         month,
         year,
         total_days: records?.length || 0,
-        present_days: (records || []).filter((r: any) => !r.is_absent).length,
-        late_count: (records || []).filter((r: any) => r.is_late && !r.nine_hour_waiver).length,
-        early_out_count: (records || []).filter((r: any) => r.is_early_out).length,
+        present_days: (records || []).filter((r: Record<string, unknown>) => !r.is_absent).length,
+        late_count: (records || []).filter((r: Record<string, unknown>) => r.is_late && !r.nine_hour_waiver).length,
+        early_out_count: (records || []).filter((r: Record<string, unknown>) => r.is_early_out).length,
         absent_count: absences,
         leaves_deducted: leavesDeducted,
       }, {

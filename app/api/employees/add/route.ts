@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         // Verify the token using the service role
         const { data: { user } } = await supabase.auth.getUser(authHeader.substring(7));
         currentUser = user;
-      } catch (err) {
+      } catch {
       }
     }
 
@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: (error as Error).message || "Internal server error" },
       { status: 500 }
     );
   }

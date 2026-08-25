@@ -1,12 +1,31 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export function SalaryForm({ onSubmit, initialData, isEditing }: any) {
+interface SalaryFormData {
+  employeeName: string
+  employeeId: string
+  email: string
+  department: string
+  position: string
+  joinDate: string
+  baseSalary: string
+  allowances: Record<string, string>
+  deductions: Record<string, string>
+}
+
+interface SalaryFormProps {
+  onSubmit: (data: SalaryFormData) => void
+  initialData?: SalaryFormData
+  isEditing?: boolean
+}
+
+export function SalaryForm({ onSubmit, initialData, isEditing }: SalaryFormProps) {
   const [formData, setFormData] = useState(
     initialData || {
       employeeName: "",
@@ -33,7 +52,7 @@ export function SalaryForm({ onSubmit, initialData, isEditing }: any) {
     },
   )
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData({ ...formData, [name]: value })
   }
@@ -52,7 +71,7 @@ export function SalaryForm({ onSubmit, initialData, isEditing }: any) {
     })
   }
 
-  const handleSubmit = (e: any) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     onSubmit(formData)
     setFormData({
@@ -161,7 +180,7 @@ export function SalaryForm({ onSubmit, initialData, isEditing }: any) {
           <div>
             <h4 className="font-semibold mb-3">Allowances</h4>
             <div className="grid grid-cols-2 gap-4">
-              {Object.entries(formData.allowances).map(([key, value]: any) => (
+              {Object.entries(formData.allowances).map(([key, value]) => (
                 <div key={key}>
                   <Label htmlFor={`allowance-${key}`} className="capitalize">
                     {key} Allowance
@@ -188,7 +207,7 @@ export function SalaryForm({ onSubmit, initialData, isEditing }: any) {
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {Object.entries(formData.deductions).map(([key, value]: any) => (
+            {Object.entries(formData.deductions).map(([key, value]) => (
               <div key={key}>
                 <Label htmlFor={`deduction-${key}`} className="capitalize">
                   {key === "pf" ? "PF" : key === "esi" ? "ESI" : key}

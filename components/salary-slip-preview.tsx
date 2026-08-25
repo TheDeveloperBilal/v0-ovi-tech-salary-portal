@@ -1,14 +1,14 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Download, Printer } from "lucide-react"
 import Image from "next/image"
 import { useRef, useState } from "react"
 import { generateWordDocument } from "@/lib/word-generator"
 import { useToast } from "@/hooks/use-toast"
+import type { SalarySlipPreviewData } from "@/lib/types"
 
-export function SalarySlipPreview({ employee }: any) {
+export function SalarySlipPreview({ employee }: { employee: SalarySlipPreviewData }) {
   const slipRef = useRef<HTMLDivElement>(null)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { toast } = useToast()
@@ -17,11 +17,11 @@ export function SalarySlipPreview({ employee }: any) {
   const employeeName = employee.employee_name || employee.employeeName || "Employee"
   const employeeId = employee.employee_id || employee.employeeId || "N/A"
 
-  const base = Number.parseFloat(employee.basic_salary) || Number.parseFloat(employee.baseSalary) || 0
+  const base = Number(employee.basic_salary) || Number(employee.baseSalary) || Number(employee.base_salary) || 0
 
   // Support both JSON object format and individual columns format
-  let allowances = employee.allowances || {}
-  let deductions = employee.deductions || {}
+  let allowances: Record<string, unknown> = employee.allowances || {}
+  let deductions: Record<string, unknown> = employee.deductions || {}
 
   // If allowances is empty but individual fields exist, reconstruct the object
   if (Object.keys(allowances).length === 0 && employee.hra !== undefined) {
@@ -46,11 +46,11 @@ export function SalarySlipPreview({ employee }: any) {
   }
 
   const totalAllowances = Object.values(allowances).reduce(
-    (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
+    (sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0),
     0,
   )
   const totalDeductions = Object.values(deductions).reduce(
-    (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
+    (sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0),
     0,
   )
 
@@ -63,10 +63,11 @@ export function SalarySlipPreview({ employee }: any) {
     : (employee.leaves_taken || 0) + (employee.leaves_deducted || 0)
 
   // Probation: deduct all leaves, Permanent: only after 14 leaves are used
-  const leavesDeductedAmount = base > 0 && employee.leaves_deducted > 0
+  const leavesCount = employee.leaves_deducted || 0
+  const leavesDeductedAmount = base > 0 && leavesCount > 0
     ? isProbation
-      ? (base / 26) * employee.leaves_deducted  // Deduct all for probation
-      : totalLeavesUsed >= 14 ? (base / 26) * employee.leaves_deducted : 0  // Only after 14 for permanent
+      ? (base / 26) * leavesCount  // Deduct all for probation
+      : totalLeavesUsed >= 14 ? (base / 26) * leavesCount : 0  // Only after 14 for permanent
     : 0
 
   const totalDeductionsWithLeaves = totalDeductions + leavesDeductedAmount
@@ -118,7 +119,7 @@ export function SalarySlipPreview({ employee }: any) {
       const fileName = `${employeeName}_SalarySlip_${year}_${month}.pdf`
       pdf.save(fileName)
       toast({ title: "Success", description: "PDF downloaded successfully" })
-    } catch (error) {
+    } catch {
       toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" })
     } finally {
       setIsGeneratingPDF(false)
@@ -248,8 +249,8 @@ export function SalarySlipPreview({ employee }: any) {
                       PKR {base.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
-                  {Object.entries(allowances).map(([key, value]: any) => {
-                    const val = Number.parseFloat(value) || 0
+                  {Object.entries(allowances).map(([key, value]: [string, unknown]) => {
+                    const val = Number.parseFloat(String(value)) || 0
                     return val > 0 ? (
                       <tr key={key} className="border-b border-gray-300">
                         <td className="p-2 capitalize">{key.replace(/_/g, " ")}</td>
@@ -280,12 +281,12 @@ export function SalarySlipPreview({ employee }: any) {
                 </thead>
                 <tbody>
                   {deductions && typeof deductions === 'object' && Object.entries(deductions)
-                    .filter(([key, value]: any) => {
+                    .filter(([key, value]: [string, unknown]) => {
                       if (!key || typeof key !== 'string' || key === '0') return false
                       const val = Number.parseFloat(String(value))
                       return !isNaN(val) && val > 0
                     })
-                    .map(([key, value]: any) => (
+                    .map(([key, value]: [string, unknown]) => (
                       <tr key={`deduction-${key}`} className="border-b border-gray-300">
                         <td className="p-2 capitalize">
                           {key === "pf_deduction" ? "PF" :

@@ -5,8 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({ subsets: ["latin"] })
+const geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "OviTech Salary Portal",
@@ -39,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body 
-        className={`font-sans antialiased`}
+        className={`${geist.className} ${geistMono.className} font-sans antialiased`}
         suppressHydrationWarning
       >
         {children}

@@ -8,14 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { FileText, Download, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SalarySlipPreview } from "@/components/salary-slip-preview"
+import type { SalarySlip, Employee, SalarySlipPreviewData } from "@/lib/types"
 
 export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
-  const [slips, setSlips] = useState<any[]>([])
+  const [slips, setSlips] = useState<SalarySlip[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedSlip, setSelectedSlip] = useState<any>(null)
+  const [selectedSlip, setSelectedSlip] = useState<SalarySlipPreviewData | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [employees, setEmployees] = useState<any[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [formData, setFormData] = useState({
     employee_id: "",
     month: new Date().getMonth() + 1,
@@ -38,18 +39,6 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
   const supabase = createClient()
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchSalarySlips()
-    fetchEmployeesData()
-  }, [])
-
-  // Refetch employees when create dialog opens
-  useEffect(() => {
-    if (isCreateOpen) {
-      fetchEmployeesData()
-    }
-  }, [isCreateOpen])
-
   const fetchSalarySlips = async () => {
     setIsLoading(true)
     try {
@@ -60,8 +49,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
 
       if (error) throw error
       setSlips(data || [])
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -78,11 +67,27 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         throw error
       }
       setEmployees(data || [])
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to load employees: ${error.message}`, variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: `Failed to load employees: ${(error as Error).message}`, variant: "destructive" })
       setEmployees([])
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSalarySlips()
+    fetchEmployeesData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Refetch employees when create dialog opens
+  useEffect(() => {
+    if (isCreateOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchEmployeesData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreateOpen])
 
   const createSalarySlip = async () => {
     if (!formData.employee_id) {
@@ -140,7 +145,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
             s.employee_id === formData.employee_id && 
             (s.year < formData.year || (s.year === formData.year && s.month <= formData.month))
           )
-          const totalLeavesDeductedSoFar = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
+          const totalLeavesDeductedSoFar = slipsUpToThisMonth.reduce((sum: number, s: SalarySlip) => sum + (s.leaves_deducted || 0), 0)
           const totalLeavesUsed = (selectedEmployee?.leaves_taken || 0) + totalLeavesDeductedSoFar + formData.leaves_deducted
           
           if (totalLeavesUsed >= 14) {
@@ -205,12 +210,12 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         working_days: 26,
       })
       fetchSalarySlips()
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to create salary slip: ${error.message}`, variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: `Failed to create salary slip: ${(error as Error).message}`, variant: "destructive" })
     }
   }
 
-  const downloadPDF = async (slip: any) => {
+  const downloadPDF = async (slip: SalarySlip) => {
     try {
       // Calculate total leaves deducted up to and including this slip
       const slipsUpToThisMonth = slips.filter(s => 
@@ -218,7 +223,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         (s.year < slip.year || (s.year === slip.year && s.month <= slip.month))
       )
       
-      const totalLeavesDeductedUpToNow = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
+      const totalLeavesDeductedUpToNow = slipsUpToThisMonth.reduce((sum: number, s: SalarySlip) => sum + (s.leaves_deducted || 0), 0)
       const employeeCurrentLeavesTaken = slip.employees?.leaves_taken || 0
       const totalLeavesUsed = employeeCurrentLeavesTaken + totalLeavesDeductedUpToNow
 
@@ -248,7 +253,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           downloadBtn.click()
         }
       }, 300)
-    } catch (error) {
+    } catch {
       toast({ title: "Error", description: "Failed to prepare salary slip for download", variant: "destructive" })
     }
   }
@@ -284,8 +289,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       setSlips(slips.filter(slip => slip.id !== slipId))
 
       toast({ title: "Success", description: "Salary slip deleted successfully" })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete salary slip", variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message || "Failed to delete salary slip", variant: "destructive" })
     }
   }
 
@@ -328,13 +333,13 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                   <div>
                     <p className="text-muted-foreground">Earnings</p>
                     <p className="font-semibold text-green-600">
-                      PKR {(slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {((slip.basic_salary || 0) + Object.values(slip.allowances || {}).reduce((sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0), 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Deductions</p>
                     <p className="font-semibold text-red-600">
-                      PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted ? (slip.basic_salary / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0), 0) + (slip.leaves_deducted ? ((slip.basic_salary ?? 0) / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>

@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { LogOut } from "lucide-react"
 
-export function Header({ user }: { user: any }) {
+import type { Profile } from "@/lib/types"
+
+export function Header({ user }: { user: Partial<Profile> }) {
   const router = useRouter()
   const supabase = createClient()
 

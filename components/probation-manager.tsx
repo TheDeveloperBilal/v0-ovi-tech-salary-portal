@@ -8,17 +8,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import type { Employee } from '@/lib/types'
 
 interface ProbationManagerProps {
-  employee: any
+  employee: Employee
   onUpdate: () => void
 }
 
 export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) {
   const [showDialog, setShowDialog] = useState(false)
-  const [isProbation, setIsProbation] = useState(employee?.is_probation || false)
+  const [isProbation] = useState(employee?.is_probation || false)
+  const [defaultProbationEnd] = useState(
+    () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  )
   const [probationEndDate, setProbationEndDate] = useState(
-    employee?.probation_end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    employee?.probation_end_date || defaultProbationEnd
   )
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
@@ -42,11 +46,11 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
         description: `${employee.first_name} ${employee.last_name} has been converted to permanent employee.` 
       })
       onUpdate()
-    } catch (error: any) {
-      toast({ 
-        title: 'Error', 
-        description: error.message, 
-        variant: 'destructive' 
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive'
       })
     } finally {
       setIsLoading(false)
@@ -72,11 +76,11 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
       })
       setShowDialog(false)
       onUpdate()
-    } catch (error: any) {
-      toast({ 
-        title: 'Error', 
-        description: error.message, 
-        variant: 'destructive' 
+    } catch (error: unknown) {
+      toast({
+        title: 'Error',
+        description: (error as Error).message,
+        variant: 'destructive'
       })
     } finally {
       setIsLoading(false)

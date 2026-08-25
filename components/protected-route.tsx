@@ -24,7 +24,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         } else {
           router.push('/auth/login')
         }
-      } catch (error) {
+      } catch {
         router.push('/auth/login')
       }
     }
@@ -47,6 +47,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return () => {
       subscription?.unsubscribe()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
   if (isLoading) {

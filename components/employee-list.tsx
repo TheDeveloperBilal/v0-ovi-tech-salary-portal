@@ -4,15 +4,35 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Edit2, Trash2, FileText } from "lucide-react"
 
-export function EmployeeList({ employees, onEdit, onDelete, onViewSlip, onViewSlipTab }: any) {
-  const calculateTakehome = (emp: any) => {
+interface EmployeeListItem {
+  id: string
+  employeeName: string
+  employeeId: string
+  email?: string
+  department?: string
+  position?: string
+  baseSalary: string
+  allowances: Record<string, string>
+  deductions: Record<string, string>
+}
+
+interface EmployeeListProps {
+  employees: EmployeeListItem[]
+  onEdit: (emp: EmployeeListItem) => void
+  onDelete: (id: string) => void
+  onViewSlip: (emp: EmployeeListItem) => void
+  onViewSlipTab: () => void
+}
+
+export function EmployeeList({ employees, onEdit, onDelete, onViewSlip, onViewSlipTab }: EmployeeListProps) {
+  const calculateTakehome = (emp: EmployeeListItem) => {
     const base = Number.parseFloat(emp.baseSalary) || 0
     const allowances = Object.values(emp.allowances).reduce(
-      (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
+      (sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0),
       0,
     )
     const deductions = Object.values(emp.deductions).reduce(
-      (sum: number, val: any) => sum + (Number.parseFloat(val) || 0),
+      (sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0),
       0,
     )
     return base + allowances - deductions
@@ -23,7 +43,7 @@ export function EmployeeList({ employees, onEdit, onDelete, onViewSlip, onViewSl
       <Card className="border-dashed">
         <CardContent className="pt-8 text-center">
           <p className="text-muted-foreground mb-4">No employees added yet</p>
-          <p className="text-sm">Start by adding an employee from the "Add Employee" section</p>
+          <p className="text-sm">Start by adding an employee from the &quot;Add Employee&quot; section</p>
         </CardContent>
       </Card>
     )
@@ -32,7 +52,7 @@ export function EmployeeList({ employees, onEdit, onDelete, onViewSlip, onViewSl
   return (
     <div className="space-y-4">
       <div className="grid gap-4">
-        {employees.map((emp: any) => (
+        {employees.map((emp) => (
           <Card key={emp.id} className="hover:border-primary/50 transition">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">{emp.employeeName}</CardTitle>

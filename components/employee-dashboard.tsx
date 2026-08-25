@@ -8,19 +8,16 @@ import { Download, Eye } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
+import type { SalarySlip, Employee, SalarySlipPreviewData } from '@/lib/types'
 
 export function EmployeeDashboard({ userId }: { userId: string }) {
-  const [salarySlips, setSalarySlips] = useState<any[]>([])
-  const [employeeData, setEmployeeData] = useState<any>(null)
-  const [selectedSlip, setSelectedSlip] = useState<any>(null)
+  const [salarySlips, setSalarySlips] = useState<SalarySlip[]>([])
+  const [employeeData, setEmployeeData] = useState<Employee | null>(null)
+  const [selectedSlip, setSelectedSlip] = useState<SalarySlipPreviewData | null>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createClient()
   const { toast } = useToast()
-
-  useEffect(() => {
-    fetchEmployeeData()
-  }, [userId])
 
   const fetchEmployeeData = async () => {
     try {
@@ -55,14 +52,20 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       if (slipsError) throw slipsError
 
       setSalarySlips(slips || [])
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleViewSlip = (slip: any) => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchEmployeeData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
+  const handleViewSlip = (slip: SalarySlip) => {
     setSelectedSlip({
       basic_salary: slip.basic_salary,
       allowances: slip.allowances || {},
@@ -190,16 +193,16 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                 }
               }
               
-              const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
+              const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0), 0)
               
               // Calculate leave deduction only if all 14 annual leaves have been used
               const baseSalary = slip.base_salary || slip.basic_salary || 0
               const totalLeavesUsed = (employeeData?.leaves_taken || 0) + (slip.leaves_deducted || 0)
-              const leavesDeductionAmount = baseSalary > 0 && totalLeavesUsed >= 14 && slip.leaves_deducted > 0
-                ? (baseSalary / 26) * slip.leaves_deducted
+              const leavesDeductionAmount = baseSalary > 0 && totalLeavesUsed >= 14 && (slip.leaves_deducted || 0) > 0
+                ? (baseSalary / 26) * (slip.leaves_deducted || 0)
                 : 0
               
-              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + leavesDeductionAmount
+              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: unknown) => sum + (Number.parseFloat(String(val)) || 0), 0) + leavesDeductionAmount
               
               return (
                 <Card key={slip.id} className="hover:shadow-lg transition-shadow">

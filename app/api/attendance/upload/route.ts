@@ -23,7 +23,7 @@ function parseTxt(content: string): string[][] {
 }
 
 // Parse any date format
-function parseAnyDate(input: any): Date | null {
+function parseAnyDate(input: unknown): Date | null {
   if (input instanceof Date) return input
   if (typeof input === 'string') {
     const parsed = new Date(input)
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         const token = authHeader.substring(7)
         const { data: { user } } = await supabase.auth.getUser(token)
         currentUser = user
-      } catch (err) {
+      } catch {
       }
     }
 
@@ -128,8 +128,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const month = parseInt(formData.get('month') as string)
-    const year = parseInt(formData.get('year') as string)
+    // month and year are provided in the form but not used for filtering here
+    // (records are processed based on actual dates in the file)
+    void formData.get('month')
+    void formData.get('year')
 
     if (!file) {
       return NextResponse.json<UploadResponse>(
@@ -180,7 +182,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
 
     // Group attendance by employee and date
-    const grouped: { [key: string]: any } = {}
+    const grouped: { [key: string]: { name: string; date: string; dateObj: Date; scans: Date[] } } = {}
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
@@ -204,10 +206,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       if (!jsDate || isNaN(jsDate.getTime())) continue
 
       // Store date in consistent YYYY-MM-DD format to avoid locale issues
-      const year = jsDate.getFullYear()
-      const month = String(jsDate.getMonth() + 1).padStart(2, '0')
+      const dateYear = jsDate.getFullYear()
+      const dateMonth = String(jsDate.getMonth() + 1).padStart(2, '0')
       const day = String(jsDate.getDate()).padStart(2, '0')
-      const dateKey = `${year}-${month}-${day}`
+      const dateKey = `${dateYear}-${dateMonth}-${day}`
       const uniqueKey = `${name}_${dateKey}`
 
       if (!grouped[uniqueKey]) {
@@ -223,9 +225,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
 
     // Process and save records
-    const recordsToSave: any[] = []
+    const recordsToSave: { employee_id: string; attendance_date: string; check_in: string; check_out: string | null }[] = []
 
-    for (const entry of Object.values(grouped) as any[]) {
+    for (const entry of Object.values(grouped)) {
       // Find matching employee
       const employee = employees.find(
         e =>
@@ -241,7 +243,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         continue
       }
 
-      const scans = (entry.scans as Date[]).sort((a, b) => a.getTime() - b.getTime())
+      const scans = entry.scans.sort((a, b) => a.getTime() - b.getTime())
       const firstScan = scans[0]
       const lastScan = scans[scans.length - 1]
 

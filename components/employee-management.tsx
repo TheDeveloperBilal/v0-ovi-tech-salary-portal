@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { ProbationManager } from "./probation-manager"
+import type { Employee } from "@/lib/types"
 
 // Generate a strong random password
 function generateSecurePassword() {
@@ -35,7 +35,7 @@ function generateSecurePassword() {
 }
 
 export function EmployeeManagement() {
-  const [employees, setEmployees] = useState<any[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [resetPasswordData, setResetPasswordData] = useState({
@@ -61,10 +61,6 @@ export function EmployeeManagement() {
   const supabase = createClient()
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchEmployees()
-  }, [])
-
   const fetchEmployees = async () => {
     setIsLoading(true)
     const { data, error } = await supabase.from("employees").select("*").order("created_at", { ascending: false })
@@ -77,13 +73,20 @@ export function EmployeeManagement() {
     setIsLoading(false)
   }
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchEmployees()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
       if (editingId) {
         // Update existing employee
-        const { password, ...dataWithoutPassword } = formData
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password: _password, ...dataWithoutPassword } = formData
         const { error } = await supabase.from("employees").update(dataWithoutPassword).eq("id", editingId)
         if (error) throw error
         toast({ title: "Success", description: "Employee updated successfully" })
@@ -141,8 +144,8 @@ export function EmployeeManagement() {
       setEditingId(null)
       setIsOpen(false)
       fetchEmployees()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" })
     }
   }
 
@@ -180,12 +183,12 @@ export function EmployeeManagement() {
 
       // Refresh from server to ensure consistency
       setTimeout(() => fetchEmployees(), 500)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message || "Failed to delete employee", variant: "destructive" })
     }
   }
 
-  const handleEdit = (employee: any) => {
+  const handleEdit = (employee: Employee) => {
     setFormData({
       employee_id: employee.employee_id || "",
       first_name: employee.first_name || "",
@@ -257,8 +260,8 @@ export function EmployeeManagement() {
         confirmPassword: "",
       })
       setIsResetPasswordOpen(false)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch (error: unknown) {
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" })
     }
   }
 
@@ -303,7 +306,7 @@ export function EmployeeManagement() {
         <Card className="border-dashed">
           <CardContent className="pt-8">
             <p className="text-center text-muted-foreground mb-4">No employees found</p>
-            <p className="text-sm text-center">Click "Add Employee" to get started</p>
+            <p className="text-sm text-center">Click &quot;Add Employee&quot; to get started</p>
           </CardContent>
         </Card>
       ) : (

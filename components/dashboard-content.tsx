@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, FileText, Settings, Calendar } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
@@ -11,7 +11,9 @@ import { CompanySettings } from "./company-settings"
 import { EmployeeDashboard } from "./employee-dashboard"
 import { AttendanceManager } from "./attendance-manager"
 
-export function DashboardContent({ user }: { user: any }) {
+import type { Profile } from "@/lib/types"
+
+export function DashboardContent({ user }: { user: Partial<Profile> }) {
   const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0 })
   const supabase = createClient()
 
@@ -25,7 +27,7 @@ export function DashboardContent({ user }: { user: any }) {
           totalEmployees: employeeCount || 0,
           totalSalarySlips: slipCount || 0,
         })
-      } catch (error) {
+      } catch {
         setStats({
           totalEmployees: 0,
           totalSalarySlips: 0,
@@ -34,6 +36,7 @@ export function DashboardContent({ user }: { user: any }) {
     }
 
     fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const isAdmin = user?.is_admin === true
@@ -108,7 +111,7 @@ export function DashboardContent({ user }: { user: any }) {
           </Tabs>
         </>
       ) : (
-        <EmployeeDashboard userId={user.id} />
+        <EmployeeDashboard userId={user.id!} />
       )}
     </div>
   )

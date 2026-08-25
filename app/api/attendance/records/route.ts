@@ -17,7 +17,7 @@ async function authenticateAdmin(request: NextRequest) {
       const token = authHeader.substring(7)
       const { data: { user } } = await supabase.auth.getUser(token)
       currentUser = user
-    } catch (err) {
+    } catch {
     }
   }
 

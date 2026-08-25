@@ -38,18 +38,18 @@ export default function DebugClient() {
             <h2 className="font-semibold mb-2">Instructions:</h2>
             <ol className="text-sm space-y-2 list-decimal list-inside">
               <li>Check that you have set the environment variables in Vercel (if deployed)</li>
-              <li>In v0 preview, check "Vars" section in left sidebar for environment variables</li>
+              <li>In v0 preview, check &quot;Vars&quot; section in left sidebar for environment variables</li>
               <li>Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set</li>
               <li>Try logging in again</li>
             </ol>
           </div>
 
           <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-            <h2 className="font-semibold mb-2">If login still doesn't work:</h2>
+            <h2 className="font-semibold mb-2">If login still doesn&apos;t work:</h2>
             <ol className="text-sm space-y-2 list-decimal list-inside">
               <li>Open browser console (F12)</li>
               <li>Try to login</li>
-              <li>Check the console logs for "[v0]" debug messages</li>
+              <li>Check the console logs for &quot;[v0]&quot; debug messages</li>
               <li>Look for error messages in the console</li>
               <li>Check Supabase dashboard for authentication logs</li>
             </ol>

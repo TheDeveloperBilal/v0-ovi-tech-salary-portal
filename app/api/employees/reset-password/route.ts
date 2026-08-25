@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
         const token = authHeader.substring(7);
         const { data: { user } } = await supabase.auth.getUser(token);
         currentUser = user;
-      } catch (err) {
+      } catch {
       }
     }
 
@@ -112,15 +112,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 200 }
       );
-    } catch (authError: any) {
+    } catch (authError: unknown) {
       return NextResponse.json(
-        { error: `Failed to reset password: ${authError.message}` },
+        { error: `Failed to reset password: ${(authError as Error).message}` },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: (error as Error).message || "Internal server error" },
       { status: 500 }
     );
   }

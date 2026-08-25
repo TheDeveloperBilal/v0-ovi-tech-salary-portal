@@ -20,10 +20,6 @@ export function AdminUsers() {
   const supabase = createClient()
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
@@ -33,7 +29,7 @@ export function AdminUsers() {
 
       if (error) throw error
       setUsers(data || [])
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to fetch users',
@@ -43,6 +39,12 @@ export function AdminUsers() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchUsers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const toggleAdminStatus = async (userId: string, currentStatus: boolean) => {
     try {
@@ -63,7 +65,7 @@ export function AdminUsers() {
         title: 'Success',
         description: `User ${!currentStatus ? 'promoted to' : 'demoted from'} admin`,
       })
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update user status',

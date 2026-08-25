@@ -27,7 +27,7 @@ export async function DELETE(
         const token = authHeader.substring(7)
         const { data: { user } } = await supabase.auth.getUser(token)
         currentUser = user
-      } catch (err) {
+      } catch {
       }
     }
 
@@ -67,9 +67,9 @@ export async function DELETE(
       { message: "Salary slip deleted successfully" },
       { status: 200 }
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: (error as Error).message || "Internal server error" },
       { status: 500 }
     )
   }

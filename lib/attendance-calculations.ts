@@ -36,6 +36,7 @@ function timeToMinutes(timeStr: string | null): number | null {
 }
 
 // Convert minutes to HH:MM format
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function minutesToTime(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;

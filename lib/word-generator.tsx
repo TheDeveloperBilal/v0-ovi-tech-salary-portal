@@ -1,5 +1,5 @@
 export function generateWordDocument(
-  employee: any,
+  employee: Record<string, unknown>,
   base: number,
   totalAllowances: number,
   totalDeductions: number,
@@ -69,9 +69,9 @@ export function generateWordDocument(
             <td>Basic Salary</td>
             <td style="text-align: right;">₹${base.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</td>
           </tr>
-          ${Object.entries(employee.allowances)
-            .map(([key, value]: any) => {
-              const val = Number.parseFloat(value) || 0
+          ${Object.entries(employee.allowances as Record<string, unknown>)
+            .map(([key, value]: [string, unknown]) => {
+              const val = Number.parseFloat(String(value)) || 0
               return val > 0
                 ? `
               <tr>
@@ -94,9 +94,9 @@ export function generateWordDocument(
             <th>Description</th>
             <th style="text-align: right;">Amount</th>
           </tr>
-          ${Object.entries(employee.deductions)
-            .map(([key, value]: any) => {
-              const val = Number.parseFloat(value) || 0
+          ${Object.entries(employee.deductions as Record<string, unknown>)
+            .map(([key, value]: [string, unknown]) => {
+              const val = Number.parseFloat(String(value)) || 0
               return val > 0
                 ? `
               <tr>

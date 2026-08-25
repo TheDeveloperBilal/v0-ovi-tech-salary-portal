@@ -30,10 +30,6 @@ export function CompanySettings() {
   const supabase = createClient()
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchSettings()
-  }, [])
-
   const fetchSettings = async () => {
     const { data, error } = await supabase.from("company_settings").select("*").single()
 
@@ -58,6 +54,12 @@ export function CompanySettings() {
     }
     setIsLoading(false)
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
