@@ -226,7 +226,7 @@ export function CompanySettings() {
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isSaving}>
+          <Button type="submit" className="w-full" disabled={isSaving}>
             {isSaving ? "Saving..." : "Save Settings"}
           </Button>
         </form>

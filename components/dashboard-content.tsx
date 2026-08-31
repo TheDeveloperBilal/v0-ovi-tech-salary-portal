@@ -45,46 +45,50 @@ export function DashboardContent({ user }: { user: any }) {
         <>
           {/* Statistics Cards - Admin Only */}
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border border-gray-200 bg-white">
+            <Card className="border-l-4 border-l-emerald-500">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-800" />
+                <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-emerald-500/10">
+                    <Users className="w-4 h-4 text-emerald-400" />
+                  </div>
                   Total Employees
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalEmployees}</p>
+                <p className="text-3xl font-bold text-white">{stats.totalEmployees}</p>
               </CardContent>
             </Card>
 
-            <Card className="border border-gray-200 bg-white">
+            <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-800" />
+                <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-blue-500/10">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                  </div>
                   Salary Slips Generated
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalSalarySlips}</p>
+                <p className="text-3xl font-bold text-white">{stats.totalSalarySlips}</p>
               </CardContent>
             </Card>
           </div>
 
           <Tabs defaultValue="employees" className="space-y-4">
-            <TabsList className="bg-white border border-gray-200">
-              <TabsTrigger value="employees" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
+            <TabsList>
+              <TabsTrigger value="employees">
                 <Users className="w-4 h-4 mr-2" />
                 Employees
               </TabsTrigger>
-              <TabsTrigger value="attendance" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
+              <TabsTrigger value="attendance">
                 <Calendar className="w-4 h-4 mr-2" />
                 Attendance
               </TabsTrigger>
-              <TabsTrigger value="slips" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
+              <TabsTrigger value="slips">
                 <FileText className="w-4 h-4 mr-2" />
                 Salary Slips
               </TabsTrigger>
-              <TabsTrigger value="settings" className="text-gray-800 data-[state=active]:border-b-2 data-[state=active]:border-gray-800">
+              <TabsTrigger value="settings">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </TabsTrigger>

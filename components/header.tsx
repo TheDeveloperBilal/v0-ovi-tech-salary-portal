@@ -15,25 +15,25 @@ export function Header({ user }: { user: any }) {
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <header className="bg-slate-900/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">O</span>
+            <div className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
+              <span className="text-slate-900 font-bold text-lg">O</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">OviTech Payroll Portal</h1>
-              <p className="text-xs text-gray-500">Employee Management System</p>
+              <h1 className="text-xl font-bold text-white">OviTech Payroll Portal</h1>
+              <p className="text-xs text-slate-400">Employee Management System</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right text-sm">
-              <p className="font-medium text-gray-900">{user?.full_name || user?.email || "User"}</p>
-              <p className="text-xs text-gray-500 capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
+              <p className="font-medium text-slate-200">{user?.full_name || user?.email || "User"}</p>
+              <p className="text-xs text-slate-400 capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
             </div>
             <Button
-              variant="default"
+              variant="outline"
               size="sm"
               onClick={handleLogout}
             >

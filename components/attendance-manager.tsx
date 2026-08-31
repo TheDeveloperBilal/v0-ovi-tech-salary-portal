@@ -65,7 +65,7 @@ async function validateFileStructure(file: File, month: number, year: number): P
   try {
     const text = await file.text()
     const lines = text.split('\n').filter(line => line.trim().length > 0)
-    
+
     if (lines.length < 2) {
       return { valid: false, error: 'File has less than 2 rows of data' }
     }
@@ -119,12 +119,12 @@ export function AttendanceManager() {
       setLoading(true)
       setRecords([])
       setSelectedEmployee(null)
-      
+
       // Fetch employees first
       const { data: empData, error: empError } = await supabase
         .from('employees')
         .select('*')
-      
+
       if (empError) {
         throw empError
       }
@@ -140,7 +140,7 @@ export function AttendanceManager() {
         throw error
       }
 
-      
+
       if (!data || data.length === 0) {
         setStats({ total_days: 0, present_days: 0, absent_days: 0, late_days: 0 })
         return
@@ -149,16 +149,16 @@ export function AttendanceManager() {
       // Debug: Show first and last records
       const firstRecord = data[0]
       const lastRecord = data[data.length - 1]
-      
+
       // Filter by month and year from attendance_date
       // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
       const filteredData = (data || []).filter(record => {
         try {
           const dateStr = String(record.attendance_date).trim()
-          
+
           let recordMonth = -1
           let recordYear = -1
-          
+
           // Try parsing as Date first - works for most formats
           const parsedDate = new Date(dateStr)
           if (!isNaN(parsedDate.getTime())) {
@@ -173,7 +173,7 @@ export function AttendanceManager() {
                 recordYear = parseInt(parts[0], 10)
                 recordMonth = parseInt(parts[1], 10)
               }
-            } 
+            }
             // Try M/D/YYYY format (old format from toLocaleDateString)
             else if (dateStr.includes('/')) {
               const parts = dateStr.split('/')
@@ -183,12 +183,12 @@ export function AttendanceManager() {
               }
             }
           }
-          
+
           // Validate parsed values
           if (recordMonth < 1 || recordMonth > 12 || recordYear < 2000 || recordYear > 2100) {
             return false
           }
-          
+
           // Only return records matching the selected month/year
           return recordMonth === month && recordYear === year
         } catch (err) {
@@ -196,7 +196,7 @@ export function AttendanceManager() {
         }
       })
 
-      
+
       if (filteredData.length === 0) {
       }
 
@@ -254,7 +254,7 @@ export function AttendanceManager() {
 
       // Phase 3: Client-side validation
       const validation = await validateFileStructure(file, month, year)
-      
+
       if (!validation.valid) {
         toast({
           title: 'File Validation Error',
@@ -385,7 +385,7 @@ export function AttendanceManager() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Month</label>
+              <label className="text-sm font-medium mb-2 block text-slate-200">Month</label>
               <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -401,7 +401,7 @@ export function AttendanceManager() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Year</label>
+              <label className="text-sm font-medium mb-2 block text-slate-200">Year</label>
               <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -436,7 +436,7 @@ export function AttendanceManager() {
 
             <div className="flex items-end">
               <div className="relative w-full">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
                   placeholder="Search employee..."
                   value={search}
@@ -453,26 +453,26 @@ export function AttendanceManager() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Total Days</p>
-            <p className="text-2xl font-bold">{stats.total_days}</p>
+            <p className="text-sm text-slate-400">Total Days</p>
+            <p className="text-2xl font-bold text-white">{stats.total_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Present</p>
-            <p className="text-2xl font-bold text-green-600">{stats.present_days}</p>
+            <p className="text-sm text-slate-400">Present</p>
+            <p className="text-2xl font-bold text-emerald-400">{stats.present_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Absent</p>
-            <p className="text-2xl font-bold text-red-600">{stats.absent_days}</p>
+            <p className="text-sm text-slate-400">Absent</p>
+            <p className="text-2xl font-bold text-red-400">{stats.absent_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Late</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.late_days}</p>
+            <p className="text-sm text-slate-400">Late</p>
+            <p className="text-2xl font-bold text-amber-400">{stats.late_days}</p>
           </CardContent>
         </Card>
       </div>
@@ -482,38 +482,38 @@ export function AttendanceManager() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Designation</p>
-              <p className="text-xl font-bold text-blue-600">{selectedEmployee.designation}</p>
+              <p className="text-sm text-slate-400">Designation</p>
+              <p className="text-xl font-bold text-blue-400">{selectedEmployee.designation}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Base Salary</p>
-              <p className="text-xl font-bold">₨ {employeeStats.base_salary?.toLocaleString()}</p>
+              <p className="text-sm text-slate-400">Base Salary</p>
+              <p className="text-xl font-bold text-white">{employeeStats.base_salary?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Deductions</p>
-              <p className="text-xl font-bold text-red-600">₨ {employeeStats.deductions?.toLocaleString()}</p>
+              <p className="text-sm text-slate-400">Deductions</p>
+              <p className="text-xl font-bold text-red-400">{employeeStats.deductions?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Net Payable</p>
-              <p className="text-xl font-bold text-green-600">₨ {employeeStats.net_payable?.toLocaleString()}</p>
+              <p className="text-sm text-slate-400">Net Payable</p>
+              <p className="text-xl font-bold text-emerald-400">{employeeStats.net_payable?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Early Out Days</p>
-              <p className="text-2xl font-bold text-orange-600">{employeeStats.early_out_days}</p>
+              <p className="text-sm text-slate-400">Early Out Days</p>
+              <p className="text-2xl font-bold text-orange-400">{employeeStats.early_out_days}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Leaves Deducted</p>
-              <p className="text-2xl font-bold">{employeeStats.leaves_deducted}</p>
+              <p className="text-sm text-slate-400">Leaves Deducted</p>
+              <p className="text-2xl font-bold text-white">{employeeStats.leaves_deducted}</p>
             </CardContent>
           </Card>
         </div>
@@ -526,37 +526,37 @@ export function AttendanceManager() {
         </CardHeader>
         <CardContent>
           {filteredRecords.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No records found for this month</p>
+            <p className="text-slate-500 text-center py-8">No records found for this month</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Employee</th>
-                    <th className="text-left p-2">Date</th>
-                    <th className="text-left p-2">Check In</th>
-                    <th className="text-left p-2">Check Out</th>
-                    <th className="text-left p-2">Status</th>
-                    <th className="text-center p-2">Action</th>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left p-2 text-slate-400">Employee</th>
+                    <th className="text-left p-2 text-slate-400">Date</th>
+                    <th className="text-left p-2 text-slate-400">Check In</th>
+                    <th className="text-left p-2 text-slate-400">Check Out</th>
+                    <th className="text-left p-2 text-slate-400">Status</th>
+                    <th className="text-center p-2 text-slate-400">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRecords.map((record) => (
-                    <tr 
-                      key={record.id} 
-                      className="border-b hover:bg-gray-50 cursor-pointer"
+                    <tr
+                      key={record.id}
+                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
                       onClick={() => handleEmployeeClick(record)}
                     >
-                      <td className="p-2 font-medium">{record.employee_name}</td>
-                      <td className="p-2">{record.attendance_date}</td>
-                      <td className="p-2">{record.check_in || '-'}</td>
-                      <td className="p-2">{record.check_out || '-'}</td>
+                      <td className="p-2 font-medium text-slate-100">{record.employee_name}</td>
+                      <td className="p-2 text-slate-300">{record.attendance_date}</td>
+                      <td className="p-2 text-slate-300">{record.check_in || '-'}</td>
+                      <td className="p-2 text-slate-300">{record.check_out || '-'}</td>
                       <td className="p-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          record.is_absent ? 'bg-red-100 text-red-800' :
-                          record.is_late ? 'bg-yellow-100 text-yellow-800' :
-                          record.is_early_out ? 'bg-orange-100 text-orange-800' :
-                          'bg-green-100 text-green-800'
+                          record.is_absent ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                          record.is_late ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                          record.is_early_out ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
+                          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         }`}>
                           {record.status || (record.is_absent ? 'Absent' : record.is_late ? 'Late' : record.is_early_out ? 'Early Out' : 'Present')}
                         </span>
@@ -570,7 +570,7 @@ export function AttendanceManager() {
                             deleteRecord(record.id)
                           }}
                         >
-                          <Trash2 className="w-4 h-4 text-red-600" />
+                          <Trash2 className="w-4 h-4 text-red-400" />
                         </Button>
                       </td>
                     </tr>

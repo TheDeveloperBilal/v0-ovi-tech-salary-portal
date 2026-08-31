@@ -8,7 +8,7 @@ import { CheckCircle } from "lucide-react"
 
 export default function SignUpSuccessPage() {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
@@ -16,20 +16,20 @@ export default function SignUpSuccessPage() {
               <Image src="/images/image.png" alt="OviTech Logo" width={128} height={128} />
             </div>
           </div>
-          <Card className="border border-gray-200 shadow-sm">
+          <Card>
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <CheckCircle className="w-16 h-16 text-green-600" />
+                <CheckCircle className="w-16 h-16 text-emerald-400" />
               </div>
-              <CardTitle className="text-2xl text-gray-900">Signup Successful!</CardTitle>
-              <CardDescription className="text-base text-gray-600">Check your email to confirm your account</CardDescription>
+              <CardTitle className="text-2xl text-white">Signup Successful!</CardTitle>
+              <CardDescription className="text-base">Check your email to confirm your account</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-sm text-slate-400 text-center">
                 We&apos;ve sent a confirmation email to your address. Click the link in the email to activate your
                 account.
               </p>
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-sm text-slate-400 text-center">
                 After confirming your email, you can login to your account and start using the salary portal.
               </p>
               <Link href="/auth/login" className="block">

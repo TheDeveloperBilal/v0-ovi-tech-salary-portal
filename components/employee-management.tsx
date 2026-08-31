@@ -20,17 +20,17 @@ function generateSecurePassword() {
   const numbers = "0123456789"
   const special = "!@#$%^&*"
   const all = uppercase + lowercase + numbers + special
-  
+
   let password = ""
   password += uppercase[Math.floor(Math.random() * uppercase.length)]
   password += lowercase[Math.floor(Math.random() * lowercase.length)]
   password += numbers[Math.floor(Math.random() * numbers.length)]
   password += special[Math.floor(Math.random() * special.length)]
-  
+
   for (let i = password.length; i < 12; i++) {
     password += all[Math.floor(Math.random() * all.length)]
   }
-  
+
   return password.split('').sort(() => Math.random() - 0.5).join('')
 }
 
@@ -97,14 +97,14 @@ export function EmployeeManagement() {
 
         // Get the current session to send auth token
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (!session) {
           throw new Error("Not authenticated. Please log in.");
         }
 
         const response = await fetch("/api/employees/add", {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`
           },
@@ -153,14 +153,14 @@ export function EmployeeManagement() {
 
       // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error("Not authenticated. Please log in.");
       }
 
       const response = await fetch(`/api/employees/delete/${id}`, {
         method: "DELETE",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
@@ -223,14 +223,14 @@ export function EmployeeManagement() {
 
       // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error("Not authenticated. Please log in.");
       }
 
       const response = await fetch("/api/employees/reset-password", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
@@ -264,11 +264,11 @@ export function EmployeeManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
-            <p className="text-gray-600 mt-1">Add and manage employee records</p>
+            <h2 className="text-2xl font-bold text-slate-100">Employee Management</h2>
+            <p className="text-slate-400 mt-1">Add and manage employee records</p>
           </div>
           <Button onClick={() => {
             setFormData({
@@ -286,7 +286,7 @@ export function EmployeeManagement() {
             });
             setEditingId(null);
             setIsOpen(true);
-          }} className="bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
+          }} className="bg-emerald-500 text-slate-900 hover:bg-emerald-400">
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
@@ -296,14 +296,14 @@ export function EmployeeManagement() {
       {isLoading ? (
         <Card>
           <CardContent className="pt-8">
-            <p className="text-center text-muted-foreground">Loading employees...</p>
+            <p className="text-center text-slate-400">Loading employees...</p>
           </CardContent>
         </Card>
       ) : employees.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8">
-            <p className="text-center text-muted-foreground mb-4">No employees found</p>
-            <p className="text-sm text-center">Click "Add Employee" to get started</p>
+            <p className="text-center text-slate-400 mb-4">No employees found</p>
+            <p className="text-sm text-center text-slate-500">Click "Add Employee" to get started</p>
           </CardContent>
         </Card>
       ) : (
@@ -314,7 +314,7 @@ export function EmployeeManagement() {
                 <CardTitle className="flex items-center justify-between">
                   <span>{emp.first_name} {emp.last_name}</span>
                   {emp.is_probation && (
-                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full flex items-center gap-1">
+                    <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-full flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Probation
                     </span>
@@ -327,41 +327,41 @@ export function EmployeeManagement() {
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
                   <div>
-                    <p className="text-muted-foreground">Employee ID</p>
-                    <p className="font-semibold">{emp.employee_id}</p>
+                    <p className="text-slate-500">Employee ID</p>
+                    <p className="font-semibold text-slate-100">{emp.employee_id}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Email</p>
-                    <p className="font-semibold break-all">{emp.email}</p>
+                    <p className="text-slate-500">Email</p>
+                    <p className="font-semibold text-slate-100 break-all">{emp.email}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Phone</p>
-                    <p className="font-semibold">{emp.phone}</p>
+                    <p className="text-slate-500">Phone</p>
+                    <p className="font-semibold text-slate-100">{emp.phone}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Joining Date</p>
-                    <p className="font-semibold">{emp.date_of_joining}</p>
+                    <p className="text-slate-500">Joining Date</p>
+                    <p className="font-semibold text-slate-100">{emp.date_of_joining}</p>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t">
+                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-white/10">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1 w-full sm:w-auto">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
                   {emp.is_probation && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {}} 
-                      className="flex-1 w-full sm:w-auto bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {}}
+                      className="flex-1 w-full sm:w-auto bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
                     >
                       <AlertCircle className="w-4 h-4 mr-2" />
                       Probation Status
                     </Button>
                   )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setResetPasswordData({ ...resetPasswordData, employeeId: emp.id })
                       setIsResetPasswordOpen(true)
@@ -486,25 +486,25 @@ export function EmployeeManagement() {
                     </Button>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
+                <p className="text-xs text-slate-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
               </div>
             </div>
 
             {/* Probation Section */}
-            <div className="border-t pt-4 space-y-4">
+            <div className="border-t border-white/10 pt-4 space-y-4">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
                   id="is_probation"
                   checked={Boolean(formData.is_probation ?? false)}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
+                  onChange={(e) => setFormData({
+                    ...formData,
                     is_probation: e.target.checked,
                     probation_end_date: e.target.checked ? formData.probation_end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : ""
                   })}
-                  className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                  className="w-4 h-4 rounded border-white/10 bg-slate-800 cursor-pointer accent-emerald-500"
                 />
-                <label htmlFor="is_probation" className="text-sm font-medium cursor-pointer">
+                <label htmlFor="is_probation" className="text-sm font-medium cursor-pointer text-slate-200">
                   Mark as Probation Period Employee
                 </label>
               </div>
@@ -518,12 +518,12 @@ export function EmployeeManagement() {
                     onChange={(e) => setFormData({ ...formData, probation_end_date: e.target.value })}
                     required={formData.is_probation}
                   />
-                  <p className="text-xs text-gray-500 mt-1">Employee will have no paid leave benefits until this date</p>
+                  <p className="text-xs text-slate-500 mt-1">Employee will have no paid leave benefits until this date</p>
                 </div>
               )}
             </div>
-            
-            <Button type="submit" className="w-full bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
+
+            <Button type="submit" className="w-full">
               {editingId ? "Update Employee" : "Add Employee"}
             </Button>
           </form>
@@ -543,7 +543,7 @@ export function EmployeeManagement() {
                 id="reset_employee"
                 value={resetPasswordData.employeeId}
                 onChange={(e) => setResetPasswordData({ ...resetPasswordData, employeeId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
                 required
               >
                 <option value="">Select Employee</option>
@@ -577,7 +577,7 @@ export function EmployeeManagement() {
               />
             </div>
             <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1 bg-white border border-gray-800 text-gray-800 hover:bg-gray-50 shadow-sm">
+                <Button type="submit" className="flex-1">
                 Reset Password
               </Button>
               <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">

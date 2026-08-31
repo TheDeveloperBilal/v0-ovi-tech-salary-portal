@@ -72,20 +72,20 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-4"></div>
+          <p className="text-slate-400">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {error && (
-        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">
-          <p className="text-sm text-yellow-800">Warning: {error}</p>
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3">
+          <p className="text-sm text-amber-400">Warning: {error}</p>
         </div>
       )}
       <Header user={profile || { full_name: "User", email: "", is_admin: false }} />
