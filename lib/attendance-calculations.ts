@@ -1,209 +1,362 @@
 // lib/attendance-calculations.ts
-// Business Logic for Attendance & Leave Calculations
+// Business logic for attendance processing — mirrors the static HTML converter
 
-export const OFFICE_START = { hour: 11, minute: 0 }; // 11:00 AM
-export const OFFICE_END = { hour: 20, minute: 0 }; // 8:00 PM (20:00)
-export const GRACE_MINUTES = 15;
-export const MIN_HOURS_FOR_WAIVER = 9; // 9-hour rule
+// ── Office Schedule ──────────────────────────────────────────────────
+export const OFFICE_START = { hour: 11, minute: 0 }  // 11:00 AM
+export const OFFICE_END = { hour: 20, minute: 0 }    // 8:00 PM
+export const GRACE_MINUTES = 15                        // 15-min grace
+export const MIN_HOURS_FOR_WAIVER = 9                  // 9-hour late waiver
+export const ANNUAL_LEAVES = 14                        // 14 annual leaves
 
-export interface AttendanceRecord {
-  employeeName: string;
-  employeeId: string;
-  date: string; // YYYY-MM-DD
-  checkIn: string | null; // HH:MM format
-  checkOut: string | null; // HH:MM format
+// ── Types ────────────────────────────────────────────────────────────
+
+/** A single biometric scan from the ZKTeco file */
+export interface RawScan {
+  employeeName: string
+  timestamp: Date
 }
 
-export interface ProcessedAttendance {
-  employeeName: string;
-  employeeId: string;
-  date: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  workHours: number;
-  status: 'On Time' | 'Late' | 'Early Out' | 'Absent';
-  isLate: boolean;
-  isEarlyOut: boolean;
-  isAbsent: boolean;
-  nineHourWaiver: boolean;
+/** Grouped scans for one employee on one day */
+export interface DayEntry {
+  employeeName: string
+  date: string        // YYYY-MM-DD
+  dateObj: Date
+  scans: Date[]
 }
 
-// Convert time string (HH:MM) to minutes since midnight
-function timeToMinutes(timeStr: string | null): number | null {
-  if (!timeStr) return null;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
+/** Fully processed attendance record ready for DB save */
+export interface ProcessedRecord {
+  employeeName: string
+  date: string        // YYYY-MM-DD
+  checkIn: string | null   // HH:MM:SS (24h)
+  checkOut: string | null  // HH:MM:SS (24h)
+  workHours: number
+  status: 'On Time' | 'Late' | 'Early Out' | 'Late & Early Out' | 'Absent'
+  isLate: boolean
+  isEarlyOut: boolean
+  isAbsent: boolean
+  nineHourWaiver: boolean
 }
 
-// Convert minutes to HH:MM format
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+/** Per-employee monthly summary */
+export interface EmployeeSummary {
+  employeeName: string
+  totalDays: number
+  presentDays: number
+  absentDays: number
+  lateDays: number
+  earlyOutDays: number
+  leavesFromViolations: number  // floor((late + earlyOut) / 3)
+  leavesFromAbsent: number      // absences deducted from leave quota or salary
+  totalLeavesDeducted: number
+  salaryDeductionDays: number   // days where salary is deducted (3 lates = 1 day)
+  baseSalary: number
+  dailyRate: number
+  salaryDeduction: number
+  netPayable: number
+  designation: string
+  isProbation: boolean
 }
 
-// Get office start and end times in minutes
-function getOfficeStartMinutes(): number {
-  return OFFICE_START.hour * 60 + OFFICE_START.minute;
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function formatTime24(date: Date): string {
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  return `${h}:${m}:${s}`
 }
 
-function getOfficeEndMinutes(): number {
-  return OFFICE_END.hour * 60 + OFFICE_END.minute;
+function timeToMinutes(timeStr: string): number {
+  const parts = timeStr.split(':').map(Number)
+  return parts[0] * 60 + parts[1]
 }
 
-// Calculate work hours
-function calculateWorkHours(checkInStr: string | null, checkOutStr: string | null): number {
-  if (!checkInStr || !checkOutStr) return 0;
+function toDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
-  const checkInMin = timeToMinutes(checkInStr);
-  const checkOutMin = timeToMinutes(checkOutStr);
+/** Check if a date falls on a Pakistani public holiday */
+function isHoliday(date: Date): boolean {
+  const m = date.getMonth() + 1
+  const d = date.getDate()
+  // March 23 = Pakistan Day
+  if (m === 3 && d === 23) return true
+  // Aug 14 = Independence Day
+  if (m === 8 && d === 14) return true
+  return false
+}
 
-  if (checkInMin === null || checkOutMin === null) return 0;
+/** Get all weekdays (Mon-Fri) in a given month/year */
+export function getWeekdaysInMonth(month: number, year: number): string[] {
+  const days: string[] = []
+  const daysInMonth = new Date(year, month, 0).getDate()
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month - 1, d)
+    const dow = date.getDay()
+    // Mon=1 to Fri=5 are working days, skip Sat=6 and Sun=0
+    if (dow >= 1 && dow <= 5 && !isHoliday(date)) {
+      days.push(toDateKey(date))
+    }
+  }
+  return days
+}
 
-  // Handle case where checkout is next day (after midnight)
-  if (checkOutMin < checkInMin) {
-    return (24 * 60 - checkInMin + checkOutMin) / 60;
+// ── ZKTeco File Parser ───────────────────────────────────────────────
+
+/**
+ * Parse a ZKTeco exported TXT file into raw scans.
+ *
+ * Expected format (space/tab separated):
+ * ID  YYYY-MM-DD HH:MM:SS  MACHINE  DEPT  NAME  I/O  FLAG1  FLAG2
+ *
+ * Column indices (0-based) from the user's actual file:
+ * [0]=ID  [1]=date  [2]=time  [3]=machine  [4]=dept  [5]=name  [6]=I/O  [7]=flag  [8]=flag
+ */
+export function parseZKTecoFile(content: string): RawScan[] {
+  const scans: RawScan[] = []
+  const lines = content.split(/\r?\n/)
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) continue
+
+    // Split by tab first, then by whitespace
+    let parts: string[]
+    if (line.includes('\t')) {
+      parts = line.split('\t').map(c => c.trim())
+    } else {
+      parts = line.split(/\s+/)
+    }
+
+    if (parts.length < 6) continue
+
+    // Detect the format by checking patterns
+    let name: string | null = null
+    let timestamp: Date | null = null
+
+    // Pattern: ID DATE TIME MACHINE DEPT NAME ...
+    // parts[1] = YYYY-MM-DD, parts[2] = HH:MM:SS, parts[5] = name
+    if (/^\d{4}-\d{2}-\d{2}$/.test(parts[1]) && /^\d{1,2}:\d{2}:\d{2}$/.test(parts[2])) {
+      timestamp = new Date(`${parts[1]}T${parts[2]}`)
+      name = parts[5]
+    }
+    // Pattern: ID "YYYY-MM-DD HH:MM:SS" MACHINE DEPT NAME ...
+    // (combined timestamp in one column)
+    else if (/^\d{4}-\d{2}-\d{2}\s+\d{1,2}:\d{2}:\d{2}$/.test(parts[1])) {
+      timestamp = new Date(parts[1].replace(' ', 'T'))
+      name = parts[4]
+    }
+
+    if (!name || !timestamp || isNaN(timestamp.getTime())) continue
+
+    scans.push({ employeeName: name.trim(), timestamp })
   }
 
-  return (checkOutMin - checkInMin) / 60;
+  return scans
 }
 
-// Determine attendance status based on office rules
-export function determineStatus(
-  checkIn: string | null,
-  checkOut: string | null
-): {
-  status: ProcessedAttendance['status'];
-  isLate: boolean;
-  isEarlyOut: boolean;
-  isAbsent: boolean;
-  nineHourWaiver: boolean;
-} {
-  // No check-in and no check-out = Absent
-  if (!checkIn && !checkOut) {
-    return {
-      status: 'Absent',
-      isLate: false,
-      isEarlyOut: false,
-      isAbsent: true,
-      nineHourWaiver: false,
-    };
+// ── Core Processing ──────────────────────────────────────────────────
+
+/**
+ * Group raw scans by employee + date, then determine check-in/check-out
+ * and attendance status for each day.
+ */
+export function processScans(
+  scans: RawScan[],
+  month: number,
+  year: number
+): ProcessedRecord[] {
+  // 1. Group scans by employee+date
+  const grouped: Record<string, DayEntry> = {}
+
+  for (const scan of scans) {
+    const dateKey = toDateKey(scan.timestamp)
+    // Only include scans from the target month/year
+    if (scan.timestamp.getMonth() + 1 !== month || scan.timestamp.getFullYear() !== year) {
+      continue
+    }
+
+    const key = `${scan.employeeName}_${dateKey}`
+    if (!grouped[key]) {
+      grouped[key] = {
+        employeeName: scan.employeeName,
+        date: dateKey,
+        dateObj: scan.timestamp,
+        scans: []
+      }
+    }
+    grouped[key].scans.push(scan.timestamp)
   }
 
-  // Only check-in (no check-out) = Early Out
-  if (checkIn && !checkOut) {
-    return {
-      status: 'Early Out',
-      isLate: false,
-      isEarlyOut: true,
+  // 2. Process each day entry
+  const records: ProcessedRecord[] = []
+  const employeeNames = new Set<string>()
+
+  for (const entry of Object.values(grouped)) {
+    employeeNames.add(entry.employeeName)
+    entry.scans.sort((a, b) => a.getTime() - b.getTime())
+
+    const firstScan = entry.scans[0]
+    const lastScan = entry.scans[entry.scans.length - 1]
+    const scanCount = entry.scans.length
+
+    const checkIn = formatTime24(firstScan)
+    const checkOut = scanCount > 1 ? formatTime24(lastScan) : null
+
+    // Calculate work hours
+    let workHours = 0
+    if (scanCount > 1) {
+      workHours = (lastScan.getTime() - firstScan.getTime()) / (1000 * 60 * 60)
+    }
+
+    // Determine late/early status
+    const officeStartMin = OFFICE_START.hour * 60 + OFFICE_START.minute
+    const officeEndMin = OFFICE_END.hour * 60 + OFFICE_END.minute
+    const checkInMin = timeToMinutes(checkIn)
+
+    let isLate = false
+    let isEarlyOut = false
+    let nineHourWaiver = false
+
+    // Late check: arrived after grace period
+    if (checkInMin > officeStartMin + GRACE_MINUTES) {
+      isLate = true
+      // 9-hour waiver: if worked ≥9 hours, forgive late
+      if (workHours >= MIN_HOURS_FOR_WAIVER) {
+        isLate = false
+        nineHourWaiver = true
+      }
+    }
+
+    // Early out check
+    if (scanCount === 1) {
+      // Only 1 scan (missing checkout) = automatic early out
+      isEarlyOut = true
+    } else if (checkOut) {
+      const checkOutMin = timeToMinutes(checkOut)
+      if (checkOutMin < officeEndMin) {
+        isEarlyOut = true
+      }
+    }
+
+    // Determine status label
+    let status: ProcessedRecord['status'] = 'On Time'
+    if (isLate && isEarlyOut) status = 'Late & Early Out'
+    else if (isLate) status = 'Late'
+    else if (isEarlyOut) status = 'Early Out'
+
+    records.push({
+      employeeName: entry.employeeName,
+      date: entry.date,
+      checkIn,
+      checkOut,
+      workHours: parseFloat(workHours.toFixed(2)),
+      status,
+      isLate,
+      isEarlyOut,
       isAbsent: false,
-      nineHourWaiver: false,
-    };
+      nineHourWaiver
+    })
   }
 
-  // Only check-out (no check-in) = Early Out
-  if (!checkIn && checkOut) {
-    return {
-      status: 'Early Out',
-      isLate: false,
-      isEarlyOut: true,
-      isAbsent: false,
-      nineHourWaiver: false,
-    };
-  }
+  // 3. Fill absent days for all employees (weekdays with no scans)
+  const weekdays = getWeekdaysInMonth(month, year)
 
-  // Both check-in and check-out exist
-  const checkInMin = timeToMinutes(checkIn)!;
-  const checkOutMin = timeToMinutes(checkOut)!;
-  const officeStartMin = getOfficeStartMinutes();
-  const officeEndMin = getOfficeEndMinutes();
-  const workHours = calculateWorkHours(checkIn, checkOut);
-
-  let isLate = false;
-  let isEarlyOut = false;
-  let nineHourWaiver = false;
-
-  // Check if late (beyond grace period)
-  if (checkInMin > officeStartMin + GRACE_MINUTES) {
-    isLate = true;
-
-    // Apply 9-hour rule: if worked ≥9 hours, waive the late violation
-    if (workHours >= MIN_HOURS_FOR_WAIVER) {
-      isLate = false;
-      nineHourWaiver = true;
+  for (const empName of employeeNames) {
+    for (const dayStr of weekdays) {
+      const exists = records.some(r => r.employeeName === empName && r.date === dayStr)
+      if (!exists) {
+        records.push({
+          employeeName: empName,
+          date: dayStr,
+          checkIn: null,
+          checkOut: null,
+          workHours: 0,
+          status: 'Absent',
+          isLate: false,
+          isEarlyOut: false,
+          isAbsent: true,
+          nineHourWaiver: false
+        })
+      }
     }
   }
 
-  // Check if early out
-  if (checkOutMin < officeEndMin) {
-    isEarlyOut = true;
+  // 4. Sort by date then name
+  records.sort((a, b) => a.date.localeCompare(b.date) || a.employeeName.localeCompare(b.employeeName))
+
+  return records
+}
+
+// ── Summary Calculation ──────────────────────────────────────────────
+
+/**
+ * Calculate per-employee monthly summary with deduction rules:
+ * - 3 lates/early-outs = 1 day salary deducted
+ * - Absent = deducted from leave quota (14 annual)
+ * - If leave quota exhausted OR on probation = salary deducted
+ */
+export function calculateEmployeeSummary(
+  records: ProcessedRecord[],
+  employee: {
+    baseSalary: number
+    designation: string
+    isProbation: boolean
+    leavesTaken: number   // leaves already taken this year
+  }
+): EmployeeSummary {
+  const empRecords = records
+  const totalDays = empRecords.length
+  const absentDays = empRecords.filter(r => r.isAbsent).length
+  const presentDays = totalDays - absentDays
+  const lateDays = empRecords.filter(r => r.isLate && !r.isAbsent).length
+  const earlyOutDays = empRecords.filter(r => r.isEarlyOut && !r.isAbsent).length
+
+  // 3 violations (late + early out) = 1 day salary deduction
+  const totalViolations = lateDays + earlyOutDays
+  const salaryDeductionDays = Math.floor(totalViolations / 3)
+
+  // Absent handling depends on probation and leave balance
+  const remainingLeaves = Math.max(0, ANNUAL_LEAVES - employee.leavesTaken)
+
+  let leavesFromAbsent: number
+  let absentSalaryDeductionDays: number
+
+  if (employee.isProbation) {
+    // Probation = no leaves at all, every absence = salary deduction
+    leavesFromAbsent = 0
+    absentSalaryDeductionDays = absentDays
+  } else {
+    // Use leave quota first, then salary deduction
+    leavesFromAbsent = Math.min(absentDays, remainingLeaves)
+    absentSalaryDeductionDays = Math.max(0, absentDays - remainingLeaves)
   }
 
-  // Determine final status
-  let status: ProcessedAttendance['status'] = 'On Time';
-  if (isLate) status = 'Late';
-  else if (isEarlyOut) status = 'Early Out';
+  const totalSalaryDeductionDays = salaryDeductionDays + absentSalaryDeductionDays
+  const dailyRate = employee.baseSalary / 30
+  const salaryDeduction = Math.round(totalSalaryDeductionDays * dailyRate)
+  const netPayable = Math.round(employee.baseSalary - salaryDeduction)
 
   return {
-    status,
-    isLate,
-    isEarlyOut,
-    isAbsent: false,
-    nineHourWaiver,
-  };
-}
-
-// Process raw attendance data
-export function processAttendanceRecord(record: AttendanceRecord): ProcessedAttendance {
-  const { status, isLate, isEarlyOut, isAbsent, nineHourWaiver } = determineStatus(
-    record.checkIn,
-    record.checkOut
-  );
-
-  const workHours = calculateWorkHours(record.checkIn, record.checkOut);
-
-  return {
-    employeeName: record.employeeName,
-    employeeId: record.employeeId,
-    date: record.date,
-    checkIn: record.checkIn,
-    checkOut: record.checkOut,
-    workHours: parseFloat(workHours.toFixed(2)),
-    status,
-    isLate,
-    isEarlyOut,
-    isAbsent,
-    nineHourWaiver,
-  };
-}
-
-// Calculate leave deductions based on attendance summary
-export interface LeaveCalculation {
-  absent: number; // 1 absent = 1 leave
-  lateAndEarlyOut: number; // 3 combined = 1 leave
-  totalLeavesDeducted: number;
-}
-
-export function calculateLeaveDeductions(
-  lateCount: number,
-  earlyOutCount: number,
-  absentCount: number
-): LeaveCalculation {
-  const absent = absentCount; // 1 absent = 1 leave
-  const combinedViolations = lateCount + earlyOutCount;
-  const lateAndEarlyOut = Math.floor(combinedViolations / 3); // 3 combined = 1 leave
-
-  return {
-    absent,
-    lateAndEarlyOut,
-    totalLeavesDeducted: absent + lateAndEarlyOut,
-  };
-}
-
-// Calculate salary deduction
-export function calculateSalaryDeduction(
-  baseSalary: number,
-  totalLeavesDeducted: number
-): number {
-  return (baseSalary / 30) * totalLeavesDeducted;
+    employeeName: empRecords[0]?.employeeName || '',
+    totalDays,
+    presentDays,
+    absentDays,
+    lateDays,
+    earlyOutDays,
+    leavesFromViolations: salaryDeductionDays,
+    leavesFromAbsent,
+    totalLeavesDeducted: leavesFromAbsent + salaryDeductionDays,
+    salaryDeductionDays: totalSalaryDeductionDays,
+    baseSalary: employee.baseSalary,
+    dailyRate: Math.round(dailyRate),
+    salaryDeduction,
+    netPayable,
+    designation: employee.designation,
+    isProbation: employee.isProbation
+  }
 }
