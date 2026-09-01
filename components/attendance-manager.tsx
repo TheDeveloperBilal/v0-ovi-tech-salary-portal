@@ -148,24 +148,35 @@ export function AttendanceManager() {
       try {
         setLoading(true)
 
-        const [empResult, salResult, attResult] = await Promise.all([
-          supabase
-            .from('employees')
-            .select('id, employee_id, first_name, last_name, designation, is_probation, probation_end_date, leaves_taken'),
-          supabase
-            .from('salary_structures')
-            .select('employee_id, base_salary'),
-          supabase
-            .from('attendance_records')
-            .select('*')
-            .eq('month', month)
-            .eq('year', year)
-            .order('attendance_date', { ascending: true }),
-        ])
+        // Fetch employees — use * and map fields for resilience
+        const empResult = await supabase.from('employees').select('*')
+        if (empResult.error) throw empResult.error
+
+        const mappedEmployees: Employee[] = (empResult.data || []).map((e: Record<string, unknown>) => ({
+          id: e.id as string,
+          employee_id: e.employee_id as string,
+          first_name: e.first_name as string,
+          last_name: e.last_name as string,
+          designation: (e.designation as string) || null,
+          is_probation: Boolean(e.is_probation),
+          probation_end_date: (e.probation_end_date as string) || null,
+          leaves_taken: Number(e.leaves_taken || 0),
+        }))
+
+        // Fetch salary structures
+        const salResult = await supabase.from('salary_structures').select('employee_id, base_salary')
+
+        // Fetch attendance records for this month
+        const attResult = await supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('month', month)
+          .eq('year', year)
+          .order('attendance_date', { ascending: true })
 
         if (cancelled) return
 
-        setEmployees(empResult.data || [])
+        setEmployees(mappedEmployees)
         setSalaryStructures(salResult.data || [])
 
         if (attResult.error) throw attResult.error
