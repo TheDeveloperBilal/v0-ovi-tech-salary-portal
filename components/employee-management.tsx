@@ -264,11 +264,11 @@ export function EmployeeManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6">
+      <div className="bg-card rounded-xl border border-border p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-slate-100">Employee Management</h2>
-            <p className="text-slate-400 mt-1">Add and manage employee records</p>
+            <h2 className="text-2xl font-bold text-foreground">Employee Management</h2>
+            <p className="text-muted-foreground mt-1">Add and manage employee records</p>
           </div>
           <Button onClick={() => {
             setFormData({
@@ -286,7 +286,7 @@ export function EmployeeManagement() {
             });
             setEditingId(null);
             setIsOpen(true);
-          }} className="bg-emerald-500 text-slate-900 hover:bg-emerald-400">
+          }}>
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
@@ -296,14 +296,14 @@ export function EmployeeManagement() {
       {isLoading ? (
         <Card>
           <CardContent className="pt-8">
-            <p className="text-center text-slate-400">Loading employees...</p>
+            <p className="text-center text-muted-foreground">Loading employees...</p>
           </CardContent>
         </Card>
       ) : employees.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8">
-            <p className="text-center text-slate-400 mb-4">No employees found</p>
-            <p className="text-sm text-center text-slate-500">Click "Add Employee" to get started</p>
+            <p className="text-center text-muted-foreground mb-4">No employees found</p>
+            <p className="text-sm text-center text-muted-foreground">Click "Add Employee" to get started</p>
           </CardContent>
         </Card>
       ) : (
@@ -327,23 +327,23 @@ export function EmployeeManagement() {
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
                   <div>
-                    <p className="text-slate-500">Employee ID</p>
-                    <p className="font-semibold text-slate-100">{emp.employee_id}</p>
+                    <p className="text-muted-foreground">Employee ID</p>
+                    <p className="font-semibold text-foreground">{emp.employee_id}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Email</p>
-                    <p className="font-semibold text-slate-100 break-all">{emp.email}</p>
+                    <p className="text-muted-foreground">Email</p>
+                    <p className="font-semibold text-foreground break-all">{emp.email}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Phone</p>
-                    <p className="font-semibold text-slate-100">{emp.phone}</p>
+                    <p className="text-muted-foreground">Phone</p>
+                    <p className="font-semibold text-foreground">{emp.phone}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Joining Date</p>
-                    <p className="font-semibold text-slate-100">{emp.date_of_joining}</p>
+                    <p className="text-muted-foreground">Joining Date</p>
+                    <p className="font-semibold text-foreground">{emp.date_of_joining}</p>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-white/10">
+                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1 w-full sm:w-auto">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
@@ -383,204 +383,209 @@ export function EmployeeManagement() {
       )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto w-full mx-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>{editingId ? "Edit Employee" : "Add New Employee"}</DialogTitle>
             <DialogDescription>Fill in the employee details below</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="employee_id">Employee ID *</Label>
-                <Input
-                  id="employee_id"
-                  value={formData.employee_id ?? ""}
-                  onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="first_name">First Name *</Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="last_name">Last Name *</Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email ?? ""}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone ?? ""}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="department">Department</Label>
-                <Input
-                  id="department"
-                  value={formData.department ?? ""}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="designation">Designation</Label>
-                <Input
-                  id="designation"
-                  value={formData.designation ?? ""}
-                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="date_of_joining">Joining Date</Label>
-                <Input
-                  id="date_of_joining"
-                  type="date"
-                  value={formData.date_of_joining ?? ""}
-                  onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
-                />
-              </div>
-              <div className="col-span-2">
-                <Label htmlFor="password">Password {!editingId && "*"}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="password"
-                    type="text"
-                    placeholder={editingId ? "Leave blank to keep current password" : "Enter or generate password"}
-                    value={formData.password ?? ""}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    required={!editingId}
-                  />
-                  {!editingId && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newPassword = generateSecurePassword()
-                        setFormData({ ...formData, password: newPassword })
-                      }}
-                      className="flex-shrink-0"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Use the button to generate a secure password, then share with the employee</p>
-              </div>
-            </div>
-
-            {/* Probation Section */}
-            <div className="border-t border-white/10 pt-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="is_probation"
-                  checked={Boolean(formData.is_probation ?? false)}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    is_probation: e.target.checked,
-                    probation_end_date: e.target.checked ? formData.probation_end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : ""
-                  })}
-                  className="w-4 h-4 rounded border-white/10 bg-slate-800 cursor-pointer accent-emerald-500"
-                />
-                <label htmlFor="is_probation" className="text-sm font-medium cursor-pointer text-slate-200">
-                  Mark as Probation Period Employee
-                </label>
-              </div>
-              {formData.is_probation && (
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="probation_end_date">Probation End Date *</Label>
+                  <Label htmlFor="employee_id">Employee ID *</Label>
                   <Input
-                    id="probation_end_date"
-                    type="date"
-                    value={formData.probation_end_date ?? ""}
-                    onChange={(e) => setFormData({ ...formData, probation_end_date: e.target.value })}
-                    required={formData.is_probation}
+                    id="employee_id"
+                    value={formData.employee_id ?? ""}
+                    onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                    required
                   />
-                  <p className="text-xs text-slate-500 mt-1">Employee will have no paid leave benefits until this date</p>
                 </div>
-              )}
-            </div>
+                <div>
+                  <Label htmlFor="first_name">First Name *</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name *</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email ?? ""}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone ?? ""}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={formData.department ?? ""}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="designation">Designation</Label>
+                  <Input
+                    id="designation"
+                    value={formData.designation ?? ""}
+                    onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="date_of_joining">Joining Date</Label>
+                  <Input
+                    id="date_of_joining"
+                    type="date"
+                    value={formData.date_of_joining ?? ""}
+                    onChange={(e) => setFormData({ ...formData, date_of_joining: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="password">Password {!editingId && "*"}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="password"
+                      type="text"
+                      placeholder={editingId ? "Leave blank to keep current password" : "Enter or generate password"}
+                      value={formData.password ?? ""}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required={!editingId}
+                    />
+                    {!editingId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newPassword = generateSecurePassword()
+                          setFormData({ ...formData, password: newPassword })
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Use the button to generate a secure password, then share with the employee</p>
+                </div>
+              </div>
 
-            <Button type="submit" className="w-full">
-              {editingId ? "Update Employee" : "Add Employee"}
-            </Button>
+              {/* Probation Section */}
+              <div className="border-t border-border pt-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="is_probation"
+                    checked={Boolean(formData.is_probation ?? false)}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      is_probation: e.target.checked,
+                      probation_end_date: e.target.checked ? formData.probation_end_date || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : ""
+                    })}
+                    className="w-4 h-4 rounded border-border bg-background cursor-pointer accent-purple-500"
+                  />
+                  <label htmlFor="is_probation" className="text-sm font-medium cursor-pointer text-foreground">
+                    Mark as Probation Period Employee
+                  </label>
+                </div>
+                {formData.is_probation && (
+                  <div>
+                    <Label htmlFor="probation_end_date">Probation End Date *</Label>
+                    <Input
+                      id="probation_end_date"
+                      type="date"
+                      value={formData.probation_end_date ?? ""}
+                      onChange={(e) => setFormData({ ...formData, probation_end_date: e.target.value })}
+                      required={formData.is_probation}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Employee will have no paid leave benefits until this date</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-shrink-0 pt-4 border-t border-border">
+              <Button type="submit" className="w-full">
+                {editingId ? "Update Employee" : "Add Employee"}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isResetPasswordOpen} onOpenChange={setIsResetPasswordOpen}>
-        <DialogContent className="w-full mx-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Reset Employee Password</DialogTitle>
             <DialogDescription>Enter a new password for the employee. They will be able to login with this new password.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleResetPassword(); }} className="space-y-4">
-            <div>
-              <Label htmlFor="reset_employee">Select Employee *</Label>
-              <select
-                id="reset_employee"
-                value={resetPasswordData.employeeId}
-                onChange={(e) => setResetPasswordData({ ...resetPasswordData, employeeId: e.target.value })}
-                className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
-                required
-              >
-                <option value="">Select Employee</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name} ({emp.employee_id})
-                  </option>
-                ))}
-              </select>
+          <form onSubmit={(e) => { e.preventDefault(); handleResetPassword(); }} className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              <div>
+                <Label htmlFor="reset_employee">Select Employee *</Label>
+                <select
+                  id="reset_employee"
+                  value={resetPasswordData.employeeId}
+                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, employeeId: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                  required
+                >
+                  <option value="">Select Employee</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name} ({emp.employee_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="new_password">New Password *</Label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  placeholder="Enter new password (min 8 characters)"
+                  value={resetPasswordData.newPassword}
+                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirm_password">Confirm Password *</Label>
+                <Input
+                  id="confirm_password"
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={resetPasswordData.confirmPassword}
+                  onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="new_password">New Password *</Label>
-              <Input
-                id="new_password"
-                type="password"
-                placeholder="Enter new password (min 8 characters)"
-                value={resetPasswordData.newPassword}
-                onChange={(e) => setResetPasswordData({ ...resetPasswordData, newPassword: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirm_password">Confirm Password *</Label>
-              <Input
-                id="confirm_password"
-                type="password"
-                placeholder="Confirm new password"
-                value={resetPasswordData.confirmPassword}
-                onChange={(e) => setResetPasswordData({ ...resetPasswordData, confirmPassword: e.target.value })}
-                required
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
+            <div className="flex gap-2 pt-4 border-t border-border flex-shrink-0">
+              <Button type="submit" className="flex-1">
                 Reset Password
               </Button>
-              <Button onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
+              <Button type="button" onClick={() => setIsResetPasswordOpen(false)} variant="outline" className="flex-1">
                 Cancel
               </Button>
             </div>

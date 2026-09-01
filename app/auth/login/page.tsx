@@ -56,7 +56,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
@@ -66,7 +66,7 @@ export default function LoginPage() {
           </div>
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-center text-white">OviTech Salary Portal</CardTitle>
+              <CardTitle className="text-2xl text-center">OviTech Salary Portal</CardTitle>
               <CardDescription className="text-center">Login to your account</CardDescription>
             </CardHeader>
             <CardContent>
@@ -98,9 +98,9 @@ export default function LoginPage() {
                     {isLoading ? "Logging in..." : "Login"}
                   </Button>
                 </div>
-                <div className="mt-4 text-center text-sm text-slate-400">
+                <div className="mt-4 text-center text-sm text-muted-foreground">
                   Don&apos;t have an account?{" "}
-                  <Link href="/auth/sign-up" className="text-emerald-400 font-medium underline underline-offset-4 hover:text-emerald-300">
+                  <Link href="/auth/sign-up" className="text-purple-400 font-medium underline underline-offset-4 hover:text-purple-300">
                     Sign up
                   </Link>
                 </div>

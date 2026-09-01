@@ -45,23 +45,23 @@ export function DashboardContent({ user }: { user: any }) {
         <>
           {/* Statistics Cards - Admin Only */}
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border-l-4 border-l-emerald-500">
+            <Card className="border-l-4 border-l-purple-500">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-emerald-500/10">
-                    <Users className="w-4 h-4 text-emerald-400" />
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-purple-500/10">
+                    <Users className="w-4 h-4 text-purple-400" />
                   </div>
                   Total Employees
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-white">{stats.totalEmployees}</p>
+                <p className="text-3xl font-bold text-foreground">{stats.totalEmployees}</p>
               </CardContent>
             </Card>
 
             <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <div className="p-1.5 rounded-md bg-blue-500/10">
                     <FileText className="w-4 h-4 text-blue-400" />
                   </div>
@@ -69,7 +69,7 @@ export function DashboardContent({ user }: { user: any }) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-white">{stats.totalSalarySlips}</p>
+                <p className="text-3xl font-bold text-foreground">{stats.totalSalarySlips}</p>
               </CardContent>
             </Card>
           </div>

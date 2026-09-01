@@ -98,8 +98,8 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="text-emerald-400">Permanent Employee</span>
+                <CheckCircle2 className="w-5 h-5 text-purple-400" />
+                <span className="text-purple-400">Permanent Employee</span>
               </>
             )}
           </CardTitle>
@@ -108,8 +108,8 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
           {employee.is_probation && (
             <>
               <div>
-                <p className="text-sm text-slate-400">Probation End Date:</p>
-                <p className="font-semibold text-slate-100">
+                <p className="text-sm text-muted-foreground">Probation End Date:</p>
+                <p className="font-semibold text-foreground">
                   {employee.probation_end_date
                     ? new Date(employee.probation_end_date).toLocaleDateString()
                     : 'Not set'}
@@ -118,7 +118,7 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
               <Button
                 onClick={handleConvertToPermanent}
                 disabled={isLoading}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-900"
+                className="w-full"
               >
                 {isLoading ? 'Converting...' : 'Convert to Permanent Employee'}
               </Button>
@@ -145,14 +145,14 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-slate-200">Probation End Date</label>
+              <label className="text-sm font-medium text-foreground">Probation End Date</label>
               <Input
                 type="date"
                 value={probationEndDate}
                 onChange={(e) => setProbationEndDate(e.target.value)}
                 className="mt-1"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Employee will have no paid leaves until this date
               </p>
             </div>

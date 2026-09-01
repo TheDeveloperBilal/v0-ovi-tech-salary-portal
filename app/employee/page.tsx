@@ -16,12 +16,12 @@ export default async function EmployeePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <header className="bg-slate-900/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-10">
+    <div className="min-h-screen bg-background">
+      <header className="bg-background/80 backdrop-blur-xl border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-white">My Salary Slips</h1>
-            <p className="text-xs sm:text-sm text-slate-400 truncate">{user.email}</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">My Salary Slips</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
           </div>
           <form
             action={async () => {
@@ -33,7 +33,7 @@ export default async function EmployeePage() {
           >
             <button
               type="submit"
-              className="w-full sm:w-auto px-4 py-2 border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 rounded-md text-sm font-medium transition-all"
+              className="w-full sm:w-auto px-4 py-2 border border-border bg-background text-foreground hover:bg-accent rounded-md text-sm font-medium transition-all"
             >
               Logout
             </button>

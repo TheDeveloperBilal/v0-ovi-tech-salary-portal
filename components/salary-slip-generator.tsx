@@ -292,7 +292,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="space-y-4">
       {isAdmin && (
-        <Button onClick={() => setIsCreateOpen(true)} className="bg-emerald-500 hover:bg-emerald-400 text-slate-900">
+        <Button onClick={() => setIsCreateOpen(true)}>
           <FileText className="w-4 h-4 mr-2" />
           Create Salary Slip
         </Button>
@@ -301,22 +301,22 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       {isLoading ? (
         <Card>
           <CardContent className="pt-8">
-            <p className="text-center text-slate-400">Loading salary slips...</p>
+            <p className="text-center text-muted-foreground">Loading salary slips...</p>
           </CardContent>
         </Card>
       ) : slips.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8">
-            <p className="text-center text-slate-400">No salary slips generated yet</p>
+            <p className="text-center text-muted-foreground">No salary slips generated yet</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
           {slips.map((slip) => (
-                <Card key={slip.id} className="hover:border-emerald-500/30 transition-all duration-200">
+                <Card key={slip.id} className="hover:border-purple-500/30 transition-all duration-200">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-emerald-400" />
+                  <FileText className="w-5 h-5 text-purple-400" />
                   {slip.employees?.first_name} {slip.employees?.last_name}
                 </CardTitle>
                 <CardDescription>
@@ -326,25 +326,25 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
                   <div>
-                    <p className="text-slate-400">Earnings</p>
-                    <p className="font-semibold text-emerald-400">
+                    <p className="text-muted-foreground">Earnings</p>
+                    <p className="font-semibold text-purple-400">
                       PKR {(slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
-                    <p className="text-slate-400">Deductions</p>
+                    <p className="text-muted-foreground">Deductions</p>
                     <p className="font-semibold text-red-400">
                       PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted ? (slip.basic_salary / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div>
-                    <p className="text-slate-400">Net Salary</p>
+                    <p className="text-muted-foreground">Net Salary</p>
                     <p className="font-semibold text-blue-400">
                       PKR {(slip.net_salary || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-3 border-t border-white/10">
+                <div className="flex gap-2 pt-3 border-t border-border">
                   <Button
                     variant="outline"
                     size="sm"
@@ -396,7 +396,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-7xl w-[95vw] mx-auto h-screen max-h-screen flex flex-col overflow-hidden">
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Salary Slip Preview</DialogTitle>
             <DialogDescription>View and download employee salary slip</DialogDescription>
@@ -408,18 +408,18 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       </Dialog>
 
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-3xl max-h-96 overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl w-full max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create Salary Slip</DialogTitle>
             <DialogDescription>Create a new salary slip for an employee</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-slate-200">Employee</label>
+              <label className="block text-sm font-medium mb-2 text-foreground">Employee</label>
               <select
                 value={formData.employee_id}
                 onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
               >
                 <option value="">Select Employee</option>
                 {employees.map((emp) => (
@@ -432,142 +432,142 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2 text-slate-200">Month</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Month</label>
                 <input
                   type="number"
                   min="1"
                   max="12"
                   value={formData.month}
                   onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2 text-slate-200">Year</label>
+                <label className="block text-sm font-medium mb-2 text-foreground">Year</label>
                 <input
                   type="number"
                   value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                 />
               </div>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/10">
-              <h3 className="font-semibold text-sm text-slate-100">Earnings</h3>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="font-semibold text-sm text-foreground">Earnings</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400">Basic Salary</label>
+                  <label className="text-sm text-muted-foreground">Basic Salary</label>
                   <input
                     type="number"
                     value={formData.basic_salary}
                     onChange={(e) => setFormData({ ...formData, basic_salary: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">HRA</label>
+                  <label className="text-sm text-muted-foreground">HRA</label>
                   <input
                     type="number"
                     value={formData.hra}
                     onChange={(e) => setFormData({ ...formData, hra: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Dearness Allowance</label>
+                  <label className="text-sm text-muted-foreground">Dearness Allowance</label>
                   <input
                     type="number"
                     value={formData.dearness_allowance}
                     onChange={(e) => setFormData({ ...formData, dearness_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Medical Allowance</label>
+                  <label className="text-sm text-muted-foreground">Medical Allowance</label>
                   <input
                     type="number"
                     value={formData.medical_allowance}
                     onChange={(e) => setFormData({ ...formData, medical_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Transport Allowance</label>
+                  <label className="text-sm text-muted-foreground">Transport Allowance</label>
                   <input
                     type="number"
                     value={formData.transport_allowance}
                     onChange={(e) => setFormData({ ...formData, transport_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Other Allowance</label>
+                  <label className="text-sm text-muted-foreground">Other Allowance</label>
                   <input
                     type="number"
                     value={formData.other_allowance}
                     onChange={(e) => setFormData({ ...formData, other_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/10">
-              <h3 className="font-semibold text-sm text-slate-100">Deductions</h3>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="font-semibold text-sm text-foreground">Deductions</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400">PF Deduction</label>
+                  <label className="text-sm text-muted-foreground">PF Deduction</label>
                   <input
                     type="number"
                     value={formData.pf_deduction}
                     onChange={(e) => setFormData({ ...formData, pf_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">ESI Deduction</label>
+                  <label className="text-sm text-muted-foreground">ESI Deduction</label>
                   <input
                     type="number"
                     value={formData.esi_deduction}
                     onChange={(e) => setFormData({ ...formData, esi_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Professional Tax</label>
+                  <label className="text-sm text-muted-foreground">Professional Tax</label>
                   <input
                     type="number"
                     value={formData.professional_tax}
                     onChange={(e) => setFormData({ ...formData, professional_tax: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Loan Deduction</label>
+                  <label className="text-sm text-muted-foreground">Loan Deduction</label>
                   <input
                     type="number"
                     value={formData.loan_deduction}
                     onChange={(e) => setFormData({ ...formData, loan_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Other Deduction</label>
+                  <label className="text-sm text-muted-foreground">Other Deduction</label>
                   <input
                     type="number"
                     value={formData.other_deduction}
                     onChange={(e) => setFormData({ ...formData, other_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Leaves Deducted</label>
+                  <label className="text-sm text-muted-foreground">Leaves Deducted</label>
                   <input
                     type="number"
                     value={formData.leaves_deducted}
                     onChange={(e) => setFormData({ ...formData, leaves_deducted: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                     min="0"
                     max="14"
                     title="Maximum 14 annual leaves"
@@ -576,38 +576,37 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
               </div>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/10">
-              <h3 className="font-semibold text-sm text-slate-100">Attendance</h3>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="font-semibold text-sm text-foreground">Attendance</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-slate-400">Days Present</label>
+                  <label className="text-sm text-muted-foreground">Days Present</label>
                   <input
                     type="number"
                     value={formData.present_days}
                     onChange={(e) => setFormData({ ...formData, present_days: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-slate-400">Working Days</label>
+                  <label className="text-sm text-muted-foreground">Working Days</label>
                   <input
                     type="number"
                     value={formData.working_days}
                     onChange={(e) => setFormData({ ...formData, working_days: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-white/10 rounded-md bg-slate-800/50 text-slate-100"
+                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   />
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-2 pt-4 border-t border-white/10">
-              <Button onClick={createSalarySlip} className="flex-1">
-                Create Salary Slip
-              </Button>
-              <Button onClick={() => setIsCreateOpen(false)} variant="outline" className="flex-1">
-                Cancel
-              </Button>
-            </div>
+          </div>
+          <div className="flex gap-2 pt-4 border-t border-border flex-shrink-0">
+            <Button onClick={createSalarySlip} className="flex-1">
+              Create Salary Slip
+            </Button>
+            <Button onClick={() => setIsCreateOpen(false)} variant="outline" className="flex-1">
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

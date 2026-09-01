@@ -385,7 +385,7 @@ export function AttendanceManager() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block text-slate-200">Month</label>
+              <label className="text-sm font-medium mb-2 block text-foreground">Month</label>
               <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -401,7 +401,7 @@ export function AttendanceManager() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block text-slate-200">Year</label>
+              <label className="text-sm font-medium mb-2 block text-foreground">Year</label>
               <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -436,7 +436,7 @@ export function AttendanceManager() {
 
             <div className="flex items-end">
               <div className="relative w-full">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search employee..."
                   value={search}
@@ -453,25 +453,25 @@ export function AttendanceManager() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-400">Total Days</p>
-            <p className="text-2xl font-bold text-white">{stats.total_days}</p>
+            <p className="text-sm text-muted-foreground">Total Days</p>
+            <p className="text-2xl font-bold text-foreground">{stats.total_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-400">Present</p>
-            <p className="text-2xl font-bold text-emerald-400">{stats.present_days}</p>
+            <p className="text-sm text-muted-foreground">Present</p>
+            <p className="text-2xl font-bold text-purple-400">{stats.present_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-400">Absent</p>
+            <p className="text-sm text-muted-foreground">Absent</p>
             <p className="text-2xl font-bold text-red-400">{stats.absent_days}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-400">Late</p>
+            <p className="text-sm text-muted-foreground">Late</p>
             <p className="text-2xl font-bold text-amber-400">{stats.late_days}</p>
           </CardContent>
         </Card>
@@ -482,38 +482,38 @@ export function AttendanceManager() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Designation</p>
+              <p className="text-sm text-muted-foreground">Designation</p>
               <p className="text-xl font-bold text-blue-400">{selectedEmployee.designation}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Base Salary</p>
-              <p className="text-xl font-bold text-white">{employeeStats.base_salary?.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Base Salary</p>
+              <p className="text-xl font-bold text-foreground">{employeeStats.base_salary?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Deductions</p>
+              <p className="text-sm text-muted-foreground">Deductions</p>
               <p className="text-xl font-bold text-red-400">{employeeStats.deductions?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Net Payable</p>
-              <p className="text-xl font-bold text-emerald-400">{employeeStats.net_payable?.toLocaleString()}</p>
+              <p className="text-sm text-muted-foreground">Net Payable</p>
+              <p className="text-xl font-bold text-purple-400">{employeeStats.net_payable?.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Early Out Days</p>
+              <p className="text-sm text-muted-foreground">Early Out Days</p>
               <p className="text-2xl font-bold text-orange-400">{employeeStats.early_out_days}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-400">Leaves Deducted</p>
-              <p className="text-2xl font-bold text-white">{employeeStats.leaves_deducted}</p>
+              <p className="text-sm text-muted-foreground">Leaves Deducted</p>
+              <p className="text-2xl font-bold text-foreground">{employeeStats.leaves_deducted}</p>
             </CardContent>
           </Card>
         </div>
@@ -526,37 +526,37 @@ export function AttendanceManager() {
         </CardHeader>
         <CardContent>
           {filteredRecords.length === 0 ? (
-            <p className="text-slate-500 text-center py-8">No records found for this month</p>
+            <p className="text-muted-foreground text-center py-8">No records found for this month</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left p-2 text-slate-400">Employee</th>
-                    <th className="text-left p-2 text-slate-400">Date</th>
-                    <th className="text-left p-2 text-slate-400">Check In</th>
-                    <th className="text-left p-2 text-slate-400">Check Out</th>
-                    <th className="text-left p-2 text-slate-400">Status</th>
-                    <th className="text-center p-2 text-slate-400">Action</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left p-2 text-muted-foreground">Employee</th>
+                    <th className="text-left p-2 text-muted-foreground">Date</th>
+                    <th className="text-left p-2 text-muted-foreground">Check In</th>
+                    <th className="text-left p-2 text-muted-foreground">Check Out</th>
+                    <th className="text-left p-2 text-muted-foreground">Status</th>
+                    <th className="text-center p-2 text-muted-foreground">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRecords.map((record) => (
                     <tr
                       key={record.id}
-                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                      className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => handleEmployeeClick(record)}
                     >
-                      <td className="p-2 font-medium text-slate-100">{record.employee_name}</td>
-                      <td className="p-2 text-slate-300">{record.attendance_date}</td>
-                      <td className="p-2 text-slate-300">{record.check_in || '-'}</td>
-                      <td className="p-2 text-slate-300">{record.check_out || '-'}</td>
+                      <td className="p-2 font-medium text-foreground">{record.employee_name}</td>
+                      <td className="p-2 text-muted-foreground">{record.attendance_date}</td>
+                      <td className="p-2 text-muted-foreground">{record.check_in || '-'}</td>
+                      <td className="p-2 text-muted-foreground">{record.check_out || '-'}</td>
                       <td className="p-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           record.is_absent ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                           record.is_late ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                           record.is_early_out ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
-                          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          'bg-purple-500/10 text-purple-400 border border-purple-500/20'
                         }`}>
                           {record.status || (record.is_absent ? 'Absent' : record.is_late ? 'Late' : record.is_early_out ? 'Early Out' : 'Present')}
                         </span>

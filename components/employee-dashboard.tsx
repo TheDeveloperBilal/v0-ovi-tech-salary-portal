@@ -95,8 +95,8 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-4"></div>
-          <p className="text-slate-400">Loading your salary slips...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mb-4"></div>
+          <p className="text-muted-foreground">Loading your salary slips...</p>
         </div>
       </div>
     )
@@ -112,22 +112,22 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs sm:text-sm text-slate-400">Name</p>
-              <p className="font-semibold text-sm sm:text-base text-slate-100">{employeeData?.first_name} {employeeData?.last_name}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Name</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.first_name} {employeeData?.last_name}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-slate-400">Employee ID</p>
-              <p className="font-semibold text-sm sm:text-base text-slate-100">{employeeData?.employee_id}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Employee ID</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.employee_id}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-slate-400">Department</p>
-              <p className="font-semibold text-sm sm:text-base text-slate-100">{employeeData?.department || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Department</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.department || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-slate-400">Designation</p>
-              <p className="font-semibold text-sm sm:text-base text-slate-100">{employeeData?.designation || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Designation</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.designation || 'N/A'}</p>
             </div>
-            <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">
+            <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
               {employeeData?.is_probation ? (
                 <>
                   <p className="text-xs sm:text-sm text-amber-400 font-semibold">Probation Period</p>
@@ -135,16 +135,16 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                     You are on probation. Leave benefits will be available after probation ends.
                   </p>
                   {employeeData?.probation_end_date && (
-                    <p className="text-xs text-slate-400 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       Probation ends: {new Date(employeeData.probation_end_date).toLocaleDateString()}
                     </p>
                   )}
                 </>
               ) : (
                 <>
-                  <p className="text-xs sm:text-sm text-slate-400">Remaining Leaves</p>
-                  <p className="font-bold text-lg sm:text-xl text-emerald-400">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
-                  <p className="text-xs text-slate-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Remaining Leaves</p>
+                  <p className="font-bold text-lg sm:text-xl text-purple-400">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
+                  <p className="text-xs text-muted-foreground mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
                 </>
               )}
             </div>
@@ -154,11 +154,11 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       {/* Salary Slips List */}
       <div>
-        <h2 className="text-2xl font-bold mb-4 text-slate-100">My Salary Slips</h2>
+        <h2 className="text-2xl font-bold mb-4 text-foreground">My Salary Slips</h2>
         {salarySlips.length === 0 ? (
           <Card>
             <CardContent className="pt-8 pb-8">
-              <p className="text-center text-slate-500">No salary slips yet. Please contact HR.</p>
+              <p className="text-center text-muted-foreground">No salary slips yet. Please contact HR.</p>
             </CardContent>
           </Card>
         ) : (
@@ -202,7 +202,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
               const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + leavesDeductionAmount
 
               return (
-                <Card key={slip.id} className="hover:border-white/20 transition-all duration-200">
+                <Card key={slip.id} className="hover:border-purple-500/20 transition-all duration-200">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">
                       {getMonthName(slip.month)} {slip.year}
@@ -211,16 +211,16 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-slate-400">Earnings</span>
-                        <span className="font-semibold text-emerald-400">PKR {earnings.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-muted-foreground">Earnings</span>
+                        <span className="font-semibold text-purple-400">PKR {earnings.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-slate-400">Deductions</span>
+                        <span className="text-muted-foreground">Deductions</span>
                         <span className="font-semibold text-red-400">PKR {deductionsTotal.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
-                      <div className="flex justify-between text-xs sm:text-sm border-t border-white/10 pt-2">
-                        <span className="text-slate-400 font-semibold">Net Salary</span>
-                        <span className="font-bold text-white">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                      <div className="flex justify-between text-xs sm:text-sm border-t border-border pt-2">
+                        <span className="text-muted-foreground font-semibold">Net Salary</span>
+                        <span className="font-bold text-foreground">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
                       </div>
                     </div>
                     <div className="flex gap-2 pt-2 flex-col sm:flex-row">
@@ -292,11 +292,11 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-      <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Salary Slip Details</DialogTitle>
-          <DialogDescription>View your salary slip information</DialogDescription>
-        </DialogHeader>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Salary Slip Details</DialogTitle>
+            <DialogDescription>View your salary slip information</DialogDescription>
+          </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
           </div>
