@@ -88,6 +88,9 @@ export function EmployeeManagement() {
         const dataToUpdate = {
           ...rest,
           base_salary: base_salary ? parseFloat(base_salary) : 0,
+          // Send null instead of "" for date fields — Postgres rejects empty strings
+          date_of_joining: rest.date_of_joining || null,
+          probation_end_date: rest.probation_end_date || null,
         }
         const { error } = await supabase.from("employees").update(dataToUpdate).eq("id", editingId)
         if (error) throw error
