@@ -391,23 +391,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       const { error } = await supabase.from("salary_slips").insert(slipRecords)
       if (error) throw error
 
-      // Sync leaves_taken on employees: count all absences May 2026+ excluding holidays & approved exceptions
+      // Sync leaves_taken on employees from actual attendance data
       for (const p of generatedPreview) {
-        // Total leaves used = leavesUsed (from quota) for this month
-        // We need cumulative count, so query all absences for this employee
-        const { count } = await supabase
-          .from("attendance_records")
-          .select("*", { count: "exact", head: true })
-          .eq("employee_id", p.employeeId)
-          .eq("is_absent", true)
-          .or(`year.gt.2026,and(year.eq.2026,month.gte.5)`)
-
-        if (count !== null) {
-          await supabase
-            .from("employees")
-            .update({ leaves_taken: count })
-            .eq("id", p.employeeId)
-        }
+        await syncEmployeeLeaves(p.employeeId)
       }
 
       toast({
@@ -465,10 +451,54 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     setIsPreviewOpen(true)
   }
 
+  // Recalculate leaves_taken for an employee from attendance data (May 2026+)
+  async function syncEmployeeLeaves(employeeId: string) {
+    try {
+      // Count absences from May 2026 onwards, excluding holidays & approved exceptions
+      const { data: absences } = await supabase
+        .from("attendance_records")
+        .select("attendance_date")
+        .eq("employee_id", employeeId)
+        .eq("is_absent", true)
+        .or("year.gt.2026,and(year.eq.2026,month.gte.5)")
+
+      if (!absences) return
+
+      // Fetch holidays and approved exceptions to exclude
+      const dates = absences.map(a => a.attendance_date)
+      if (dates.length === 0) {
+        await supabase.from("employees").update({ leaves_taken: 0 }).eq("id", employeeId)
+        return
+      }
+
+      const [holidayRes, exceptionRes] = await Promise.all([
+        supabase.from("company_holidays").select("holiday_date").in("holiday_date", dates),
+        supabase.from("attendance_exceptions").select("exception_date")
+          .eq("employee_id", employeeId)
+          .in("exception_date", dates)
+          .in("type", ["approved_leave", "work_from_home"]),
+      ])
+
+      const excludedDates = new Set([
+        ...(holidayRes.data || []).map(h => h.holiday_date),
+        ...(exceptionRes.data || []).map(e => e.exception_date),
+      ])
+
+      const actualAbsences = dates.filter(d => !excludedDates.has(d)).length
+      await supabase.from("employees").update({ leaves_taken: actualAbsences }).eq("id", employeeId)
+    } catch (error) {
+      console.error("Failed to sync leaves for employee:", employeeId, error)
+    }
+  }
+
   async function handleDeleteSlip(slipId: string) {
     if (!confirm("Are you sure you want to delete this salary slip?")) return
 
     try {
+      // Get the employee_id before deleting
+      const slip = slips.find(s => s.id === slipId)
+      const empId = slip?.employee_id
+
       const { error } = await supabase
         .from("salary_slips")
         .delete()
@@ -477,7 +507,13 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       if (error) throw error
 
       setSlips(slips.filter(s => s.id !== slipId))
-      toast({ title: "Deleted", description: "Salary slip deleted." })
+
+      // Re-sync leaves for the affected employee
+      if (empId) {
+        await syncEmployeeLeaves(empId)
+      }
+
+      toast({ title: "Deleted", description: "Salary slip deleted. Leave quota re-synced." })
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     }
