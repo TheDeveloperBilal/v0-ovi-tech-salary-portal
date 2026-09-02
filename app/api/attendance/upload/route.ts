@@ -11,22 +11,30 @@ interface UploadResponse {
 }
 
 /**
- * Match a biometric name (e.g. "Shariq", "Kaif", "27") to a DB employee.
+ * Match a ZKTeco biometric record to a portal employee.
  *
- * Strategy:
- * 1. Exact match on first_name or last_name (case-insensitive)
- * 2. first_name or last_name contains the biometric name
- * 3. Biometric name contains first_name or last_name
- * 4. Match on employee_id field (handles "27" → employee_id "27")
+ * Primary key: biometricId (ZKTeco Account ID) = employee_id on portal.
+ * Fallback: name-based matching for any entries that don't match by ID.
+ *
+ * Strategy (in priority order):
+ * 1. Employee ID match — biometricId matches employee_id on portal
+ * 2. Exact name match on first_name or last_name (case-insensitive)
+ * 3. Partial name match (DB name contains bio name, or vice versa)
  */
 function matchEmployee(
+  biometricId: string,
   bioName: string,
   employees: { id: string; employee_id: string; first_name: string; last_name: string }[]
 ): { id: string; employee_id: string; first_name: string; last_name: string } | null {
+  // 1. PRIMARY: Match on employee_id (ZKTeco Account ID = portal Employee ID)
+  const idMatch = employees.find(e => e.employee_id === biometricId.trim())
+  if (idMatch) return idMatch
+
+  // Fallback: name-based matching
   const lower = bioName.toLowerCase().trim()
   if (!lower) return null
 
-  // 1. Exact match on first_name or last_name
+  // 2. Exact match on first_name or last_name
   let match = employees.find(
     e =>
       e.first_name?.toLowerCase() === lower ||
@@ -34,24 +42,14 @@ function matchEmployee(
   )
   if (match) return match
 
-  // 2. DB name contains bio name (e.g. "Muhammad Kaif" contains "Kaif")
+  // 3. Partial name match
   match = employees.find(
     e =>
       (e.first_name?.toLowerCase().includes(lower) && lower.length >= 3) ||
-      (e.last_name?.toLowerCase().includes(lower) && lower.length >= 3)
-  )
-  if (match) return match
-
-  // 3. Bio name contains DB name (e.g. "Syed Shariq Shah" contains "Shariq")
-  match = employees.find(
-    e =>
+      (e.last_name?.toLowerCase().includes(lower) && lower.length >= 3) ||
       (lower.includes(e.first_name?.toLowerCase() || '___') && (e.first_name?.length || 0) >= 3) ||
       (lower.includes(e.last_name?.toLowerCase() || '___') && (e.last_name?.length || 0) >= 3)
   )
-  if (match) return match
-
-  // 4. Match on employee_id (handles "27" → employee_id "27")
-  match = employees.find(e => e.employee_id === bioName.trim())
   if (match) return match
 
   return null
@@ -144,36 +142,39 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    // ── Match biometric names to DB employees ──
-    const nameToEmployee = new Map<string, typeof employees[0]>()
-    const unmatchedNames = new Set<string>()
-    const uniqueBioNames = [...new Set(processedRecords.map(r => r.employeeName))]
+    // ── Match biometric IDs to portal employees ──
+    // Primary: ZKTeco Account ID (biometricId) = portal Employee ID
+    const idToEmployee = new Map<string, typeof employees[0]>()
+    const unmatchedIds = new Set<string>()
+    const uniqueBioIds = [...new Set(processedRecords.map(r => r.biometricId))]
 
-    for (const bioName of uniqueBioNames) {
-      const matched = matchEmployee(bioName, employees)
+    for (const bioId of uniqueBioIds) {
+      // Find the name from the first record with this ID (fallback for name-matching)
+      const bioName = processedRecords.find(r => r.biometricId === bioId)?.employeeName || bioId
+      const matched = matchEmployee(bioId, bioName, employees)
       if (matched) {
-        nameToEmployee.set(bioName, matched)
+        idToEmployee.set(bioId, matched)
       } else {
-        unmatchedNames.add(bioName)
+        unmatchedIds.add(`${bioId} (${bioName})`)
       }
     }
 
-    if (nameToEmployee.size === 0) {
+    if (idToEmployee.size === 0) {
       return NextResponse.json<UploadResponse>(
         {
           success: false,
-          error: 'No employee names matched. Unmatched: ' + [...unmatchedNames].join(', '),
-          employeesUnmatched: [...unmatchedNames]
+          error: 'No employees matched. Unmatched IDs: ' + [...unmatchedIds].join(', '),
+          employeesUnmatched: [...unmatchedIds]
         },
         { status: 400 }
       )
     }
 
-    // ── Build DB records ──
+    // ── Build DB records — employee name comes from portal, not biometric file ──
     const recordsToSave = processedRecords
-      .filter(r => nameToEmployee.has(r.employeeName))
+      .filter(r => idToEmployee.has(r.biometricId))
       .map(r => {
-        const emp = nameToEmployee.get(r.employeeName)!
+        const emp = idToEmployee.get(r.biometricId)!
         return {
           employee_id: emp.id,
           employee_name: `${emp.first_name} ${emp.last_name}`,
@@ -230,8 +231,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     return NextResponse.json<UploadResponse>({
       success: true,
       recordsProcessed: totalSaved,
-      employeesMatched: nameToEmployee.size,
-      employeesUnmatched: [...unmatchedNames]
+      employeesMatched: idToEmployee.size,
+      employeesUnmatched: [...unmatchedIds]
     })
   } catch (error) {
     return NextResponse.json<UploadResponse>(

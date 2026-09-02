@@ -295,11 +295,25 @@ export function AttendanceManager() {
 
   // ── Computed Values ──
 
+  // Build a lookup: employee UUID → full name from portal
+  const employeeNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const emp of employees) {
+      map.set(emp.id, `${emp.first_name} ${emp.last_name}`)
+    }
+    return map
+  }, [employees])
+
   const filteredRecords = useMemo(() => {
     if (!search.trim()) return records
     const q = search.toLowerCase()
-    return records.filter(r => r.employee_name?.toLowerCase().includes(q))
-  }, [records, search])
+    return records.filter(r => {
+      // Search by portal employee name (primary) or stored name (fallback)
+      const portalName = employeeNameMap.get(r.employee_id) || ''
+      return portalName.toLowerCase().includes(q) ||
+        r.employee_name?.toLowerCase().includes(q)
+    })
+  }, [records, search, employeeNameMap])
 
   const overallStats = useMemo(() => {
     const data = filteredRecords
@@ -743,7 +757,9 @@ export function AttendanceManager() {
                       }`}
                       onClick={() => setSelectedEmployeeId(record.employee_id)}
                     >
-                      <td className="p-3 font-medium text-foreground">{record.employee_name}</td>
+                      <td className="p-3 font-medium text-foreground">
+                        {employeeNameMap.get(record.employee_id) || record.employee_name}
+                      </td>
                       <td className="p-3 text-muted-foreground">
                         {new Date(record.attendance_date + 'T00:00:00').toLocaleDateString('en-US', {
                           weekday: 'short',

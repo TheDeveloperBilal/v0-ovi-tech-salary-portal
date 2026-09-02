@@ -12,22 +12,25 @@ export const ANNUAL_LEAVES = 14                        // 14 annual leaves
 
 /** A single biometric scan from the ZKTeco file */
 export interface RawScan {
-  employeeName: string
+  biometricId: string   // Account ID from column 0 (maps to Employee ID on portal)
+  employeeName: string  // Name from column 5 (fallback only)
   timestamp: Date
 }
 
 /** Grouped scans for one employee on one day */
 export interface DayEntry {
-  employeeName: string
-  date: string        // YYYY-MM-DD
+  biometricId: string   // Primary key for grouping
+  employeeName: string  // Fallback display name from biometric file
+  date: string          // YYYY-MM-DD
   dateObj: Date
   scans: Date[]
 }
 
 /** Fully processed attendance record ready for DB save */
 export interface ProcessedRecord {
-  employeeName: string
-  date: string        // YYYY-MM-DD
+  biometricId: string   // ZKTeco Account ID = portal Employee ID
+  employeeName: string  // Fallback name from biometric file
+  date: string          // YYYY-MM-DD
   checkIn: string | null   // HH:MM:SS (24h)
   checkOut: string | null  // HH:MM:SS (24h)
   workHours: number
@@ -135,6 +138,7 @@ export function parseZKTecoFile(content: string): RawScan[] {
     if (parts.length < 6) continue
 
     // Detect the format by checking patterns
+    const id = parts[0].trim()       // Column 0 = Account ID (ZKTeco)
     let name: string | null = null
     let timestamp: Date | null = null
 
@@ -151,9 +155,9 @@ export function parseZKTecoFile(content: string): RawScan[] {
       name = parts[4]
     }
 
-    if (!name || !timestamp || isNaN(timestamp.getTime())) continue
+    if (!timestamp || isNaN(timestamp.getTime())) continue
 
-    scans.push({ employeeName: name.trim(), timestamp })
+    scans.push({ biometricId: id, employeeName: (name || id).trim(), timestamp })
   }
 
   return scans
@@ -170,7 +174,7 @@ export function processScans(
   month: number,
   year: number
 ): ProcessedRecord[] {
-  // 1. Group scans by employee+date
+  // 1. Group scans by biometricId + date
   const grouped: Record<string, DayEntry> = {}
 
   for (const scan of scans) {
@@ -180,9 +184,10 @@ export function processScans(
       continue
     }
 
-    const key = `${scan.employeeName}_${dateKey}`
+    const key = `${scan.biometricId}_${dateKey}`
     if (!grouped[key]) {
       grouped[key] = {
+        biometricId: scan.biometricId,
         employeeName: scan.employeeName,
         date: dateKey,
         dateObj: scan.timestamp,
@@ -194,10 +199,10 @@ export function processScans(
 
   // 2. Process each day entry
   const records: ProcessedRecord[] = []
-  const employeeNames = new Set<string>()
+  const employeeIds = new Set<string>()
 
   for (const entry of Object.values(grouped)) {
-    employeeNames.add(entry.employeeName)
+    employeeIds.add(entry.biometricId)
     entry.scans.sort((a, b) => a.getTime() - b.getTime())
 
     const firstScan = entry.scans[0]
@@ -250,6 +255,7 @@ export function processScans(
     else if (isEarlyOut) status = 'Early Out'
 
     records.push({
+      biometricId: entry.biometricId,
       employeeName: entry.employeeName,
       date: entry.date,
       checkIn,
@@ -266,11 +272,14 @@ export function processScans(
   // 3. Fill absent days for all employees (weekdays with no scans)
   const weekdays = getWeekdaysInMonth(month, year)
 
-  for (const empName of employeeNames) {
+  for (const empId of employeeIds) {
+    // Find the name associated with this ID (for fallback display)
+    const empName = records.find(r => r.biometricId === empId)?.employeeName || empId
     for (const dayStr of weekdays) {
-      const exists = records.some(r => r.employeeName === empName && r.date === dayStr)
+      const exists = records.some(r => r.biometricId === empId && r.date === dayStr)
       if (!exists) {
         records.push({
+          biometricId: empId,
           employeeName: empName,
           date: dayStr,
           checkIn: null,
@@ -286,8 +295,8 @@ export function processScans(
     }
   }
 
-  // 4. Sort by date then name
-  records.sort((a, b) => a.date.localeCompare(b.date) || a.employeeName.localeCompare(b.employeeName))
+  // 4. Sort by date then biometric ID
+  records.sort((a, b) => a.date.localeCompare(b.date) || a.biometricId.localeCompare(b.biometricId))
 
   return records
 }
