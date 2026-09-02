@@ -391,9 +391,28 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       const { error } = await supabase.from("salary_slips").insert(slipRecords)
       if (error) throw error
 
+      // Sync leaves_taken on employees: count all absences May 2026+ excluding holidays & approved exceptions
+      for (const p of generatedPreview) {
+        // Total leaves used = leavesUsed (from quota) for this month
+        // We need cumulative count, so query all absences for this employee
+        const { count } = await supabase
+          .from("attendance_records")
+          .select("*", { count: "exact", head: true })
+          .eq("employee_id", p.employeeId)
+          .eq("is_absent", true)
+          .or(`year.gt.2026,and(year.eq.2026,month.gte.5)`)
+
+        if (count !== null) {
+          await supabase
+            .from("employees")
+            .update({ leaves_taken: count })
+            .eq("id", p.employeeId)
+        }
+      }
+
       toast({
         title: "Salary slips generated",
-        description: `${slipRecords.length} salary slips created for ${getMonthName(month)} ${year}.`,
+        description: `${slipRecords.length} salary slips created for ${getMonthName(month)} ${year}. Leave quotas synced.`,
       })
 
       setShowPreviewList(false)
