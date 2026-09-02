@@ -55,6 +55,7 @@ export function EmployeeManagement() {
     designation: "",
     date_of_joining: "",
     password: "",
+    base_salary: "",
     is_probation: false,
     probation_end_date: "",
   })
@@ -83,8 +84,12 @@ export function EmployeeManagement() {
     try {
       if (editingId) {
         // Update existing employee
-        const { password, ...dataWithoutPassword } = formData
-        const { error } = await supabase.from("employees").update(dataWithoutPassword).eq("id", editingId)
+        const { password, base_salary, ...rest } = formData
+        const dataToUpdate = {
+          ...rest,
+          base_salary: base_salary ? parseFloat(base_salary) : 0,
+        }
+        const { error } = await supabase.from("employees").update(dataToUpdate).eq("id", editingId)
         if (error) throw error
         toast({ title: "Success", description: "Employee updated successfully" })
       } else {
@@ -135,6 +140,7 @@ export function EmployeeManagement() {
         designation: "",
         date_of_joining: "",
         password: "",
+        base_salary: "",
         is_probation: false,
         probation_end_date: "",
       })
@@ -196,6 +202,7 @@ export function EmployeeManagement() {
       designation: employee.designation || "",
       date_of_joining: employee.date_of_joining || "",
       password: "",
+      base_salary: employee.base_salary ? String(employee.base_salary) : "",
       is_probation: employee.is_probation === true,
       probation_end_date: employee.probation_end_date || "",
     })
@@ -281,6 +288,7 @@ export function EmployeeManagement() {
               designation: "",
               date_of_joining: "",
               password: "",
+              base_salary: "",
               is_probation: false,
               probation_end_date: "",
             });
@@ -341,6 +349,12 @@ export function EmployeeManagement() {
                   <div>
                     <p className="text-muted-foreground">Joining Date</p>
                     <p className="font-semibold text-foreground">{emp.date_of_joining}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Base Salary</p>
+                    <p className="font-semibold text-foreground">
+                      {emp.base_salary ? `PKR ${Number(emp.base_salary).toLocaleString()}` : '—'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
@@ -450,6 +464,19 @@ export function EmployeeManagement() {
                     id="designation"
                     value={formData.designation ?? ""}
                     onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="base_salary">Base Salary (PKR) *</Label>
+                  <Input
+                    id="base_salary"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="e.g. 50000"
+                    value={formData.base_salary ?? ""}
+                    onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
+                    required
                   />
                 </div>
                 <div>

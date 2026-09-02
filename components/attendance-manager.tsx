@@ -60,10 +60,6 @@ interface Employee {
   is_probation: boolean
   probation_end_date: string | null
   leaves_taken: number
-}
-
-interface SalaryStructure {
-  employee_id: string
   base_salary: number
 }
 
@@ -96,7 +92,6 @@ export function AttendanceManager() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -128,13 +123,9 @@ export function AttendanceManager() {
         is_probation: Boolean(e.is_probation),
         probation_end_date: (e.probation_end_date as string) || null,
         leaves_taken: Number(e.leaves_taken || 0),
+        base_salary: Number(e.base_salary || 0),
       }))
       setEmployees(mappedEmployees)
-
-      const { data: salData } = await supabase
-        .from('salary_structures')
-        .select('employee_id, base_salary')
-      setSalaryStructures(salData || [])
 
       const { data: attData, error: attError } = await supabase
         .from('attendance_records')
@@ -186,10 +177,8 @@ export function AttendanceManager() {
           is_probation: Boolean(e.is_probation),
           probation_end_date: (e.probation_end_date as string) || null,
           leaves_taken: Number(e.leaves_taken || 0),
+          base_salary: Number(e.base_salary || 0),
         }))
-
-        // Fetch salary structures
-        const salResult = await supabase.from('salary_structures').select('employee_id, base_salary')
 
         // Fetch attendance records for this month
         const attResult = await supabase
@@ -202,7 +191,6 @@ export function AttendanceManager() {
         if (cancelled) return
 
         setEmployees(mappedEmployees)
-        setSalaryStructures(salResult.data || [])
 
         if (attResult.error) throw attResult.error
         setRecords(attResult.data || [])
@@ -346,8 +334,7 @@ export function AttendanceManager() {
     const emp = employees.find(e => e.id === targetEmployeeId)
     if (!emp) return null
 
-    const salary = salaryStructures.find(s => s.employee_id === targetEmployeeId)
-    const baseSalary = salary?.base_salary || 0
+    const baseSalary = emp.base_salary || 0
 
     const totalDays = empRecords.length
     const absentDays = empRecords.filter(r => r.is_absent).length
@@ -393,7 +380,7 @@ export function AttendanceManager() {
       isProbation: emp.is_probation,
       remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
     }
-  }, [selectedEmployeeId, search, filteredRecords, records, employees, salaryStructures])
+  }, [selectedEmployeeId, search, filteredRecords, records, employees])
 
   // ── Helpers ──
 

@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       designation,
       date_of_joining,
       password,
+      base_salary,
     } = body;
 
 
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
           department: department || null,
           designation: designation || null,
           date_of_joining: date_of_joining || null,
+          base_salary: base_salary ? parseFloat(base_salary) : 0,
           user_id: userId,
         },
       ])
