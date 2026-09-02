@@ -110,16 +110,30 @@ export function AttendanceManager() {
       setRecords([])
       setSelectedEmployeeId(null)
 
-      const { data: empData } = await supabase
-        .from('employees')
-        .select('id, employee_id, first_name, last_name, designation, is_probation, probation_end_date, leaves_taken')
+      // Ensure auth session is valid before querying (prevents RLS returning empty)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' })
+        return
+      }
 
-      setEmployees(empData || [])
+      // Fetch employees — use * and map fields for resilience
+      const empResult = await supabase.from('employees').select('*')
+      const mappedEmployees: Employee[] = (empResult.data || []).map((e: Record<string, unknown>) => ({
+        id: e.id as string,
+        employee_id: e.employee_id as string,
+        first_name: e.first_name as string,
+        last_name: e.last_name as string,
+        designation: (e.designation as string) || null,
+        is_probation: Boolean(e.is_probation),
+        probation_end_date: (e.probation_end_date as string) || null,
+        leaves_taken: Number(e.leaves_taken || 0),
+      }))
+      setEmployees(mappedEmployees)
 
       const { data: salData } = await supabase
         .from('salary_structures')
         .select('employee_id, base_salary')
-
       setSalaryStructures(salData || [])
 
       const { data: attData, error: attError } = await supabase
@@ -147,6 +161,17 @@ export function AttendanceManager() {
     async function fetchData() {
       try {
         setLoading(true)
+
+        // Validate auth session first — getUser() hits the server to confirm
+        // the JWT is valid, which also triggers token refresh if expired.
+        // Without this, RLS silently returns empty results for stale sessions.
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+          if (!cancelled) {
+            console.warn('[Attendance] Auth check failed, skipping data fetch', authError?.message)
+          }
+          return
+        }
 
         // Fetch employees — use * and map fields for resilience
         const empResult = await supabase.from('employees').select('*')
