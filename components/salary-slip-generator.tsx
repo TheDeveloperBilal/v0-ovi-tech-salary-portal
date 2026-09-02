@@ -254,7 +254,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         employee_id: p.employeeId,
         month,
         year,
-        base_salary: p.baseSalary,
+        basic_salary: p.baseSalary,
         total_earnings: p.baseSalary,
         total_deductions: p.salaryDeduction,
         net_salary: p.netSalary,
@@ -297,8 +297,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     const summary = slip.attendance_summary || {}
 
     setSelectedSlip({
-      basic_salary: slip.base_salary,
-      baseSalary: slip.base_salary,
+      basic_salary: slip.basic_salary,
+      baseSalary: slip.basic_salary,
       net_salary: slip.net_salary,
       month: slip.month,
       year: slip.year,
@@ -565,7 +565,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                       <div>
                         <p className="text-muted-foreground text-xs">Base Salary</p>
                         <p className="font-semibold text-foreground">
-                          ₨ {(slip.base_salary || 0).toLocaleString()}
+                          ₨ {(slip.basic_salary || 0).toLocaleString()}
                         </p>
                       </div>
                       <div>
