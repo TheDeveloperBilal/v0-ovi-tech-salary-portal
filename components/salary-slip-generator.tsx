@@ -28,6 +28,7 @@ interface Employee {
   designation: string | null
   date_of_joining: string | null
   base_salary: number
+  income_tax: number
   is_probation: boolean
   probation_end_date: string | null
   leaves_taken: number
@@ -37,6 +38,7 @@ interface AttendanceRecord {
   id: string
   employee_id: string
   employee_name: string
+  attendance_date: string
   is_late: boolean
   is_early_out: boolean
   is_absent: boolean
@@ -47,6 +49,7 @@ interface GeneratedSlip {
   employeeName: string
   designation: string
   baseSalary: number
+  incomeTax: number
   workingDays: number
   presentDays: number
   absentDays: number
@@ -61,6 +64,8 @@ interface GeneratedSlip {
   netSalary: number
   isProbation: boolean
   remainingLeaves: number
+  holidaysExcluded: number
+  exceptionsApplied: number
 }
 
 export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
@@ -113,6 +118,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         designation: e.designation || null,
         date_of_joining: e.date_of_joining || null,
         base_salary: Number(e.base_salary || 0),
+        income_tax: Number(e.income_tax || 0),
         is_probation: Boolean(e.is_probation),
         probation_end_date: e.probation_end_date || null,
         leaves_taken: Number(e.leaves_taken || 0),
@@ -129,14 +135,35 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     try {
       setIsGenerating(true)
 
-      // Fetch attendance records for this month
-      const { data: attData, error: attError } = await supabase
-        .from("attendance_records")
-        .select("*")
-        .eq("month", month)
-        .eq("year", year)
+      // Fetch attendance records, holidays, exceptions, and salary history in parallel
+      const lastDayOfMonth = new Date(year, month, 0).toISOString().split("T")[0]
+      const firstDayOfMonth = `${year}-${String(month).padStart(2, "0")}-01`
 
-      if (attError) throw attError
+      const [attRes, holidayRes, exceptionRes, salaryHistRes] = await Promise.all([
+        supabase
+          .from("attendance_records")
+          .select("*")
+          .eq("month", month)
+          .eq("year", year),
+        supabase
+          .from("company_holidays")
+          .select("holiday_date")
+          .gte("holiday_date", firstDayOfMonth)
+          .lte("holiday_date", lastDayOfMonth),
+        supabase
+          .from("attendance_exceptions")
+          .select("employee_id, exception_date, type")
+          .gte("exception_date", firstDayOfMonth)
+          .lte("exception_date", lastDayOfMonth),
+        supabase
+          .from("salary_history")
+          .select("employee_id, salary, effective_from")
+          .lte("effective_from", lastDayOfMonth)
+          .order("effective_from", { ascending: false }),
+      ])
+
+      const attData = attRes.data
+      if (attRes.error) throw attRes.error
       if (!attData || attData.length === 0) {
         toast({
           title: "No attendance data",
@@ -146,7 +173,33 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         return
       }
 
-      // Group by employee and compute summaries
+      // Build holiday set (YYYY-MM-DD strings)
+      const holidayDates = new Set(
+        (holidayRes.data || []).map((h: any) => h.holiday_date)
+      )
+
+      // Build exception map: employee_id -> { date -> [types] }
+      const exceptionMap = new Map<string, Map<string, string[]>>()
+      for (const ex of (exceptionRes.data || [])) {
+        if (!exceptionMap.has(ex.employee_id)) {
+          exceptionMap.set(ex.employee_id, new Map())
+        }
+        const dateMap = exceptionMap.get(ex.employee_id)!
+        const types = dateMap.get(ex.exception_date) || []
+        types.push(ex.type)
+        dateMap.set(ex.exception_date, types)
+      }
+
+      // Build salary history map: employee_id -> latest salary effective for this month
+      const salaryForMonth = new Map<string, number>()
+      for (const sh of (salaryHistRes.data || [])) {
+        // First match per employee is the latest effective_from <= end of month
+        if (!salaryForMonth.has(sh.employee_id)) {
+          salaryForMonth.set(sh.employee_id, Number(sh.salary))
+        }
+      }
+
+      // Group attendance by employee
       const employeeRecords = new Map<string, AttendanceRecord[]>()
       for (const record of attData) {
         const existing = employeeRecords.get(record.employee_id) || []
@@ -159,13 +212,66 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       for (const [empUuid, records] of employeeRecords) {
         const emp = employees.find(e => e.id === empUuid)
         if (!emp) continue
-        if (emp.base_salary <= 0) continue // Skip employees with no salary set
 
-        const totalDays = records.length
-        const absentDays = records.filter(r => r.is_absent).length
+        // Use salary from history if available (handles promotions), else current
+        const effectiveSalary = salaryForMonth.get(empUuid) ?? emp.base_salary
+        if (effectiveSalary <= 0) continue
+
+        const empExceptions = exceptionMap.get(empUuid)
+
+        // Filter out holiday records (don't count holidays as absent/late/early)
+        let holidaysExcluded = 0
+        let exceptionsApplied = 0
+        const effectiveRecords: AttendanceRecord[] = []
+
+        for (const r of records) {
+          const date = r.attendance_date
+
+          // Skip holidays entirely — not counted at all
+          if (holidayDates.has(date)) {
+            holidaysExcluded++
+            continue
+          }
+
+          const dayExceptions = empExceptions?.get(date) || []
+
+          // approved_leave or work_from_home → treat as present (not absent, not late/early)
+          if (dayExceptions.includes("approved_leave") || dayExceptions.includes("work_from_home")) {
+            exceptionsApplied++
+            // Push as a "present" record — override absence/late/early
+            effectiveRecords.push({ ...r, is_absent: false, is_late: false, is_early_out: false })
+            continue
+          }
+
+          // half_day → present, ignore early out
+          if (dayExceptions.includes("half_day")) {
+            exceptionsApplied++
+            effectiveRecords.push({ ...r, is_absent: false, is_early_out: false })
+            continue
+          }
+
+          // approved_late → forgive late
+          let isLate = r.is_late
+          if (dayExceptions.includes("approved_late") && isLate) {
+            isLate = false
+            exceptionsApplied++
+          }
+
+          // approved_early_out → forgive early out
+          let isEarlyOut = r.is_early_out
+          if (dayExceptions.includes("approved_early_out") && isEarlyOut) {
+            isEarlyOut = false
+            exceptionsApplied++
+          }
+
+          effectiveRecords.push({ ...r, is_late: isLate, is_early_out: isEarlyOut })
+        }
+
+        const totalDays = effectiveRecords.length
+        const absentDays = effectiveRecords.filter(r => r.is_absent).length
         const presentDays = totalDays - absentDays
-        const lateDays = records.filter(r => r.is_late && !r.is_absent).length
-        const earlyOutDays = records.filter(r => r.is_early_out && !r.is_absent).length
+        const lateDays = effectiveRecords.filter(r => r.is_late && !r.is_absent).length
+        const earlyOutDays = effectiveRecords.filter(r => r.is_early_out && !r.is_absent).length
 
         // Deduction rules: 3 violations = 1 day salary deducted
         const totalViolations = lateDays + earlyOutDays
@@ -185,15 +291,17 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         }
 
         const totalDeductionDays = violationDeductions + absentSalaryDays
-        const dailyRate = emp.base_salary / 30
+        const dailyRate = effectiveSalary / 30
         const salaryDeduction = Math.round(totalDeductionDays * dailyRate)
-        const netSalary = Math.round(emp.base_salary - salaryDeduction)
+        const incomeTax = emp.income_tax || 0
+        const netSalary = Math.round(effectiveSalary - salaryDeduction - incomeTax)
 
         previews.push({
           employeeId: empUuid,
           employeeName: `${emp.first_name} ${emp.last_name}`,
           designation: emp.designation || '-',
-          baseSalary: emp.base_salary,
+          baseSalary: effectiveSalary,
+          incomeTax,
           workingDays: totalDays,
           presentDays,
           absentDays,
@@ -208,6 +316,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           netSalary,
           isProbation: emp.is_probation,
           remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
+          holidaysExcluded,
+          exceptionsApplied,
         })
       }
 
@@ -256,8 +366,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         year,
         basic_salary: p.baseSalary,
         total_earnings: p.baseSalary,
-        total_deductions: p.salaryDeduction,
+        total_deductions: p.salaryDeduction + p.incomeTax,
         net_salary: p.netSalary,
+        income_tax: p.incomeTax,
         working_days: p.workingDays,
         present_days: p.presentDays,
         absent_days: p.absentDays,
@@ -271,6 +382,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           absentSalaryDays: p.absentSalaryDays,
           remainingLeaves: p.remainingLeaves,
           dailyRate: p.dailyRate,
+          incomeTax: p.incomeTax,
+          holidaysExcluded: p.holidaysExcluded,
+          exceptionsApplied: p.exceptionsApplied,
         },
       }))
 
@@ -325,6 +439,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       absentSalaryDays: summary.absentSalaryDays || 0,
       remainingLeaves: summary.remainingLeaves || 0,
       dailyRate: summary.dailyRate || 0,
+      incomeTax: summary.incomeTax || slip.income_tax || 0,
+      holidaysExcluded: summary.holidaysExcluded || 0,
+      exceptionsApplied: summary.exceptionsApplied || 0,
     })
     setIsPreviewOpen(true)
   }
@@ -450,7 +567,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     <th className="text-right p-3 text-muted-foreground font-medium">Late</th>
                     <th className="text-right p-3 text-muted-foreground font-medium">Early Out</th>
                     <th className="text-right p-3 text-muted-foreground font-medium">Absent</th>
-                    <th className="text-right p-3 text-muted-foreground font-medium">Deduction</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Att. Deduction</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Tax</th>
                     <th className="text-right p-3 text-muted-foreground font-medium">Net Payable</th>
                   </tr>
                 </thead>
@@ -459,7 +577,14 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     <tr key={p.employeeId} className="border-b border-border/30 hover:bg-muted/30">
                       <td className="p-3">
                         <div className="font-medium text-foreground">{p.employeeName}</div>
-                        <div className="text-xs text-muted-foreground">{p.designation}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.designation}
+                          {(p.holidaysExcluded > 0 || p.exceptionsApplied > 0) && (
+                            <span className="text-green-400 ml-1">
+                              ({p.holidaysExcluded > 0 ? `${p.holidaysExcluded} holiday` : ''}{p.holidaysExcluded > 0 && p.exceptionsApplied > 0 ? ', ' : ''}{p.exceptionsApplied > 0 ? `${p.exceptionsApplied} exception` : ''})
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 text-right text-foreground">₨ {p.baseSalary.toLocaleString()}</td>
                       <td className="p-3 text-right text-emerald-400">{p.presentDays}</td>
@@ -467,6 +592,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                       <td className="p-3 text-right text-orange-400">{p.earlyOutDays}</td>
                       <td className="p-3 text-right text-red-400">{p.absentDays}</td>
                       <td className="p-3 text-right text-red-400">₨ {p.salaryDeduction.toLocaleString()}</td>
+                      <td className="p-3 text-right text-red-400">{p.incomeTax > 0 ? `₨ ${p.incomeTax.toLocaleString()}` : '—'}</td>
                       <td className="p-3 text-right font-semibold text-emerald-400">₨ {p.netSalary.toLocaleString()}</td>
                     </tr>
                   ))}
@@ -483,6 +609,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
                     <td className="p-3" />
                     <td className="p-3 text-right font-semibold text-red-400">
                       ₨ {generatedPreview.reduce((s, p) => s + p.salaryDeduction, 0).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-semibold text-red-400">
+                      ₨ {generatedPreview.reduce((s, p) => s + p.incomeTax, 0).toLocaleString()}
                     </td>
                     <td className="p-3 text-right font-semibold text-emerald-400">
                       ₨ {generatedPreview.reduce((s, p) => s + p.netSalary, 0).toLocaleString()}

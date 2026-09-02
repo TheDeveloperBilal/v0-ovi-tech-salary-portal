@@ -318,10 +318,18 @@ export function SalarySlipPreview({ employee }: any) {
                       </td>
                     </tr>
                   )}
+                  {employee.incomeTax > 0 && (
+                    <tr key="income-tax" className="border-b border-gray-300">
+                      <td className="p-2">Income Tax</td>
+                      <td className="p-2 text-right font-semibold">
+                        PKR {Number(employee.incomeTax).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  )}
                   <tr key="total-deductions" className="bg-red-50 font-semibold border-b border-gray-300">
                     <td className="p-2">Total Deductions</td>
                     <td className="p-2 text-right">
-                      PKR {totalDeductionsWithLeaves.toLocaleString("en-PK", { maximumFractionDigits: 0 })}
+                      PKR {(totalDeductionsWithLeaves + (employee.incomeTax || 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
                     </td>
                   </tr>
                 </tbody>

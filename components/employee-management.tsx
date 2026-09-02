@@ -56,9 +56,12 @@ export function EmployeeManagement() {
     date_of_joining: "",
     password: "",
     base_salary: "",
+    income_tax: "",
     is_probation: false,
     probation_end_date: "",
   })
+  const [salaryHistory, setSalaryHistory] = useState<any[]>([])
+  const [showSalaryHistory, setShowSalaryHistory] = useState<string | null>(null)
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -84,16 +87,30 @@ export function EmployeeManagement() {
     try {
       if (editingId) {
         // Update existing employee
-        const { password, base_salary, ...rest } = formData
+        const { password, base_salary, income_tax, ...rest } = formData
+        const newSalary = base_salary ? parseFloat(base_salary) : 0
         const dataToUpdate = {
           ...rest,
-          base_salary: base_salary ? parseFloat(base_salary) : 0,
+          base_salary: newSalary,
+          income_tax: income_tax ? parseFloat(income_tax) : 0,
           // Send null instead of "" for date fields — Postgres rejects empty strings
           date_of_joining: rest.date_of_joining || null,
           probation_end_date: rest.probation_end_date || null,
         }
         const { error } = await supabase.from("employees").update(dataToUpdate).eq("id", editingId)
         if (error) throw error
+
+        // Track salary change in salary_history if salary changed
+        const oldEmp = employees.find(e => e.id === editingId)
+        if (oldEmp && Number(oldEmp.base_salary || 0) !== newSalary && newSalary > 0) {
+          await supabase.from("salary_history").insert({
+            employee_id: editingId,
+            salary: newSalary,
+            effective_from: new Date().toISOString().split("T")[0],
+            reason: Number(oldEmp.base_salary || 0) < newSalary ? "Salary increment" : "Salary revision",
+          })
+        }
+
         toast({ title: "Success", description: "Employee updated successfully" })
       } else {
         // Create new employee via API
@@ -144,6 +161,7 @@ export function EmployeeManagement() {
         date_of_joining: "",
         password: "",
         base_salary: "",
+        income_tax: "",
         is_probation: false,
         probation_end_date: "",
       })
@@ -206,6 +224,7 @@ export function EmployeeManagement() {
       date_of_joining: employee.date_of_joining || "",
       password: "",
       base_salary: employee.base_salary ? String(employee.base_salary) : "",
+      income_tax: employee.income_tax ? String(employee.income_tax) : "",
       is_probation: employee.is_probation === true,
       probation_end_date: employee.probation_end_date || "",
     })
@@ -292,6 +311,7 @@ export function EmployeeManagement() {
               date_of_joining: "",
               password: "",
               base_salary: "",
+              income_tax: "",
               is_probation: false,
               probation_end_date: "",
             });
@@ -357,6 +377,12 @@ export function EmployeeManagement() {
                     <p className="text-muted-foreground">Base Salary</p>
                     <p className="font-semibold text-foreground">
                       {emp.base_salary ? `PKR ${Number(emp.base_salary).toLocaleString()}` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Income Tax</p>
+                    <p className="font-semibold text-foreground">
+                      {emp.income_tax && Number(emp.income_tax) > 0 ? `PKR ${Number(emp.income_tax).toLocaleString()}/mo` : '—'}
                     </p>
                   </div>
                 </div>
@@ -480,6 +506,18 @@ export function EmployeeManagement() {
                     value={formData.base_salary ?? ""}
                     onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
                     required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="income_tax">Income Tax (PKR/month)</Label>
+                  <Input
+                    id="income_tax"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="e.g. 5000"
+                    value={formData.income_tax ?? ""}
+                    onChange={(e) => setFormData({ ...formData, income_tax: e.target.value })}
                   />
                 </div>
                 <div>

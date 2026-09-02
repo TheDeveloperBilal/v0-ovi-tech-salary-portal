@@ -4,12 +4,13 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, FileText, Settings, Calendar } from "lucide-react"
+import { Users, FileText, Settings, Calendar, CalendarDays } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
 import { SalarySlipGenerator } from "./salary-slip-generator"
 import { CompanySettings } from "./company-settings"
 import { EmployeeDashboard } from "./employee-dashboard"
 import { AttendanceManager } from "./attendance-manager"
+import { HolidayManager } from "./holiday-manager"
 
 export function DashboardContent({ user }: { user: any }) {
   const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0 })
@@ -88,6 +89,10 @@ export function DashboardContent({ user }: { user: any }) {
                 <FileText className="w-4 h-4 mr-2" />
                 Salary Slips
               </TabsTrigger>
+              <TabsTrigger value="holidays">
+                <CalendarDays className="w-4 h-4 mr-2" />
+                Holidays
+              </TabsTrigger>
               <TabsTrigger value="settings">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
@@ -104,6 +109,10 @@ export function DashboardContent({ user }: { user: any }) {
 
             <TabsContent value="slips">
               <SalarySlipGenerator isAdmin={true} />
+            </TabsContent>
+
+            <TabsContent value="holidays">
+              <HolidayManager />
             </TabsContent>
 
             <TabsContent value="settings">
