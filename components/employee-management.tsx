@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ProbationManager } from "./probation-manager"
 
@@ -59,9 +59,13 @@ export function EmployeeManagement() {
     income_tax: "",
     is_probation: false,
     probation_end_date: "",
+    salary_effective_from: "",
   })
   const [salaryHistory, setSalaryHistory] = useState<any[]>([])
   const [showSalaryHistory, setShowSalaryHistory] = useState<string | null>(null)
+  const [salaryHistoryLoading, setSalaryHistoryLoading] = useState(false)
+  const [newHistoryEntry, setNewHistoryEntry] = useState({ salary: "", effective_from: "", reason: "" })
+  const [showAddHistory, setShowAddHistory] = useState(false)
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -87,7 +91,7 @@ export function EmployeeManagement() {
     try {
       if (editingId) {
         // Update existing employee
-        const { password, base_salary, income_tax, ...rest } = formData
+        const { password, base_salary, income_tax, salary_effective_from, ...rest } = formData
         const newSalary = base_salary ? parseFloat(base_salary) : 0
         const dataToUpdate = {
           ...rest,
@@ -103,10 +107,11 @@ export function EmployeeManagement() {
         // Track salary change in salary_history if salary changed
         const oldEmp = employees.find(e => e.id === editingId)
         if (oldEmp && Number(oldEmp.base_salary || 0) !== newSalary && newSalary > 0) {
+          const effectiveDate = formData.salary_effective_from || new Date().toISOString().split("T")[0]
           await supabase.from("salary_history").insert({
             employee_id: editingId,
             salary: newSalary,
-            effective_from: new Date().toISOString().split("T")[0],
+            effective_from: effectiveDate,
             reason: Number(oldEmp.base_salary || 0) < newSalary ? "Salary increment" : "Salary revision",
           })
         }
@@ -133,7 +138,7 @@ export function EmployeeManagement() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify((() => { const { salary_effective_from, ...rest } = formData; return rest })()),
         })
 
         const data = await response.json()
@@ -164,6 +169,7 @@ export function EmployeeManagement() {
         income_tax: "",
         is_probation: false,
         probation_end_date: "",
+        salary_effective_from: "",
       })
       setEditingId(null)
       setIsOpen(false)
@@ -227,9 +233,64 @@ export function EmployeeManagement() {
       income_tax: employee.income_tax ? String(employee.income_tax) : "",
       is_probation: employee.is_probation === true,
       probation_end_date: employee.probation_end_date || "",
+      salary_effective_from: "",
     })
     setEditingId(employee.id)
     setIsOpen(true)
+  }
+
+  // ── Salary History Management ──
+  async function fetchSalaryHistory(employeeId: string) {
+    setSalaryHistoryLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("salary_history")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .order("effective_from", { ascending: false })
+
+      if (error) throw error
+      setSalaryHistory(data || [])
+      setShowSalaryHistory(employeeId)
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setSalaryHistoryLoading(false)
+    }
+  }
+
+  async function deleteSalaryHistoryEntry(id: string) {
+    if (!confirm("Delete this salary history entry?")) return
+    try {
+      const { error } = await supabase.from("salary_history").delete().eq("id", id)
+      if (error) throw error
+      setSalaryHistory(salaryHistory.filter(h => h.id !== id))
+      toast({ title: "Deleted", description: "Salary history entry removed." })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    }
+  }
+
+  async function addSalaryHistoryEntry() {
+    if (!showSalaryHistory || !newHistoryEntry.salary || !newHistoryEntry.effective_from) {
+      toast({ title: "Error", description: "Salary and effective date are required.", variant: "destructive" })
+      return
+    }
+    try {
+      const { error } = await supabase.from("salary_history").insert({
+        employee_id: showSalaryHistory,
+        salary: parseFloat(newHistoryEntry.salary),
+        effective_from: newHistoryEntry.effective_from,
+        reason: newHistoryEntry.reason || "Manual entry",
+      })
+      if (error) throw error
+      setNewHistoryEntry({ salary: "", effective_from: "", reason: "" })
+      setShowAddHistory(false)
+      fetchSalaryHistory(showSalaryHistory)
+      toast({ title: "Added", description: "Salary history entry added." })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    }
   }
 
   const handleResetPassword = async () => {
@@ -314,6 +375,7 @@ export function EmployeeManagement() {
               income_tax: "",
               is_probation: false,
               probation_end_date: "",
+              salary_effective_from: "",
             });
             setEditingId(null);
             setIsOpen(true);
@@ -390,6 +452,15 @@ export function EmployeeManagement() {
                   <Button variant="outline" size="sm" onClick={() => handleEdit(emp)} className="flex-1 w-full sm:w-auto">
                     <Edit2 className="w-4 h-4 mr-2" />
                     Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchSalaryHistory(emp.id)}
+                    className="flex-1 w-full sm:w-auto"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    Salary History
                   </Button>
                   {emp.is_probation && (
                     <Button
@@ -520,6 +591,20 @@ export function EmployeeManagement() {
                     onChange={(e) => setFormData({ ...formData, income_tax: e.target.value })}
                   />
                 </div>
+                {editingId && (
+                  <div>
+                    <Label htmlFor="salary_effective_from">Salary Effective From</Label>
+                    <Input
+                      id="salary_effective_from"
+                      type="date"
+                      value={formData.salary_effective_from ?? ""}
+                      onChange={(e) => setFormData({ ...formData, salary_effective_from: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      When did this salary start? Used for salary history tracking. Leave blank for today.
+                    </p>
+                  </div>
+                )}
                 <div>
                   <Label htmlFor="date_of_joining">Joining Date</Label>
                   <Input
@@ -598,6 +683,111 @@ export function EmployeeManagement() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Salary History Dialog */}
+      <Dialog open={!!showSalaryHistory} onOpenChange={(open) => { if (!open) { setShowSalaryHistory(null); setShowAddHistory(false) } }}>
+        <DialogContent className="max-w-lg w-full max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-purple-400" />
+              Salary History
+            </DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const emp = employees.find(e => e.id === showSalaryHistory)
+                return emp ? `${emp.first_name} ${emp.last_name} (${emp.employee_id})` : ''
+              })()}
+              {' — '}Manage salary records. The salary slip generator uses the latest entry effective for each month.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {salaryHistoryLoading ? (
+              <p className="text-center text-muted-foreground py-4">Loading...</p>
+            ) : salaryHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                No salary history records. The generator will use the employee&apos;s current base salary for all months.
+              </p>
+            ) : (
+              salaryHistory.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      PKR {Number(entry.salary).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Effective from: {new Date(entry.effective_from + 'T00:00:00').toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                    {entry.reason && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{entry.reason}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteSalaryHistoryEntry(entry.id)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+
+            {/* Add new entry */}
+            {showAddHistory ? (
+              <div className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/5 space-y-3">
+                <p className="text-sm font-medium text-foreground">Add Salary Record</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Salary (PKR) *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 30000"
+                      value={newHistoryEntry.salary}
+                      onChange={e => setNewHistoryEntry({ ...newHistoryEntry, salary: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Effective From *</Label>
+                    <Input
+                      type="date"
+                      value={newHistoryEntry.effective_from}
+                      onChange={e => setNewHistoryEntry({ ...newHistoryEntry, effective_from: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Reason (optional)</Label>
+                  <Input
+                    placeholder="e.g. Initial salary, Promotion"
+                    value={newHistoryEntry.reason}
+                    onChange={e => setNewHistoryEntry({ ...newHistoryEntry, reason: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={addSalaryHistoryEntry} className="flex-1">
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowAddHistory(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddHistory(true)}
+                className="w-full"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Salary Record
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
