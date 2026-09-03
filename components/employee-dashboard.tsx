@@ -49,6 +49,8 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
   const [attYear, setAttYear] = useState(new Date().getFullYear())
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
   const [isLoadingAtt, setIsLoadingAtt] = useState(false)
+  const [holidays, setHolidays] = useState<Map<string, string>>(new Map())
+  const [exceptions, setExceptions] = useState<Map<string, { type: string; reason: string }[]>>(new Map())
 
   // Leave requests
   const [leaveRequests, setLeaveRequests] = useState<any[]>([])
@@ -112,15 +114,45 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     if (!employeeData?.id) return
     setIsLoadingAtt(true)
     try {
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .eq('employee_id', employeeData.id)
-        .eq('month', attMonth)
-        .eq('year', attYear)
-        .order('attendance_date', { ascending: true })
-      if (error) throw error
-      setAttendanceRecords(data || [])
+      const firstDay = `${attYear}-${String(attMonth).padStart(2, '0')}-01`
+      const lastDay = new Date(attYear, attMonth, 0).toISOString().split('T')[0]
+
+      const [attRes, holRes, excRes] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('employee_id', employeeData.id)
+          .eq('month', attMonth)
+          .eq('year', attYear)
+          .order('attendance_date', { ascending: true }),
+        supabase
+          .from('company_holidays')
+          .select('holiday_date, name')
+          .gte('holiday_date', firstDay)
+          .lte('holiday_date', lastDay),
+        supabase
+          .from('attendance_exceptions')
+          .select('employee_id, exception_date, type, reason')
+          .eq('employee_id', employeeData.id)
+          .gte('exception_date', firstDay)
+          .lte('exception_date', lastDay),
+      ])
+
+      if (attRes.error) throw attRes.error
+      setAttendanceRecords(attRes.data || [])
+
+      const holMap = new Map<string, string>()
+      for (const h of (holRes.data || [])) holMap.set(h.holiday_date, h.name)
+      setHolidays(holMap)
+
+      const excMap = new Map<string, { type: string; reason: string }[]>()
+      for (const ex of (excRes.data || [])) {
+        const key = `${ex.employee_id}|${ex.exception_date}`
+        const arr = excMap.get(key) || []
+        arr.push({ type: ex.type, reason: ex.reason || '' })
+        excMap.set(key, arr)
+      }
+      setExceptions(excMap)
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
     } finally {
@@ -244,6 +276,39 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     const ampm = h >= 12 ? 'PM' : 'AM'
     const hour = h % 12 || 12
     return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const EXCEPTION_LABELS: Record<string, { label: string; color: string }> = {
+    approved_leave: { label: 'Approved Leave', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    approved_late: { label: 'Approved Late', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    approved_early_out: { label: 'Approved Early Out', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    half_day: { label: 'Half Day', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    work_from_home: { label: 'WFH', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  }
+
+  const getDateBadges = (date: string, employeeId: string) => {
+    const badges: React.ReactElement[] = []
+    const holidayName = holidays.get(date)
+    if (holidayName) {
+      badges.push(
+        <span key="holiday" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+          🏖️ {holidayName}
+        </span>
+      )
+    }
+    const excKey = `${employeeId}|${date}`
+    const excs = exceptions.get(excKey)
+    if (excs) {
+      for (const exc of excs) {
+        const style = EXCEPTION_LABELS[exc.type] || { label: exc.type.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-700 border-gray-200' }
+        badges.push(
+          <span key={exc.type} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${style.color}`}>
+            ✓ {style.label}
+          </span>
+        )
+      }
+    }
+    return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-0.5">{badges}</div> : null
   }
 
   const getAttStatusColor = (record: any) => {
@@ -485,7 +550,10 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                     <tbody>
                       {attendanceRecords.map(r => (
                         <tr key={r.id} className="border-b border-border/30 hover:bg-muted/30">
-                          <td className="p-3 text-foreground">{formatDate(r.attendance_date)}</td>
+                          <td className="p-3 text-foreground">
+                            <div>{formatDate(r.attendance_date)}</div>
+                            {getDateBadges(r.attendance_date, r.employee_id || employeeData?.id)}
+                          </td>
                           <td className={`p-3 ${r.is_late ? 'text-amber-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_in)}</td>
                           <td className={`p-3 ${r.is_early_out ? 'text-orange-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_out)}</td>
                           <td className="p-3 text-right text-foreground">{r.work_hours ? `${r.work_hours}h` : '—'}</td>

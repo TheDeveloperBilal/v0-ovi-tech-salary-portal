@@ -96,6 +96,8 @@ export function AttendanceManager() {
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [holidays, setHolidays] = useState<Map<string, string>>(new Map()) // date -> name
+  const [exceptions, setExceptions] = useState<Map<string, { type: string; reason: string }[]>>(new Map()) // "empId|date" -> [{type, reason}]
 
   // ── Data Loading ──
 
@@ -195,6 +197,30 @@ export function AttendanceManager() {
         if (attResult.error) throw attResult.error
         setRecords(attResult.data || [])
         setSelectedEmployeeId(null)
+
+        // Fetch holidays and exceptions for this month
+        const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
+        const lastDay = new Date(year, month, 0).toISOString().split('T')[0]
+
+        const [holRes, excRes] = await Promise.all([
+          supabase.from('company_holidays').select('holiday_date, name').gte('holiday_date', firstDay).lte('holiday_date', lastDay),
+          supabase.from('attendance_exceptions').select('employee_id, exception_date, type, reason').gte('exception_date', firstDay).lte('exception_date', lastDay),
+        ])
+
+        if (!cancelled) {
+          const holMap = new Map<string, string>()
+          for (const h of (holRes.data || [])) holMap.set(h.holiday_date, h.name)
+          setHolidays(holMap)
+
+          const excMap = new Map<string, { type: string; reason: string }[]>()
+          for (const ex of (excRes.data || [])) {
+            const key = `${ex.employee_id}|${ex.exception_date}`
+            const arr = excMap.get(key) || []
+            arr.push({ type: ex.type, reason: ex.reason || '' })
+            excMap.set(key, arr)
+          }
+          setExceptions(excMap)
+        }
       } catch (error) {
         if (!cancelled) {
           toast({
@@ -408,6 +434,44 @@ export function AttendanceManager() {
     const ampm = h >= 12 ? 'PM' : 'AM'
     const hour = h % 12 || 12
     return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const EXCEPTION_LABELS: Record<string, { label: string; color: string }> = {
+    approved_leave: { label: 'Approved Leave', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    approved_late: { label: 'Approved Late', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    approved_early_out: { label: 'Approved Early Out', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    half_day: { label: 'Half Day', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    work_from_home: { label: 'WFH', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  }
+
+  function getDateBadges(date: string, employeeId: string) {
+    const badges: React.ReactElement[] = []
+
+    // Holiday badge
+    const holidayName = holidays.get(date)
+    if (holidayName) {
+      badges.push(
+        <span key="holiday" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+          🏖️ {holidayName}
+        </span>
+      )
+    }
+
+    // Exception badges
+    const excKey = `${employeeId}|${date}`
+    const excs = exceptions.get(excKey)
+    if (excs) {
+      for (const exc of excs) {
+        const style = EXCEPTION_LABELS[exc.type] || { label: exc.type.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-700 border-gray-200' }
+        badges.push(
+          <span key={exc.type} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${style.color}`}>
+            ✓ {style.label}
+          </span>
+        )
+      }
+    }
+
+    return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-0.5">{badges}</div> : null
   }
 
   function getStatusBadge(record: AttendanceRecord) {
@@ -761,11 +825,14 @@ export function AttendanceManager() {
                         {employeeNameMap.get(record.employee_id) || record.employee_name}
                       </td>
                       <td className="p-3 text-muted-foreground">
-                        {new Date(record.attendance_date + 'T00:00:00').toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        <div>
+                          {new Date(record.attendance_date + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </div>
+                        {getDateBadges(record.attendance_date, record.employee_id)}
                       </td>
                       <td className={`p-3 ${record.is_late ? 'text-amber-400 font-medium' : 'text-muted-foreground'}`}>
                         {formatTime12h(record.check_in)}
