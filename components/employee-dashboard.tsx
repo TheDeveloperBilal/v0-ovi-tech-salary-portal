@@ -238,6 +238,14 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     )
   }
 
+  const formatTime12h = (time: string | null): string => {
+    if (!time) return '—'
+    const [h, m] = time.split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
   const getAttStatusColor = (record: any) => {
     if (record.is_absent) return 'text-red-400'
     if (record.is_late && record.is_early_out) return 'text-orange-400'
@@ -478,8 +486,8 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                       {attendanceRecords.map(r => (
                         <tr key={r.id} className="border-b border-border/30 hover:bg-muted/30">
                           <td className="p-3 text-foreground">{formatDate(r.attendance_date)}</td>
-                          <td className="p-3 text-foreground">{r.check_in || '—'}</td>
-                          <td className="p-3 text-foreground">{r.check_out || '—'}</td>
+                          <td className={`p-3 ${r.is_late ? 'text-amber-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_in)}</td>
+                          <td className={`p-3 ${r.is_early_out ? 'text-orange-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_out)}</td>
                           <td className="p-3 text-right text-foreground">{r.work_hours ? `${r.work_hours}h` : '—'}</td>
                           <td className={`p-3 font-medium ${getAttStatusColor(r)}`}>
                             {r.status}
