@@ -42,10 +42,7 @@ export default function LoginPage() {
       }
 
 
-      // Wait for session to be fully established and propagated
-      await new Promise(resolve => setTimeout(resolve, 1200))
-
-      // Force a hard reload to ensure session is recognized
+      // Hard navigation so the proxy picks up the new session cookie
       window.location.href = "/dashboard"
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Login failed - check console for details"

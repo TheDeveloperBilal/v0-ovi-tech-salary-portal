@@ -13,7 +13,6 @@ import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCirc
 import { useToast } from "@/hooks/use-toast"
 import { ProbationManager } from "./probation-manager"
 
-// Generate a strong random password
 function generateSecurePassword() {
   const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   const lowercase = "abcdefghijklmnopqrstuvwxyz"
@@ -21,17 +20,28 @@ function generateSecurePassword() {
   const special = "!@#$%^&*"
   const all = uppercase + lowercase + numbers + special
 
-  let password = ""
-  password += uppercase[Math.floor(Math.random() * uppercase.length)]
-  password += lowercase[Math.floor(Math.random() * lowercase.length)]
-  password += numbers[Math.floor(Math.random() * numbers.length)]
-  password += special[Math.floor(Math.random() * special.length)]
-
-  for (let i = password.length; i < 12; i++) {
-    password += all[Math.floor(Math.random() * all.length)]
+  const randomIndex = (len: number) => {
+    const arr = new Uint32Array(1)
+    crypto.getRandomValues(arr)
+    return arr[0] % len
   }
 
-  return password.split('').sort(() => Math.random() - 0.5).join('')
+  let password = ""
+  password += uppercase[randomIndex(uppercase.length)]
+  password += lowercase[randomIndex(lowercase.length)]
+  password += numbers[randomIndex(numbers.length)]
+  password += special[randomIndex(special.length)]
+
+  for (let i = password.length; i < 12; i++) {
+    password += all[randomIndex(all.length)]
+  }
+
+  const chars = password.split('')
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  return chars.join('')
 }
 
 export function EmployeeManagement() {
@@ -44,6 +54,7 @@ export function EmployeeManagement() {
     confirmPassword: "",
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [probationEmployee, setProbationEmployee] = useState<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState({
     employee_id: "",
@@ -206,13 +217,9 @@ export function EmployeeManagement() {
       }
 
 
-      // Update local state immediately
       setEmployees(employees.filter(emp => emp.id !== id))
-
       toast({ title: "Success", description: "Employee deleted successfully" })
-
-      // Refresh from server to ensure consistency
-      setTimeout(() => fetchEmployees(), 500)
+      fetchEmployees()
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
     }
@@ -466,7 +473,7 @@ export function EmployeeManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {}}
+                      onClick={() => setProbationEmployee(emp)}
                       className="flex-1 w-full sm:w-auto bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
                     >
                       <AlertCircle className="w-4 h-4 mr-2" />
@@ -848,6 +855,21 @@ export function EmployeeManagement() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Probation Status Dialog */}
+      <Dialog open={!!probationEmployee} onOpenChange={(open) => { if (!open) setProbationEmployee(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Probation Status — {probationEmployee?.first_name} {probationEmployee?.last_name}</DialogTitle>
+          </DialogHeader>
+          {probationEmployee && (
+            <ProbationManager
+              employee={probationEmployee}
+              onUpdate={() => { setProbationEmployee(null); fetchEmployees(); }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
