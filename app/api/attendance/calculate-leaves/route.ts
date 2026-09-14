@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .gte('attendance_date', startDate)
       .lte('attendance_date', endDate)
-      .eq('employee_name', employeeId)
+      .eq('employee_id', employeeId)
 
     if (recordError) {
       return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 })
@@ -69,29 +69,7 @@ export async function POST(request: NextRequest) {
     // 3 combined (late + early out) = 1 leave
     leavesDeducted += Math.floor(violations / 3)
 
-    // Update employee's leaves_taken
-    const { data: employee, error: fetchError } = await supabase
-      .from('employees')
-      .select('leaves_taken')
-      .eq('employee_id', employeeId)
-      .single()
-
-    if (fetchError) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
-    }
-
-    const newLeavesTaken = (employee?.leaves_taken || 0) + leavesDeducted
-
-    const { error: updateError } = await supabase
-      .from('employees')
-      .update({ leaves_taken: newLeavesTaken })
-      .eq('employee_id', employeeId)
-
-    if (updateError) {
-      return NextResponse.json({ error: 'Failed to update leaves' }, { status: 500 })
-    }
-
-    // Store summary for the month
+    // Store summary for the month (upsert so re-runs overwrite, not accumulate)
     const { error: summaryError } = await supabase
       .from('attendance_summary')
       .upsert({
@@ -112,11 +90,30 @@ export async function POST(request: NextRequest) {
       console.error('Summary update error:', summaryError)
     }
 
+    // Recompute total leaves_taken from ALL summary records (idempotent)
+    const { data: allSummaries } = await supabase
+      .from('attendance_summary')
+      .select('leaves_deducted')
+      .eq('employee_id', employeeId)
+
+    const totalLeaves = (allSummaries || []).reduce(
+      (sum: number, s: any) => sum + (s.leaves_deducted || 0), 0
+    )
+
+    const { error: updateError } = await supabase
+      .from('employees')
+      .update({ leaves_taken: totalLeaves })
+      .eq('employee_id', employeeId)
+
+    if (updateError) {
+      return NextResponse.json({ error: 'Failed to update leaves' }, { status: 500 })
+    }
+
     return NextResponse.json({
       success: true,
       leavesDeducted,
-      newLeavesTaken,
-      message: `Updated leaves for ${employeeId}. ${leavesDeducted} leaves deducted.`,
+      newLeavesTaken: totalLeaves,
+      message: `Updated leaves for ${employeeId}. ${leavesDeducted} leaves deducted this month. Total: ${totalLeaves}.`,
     })
   } catch (error) {
     console.error('Error calculating leaves:', error)

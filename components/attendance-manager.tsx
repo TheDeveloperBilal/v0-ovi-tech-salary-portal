@@ -1,249 +1,243 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, Search, Download, Trash2 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Upload,
+  Search,
+  Trash2,
+  Clock,
+  CalendarDays,
+  UserCheck,
+  UserX,
+  AlertTriangle,
+  LogOut as LogOutIcon,
+  Briefcase,
+  DollarSign,
+  TrendingDown,
+  Wallet,
+  ShieldAlert,
+  Loader2,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { ANNUAL_LEAVES } from '@/lib/attendance-calculations'
 
-const supabase = createClient()
+// ── Types ────────────────────────────────────────────────────────────
 
-// Type-safe response interface
-interface UploadResponse {
-  success: boolean
-  recordsProcessed?: number
-  error?: string
-  errors?: string[]
-  details?: {
-    totalLines: number
-    totalErrors: number
-    sampleErrors?: string[]
-  }
+interface AttendanceRecord {
+  id: string
+  employee_id: string
+  employee_name: string
+  attendance_date: string
+  check_in: string | null
+  check_out: string | null
+  work_hours: number
+  status: string
+  is_late: boolean
+  is_early_out: boolean
+  is_absent: boolean
+  nine_hour_waiver: boolean
+  month: number
+  year: number
 }
 
-// Helper function to safely extract error details
-function getErrorDetails(result: unknown): string[] {
-  if (!result || typeof result !== 'object') {
-    return ['Unknown error']
-  }
-
-  const res = result as Record<string, unknown>
-
-  // If errors array exists and is an array, return it
-  if (Array.isArray(res.errors)) {
-    return res.errors.map(e => String(e))
-  }
-
-  // If details has sampleErrors array, return those
-  if (res.details && typeof res.details === 'object') {
-    const details = res.details as Record<string, unknown>
-    if (Array.isArray(details.sampleErrors)) {
-      return details.sampleErrors.map(e => String(e))
-    }
-  }
-
-  // Fallback to error string
-  if (res.error && typeof res.error === 'string') {
-    return [res.error]
-  }
-
-  return ['Unknown error occurred']
+interface Employee {
+  id: string
+  employee_id: string
+  first_name: string
+  last_name: string
+  designation: string | null
+  is_probation: boolean
+  probation_end_date: string | null
+  leaves_taken: number
+  base_salary: number
 }
 
-// Helper function to format error display
-function formatErrorDisplay(details: string[], totalErrors?: number): string {
-  const displayErrors = details.slice(0, 5).join('\n')
-  const errorCountMsg = totalErrors && totalErrors > 5 ? `\n\n...and ${totalErrors - 5} more errors` : ''
-  return displayErrors + errorCountMsg
+interface EmployeeStats {
+  employeeName: string
+  totalDays: number
+  presentDays: number
+  absentDays: number
+  lateDays: number
+  earlyOutDays: number
+  violationDeductions: number
+  leavesUsed: number
+  salaryDeductionDays: number
+  baseSalary: number
+  dailyRate: number
+  salaryDeduction: number
+  netPayable: number
+  designation: string
+  isProbation: boolean
+  remainingLeaves: number
 }
 
-// Helper function to validate file before upload (Phase 3: Client-side validation)
-async function validateFileStructure(file: File, month: number, year: number): Promise<{ valid: boolean; error?: string; sampleData?: any }> {
-  try {
-    const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
-    
-    if (lines.length < 2) {
-      return { valid: false, error: 'File has less than 2 rows of data' }
-    }
-
-    // Basic file size check
-    if (file.size > 10 * 1024 * 1024) {
-      return { valid: false, error: 'File size exceeds 10MB limit' }
-    }
-
-    // Just verify it's a text file with data - let server handle structure validation
-    return {
-      valid: true,
-      sampleData: {
-        totalRows: lines.length,
-        fileName: file.name,
-        fileSize: file.size
-      }
-    }
-  } catch (error) {
-    return {
-      valid: false,
-      error: `Failed to validate file: ${error instanceof Error ? error.message : 'Unknown error'}`
-    }
-  }
-}
+// ── Component ────────────────────────────────────────────────────────
 
 export function AttendanceManager() {
   const { toast } = useToast()
+  const supabase = createClient()
+
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
-  const [records, setRecords] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
-  const [stats, setStats] = useState({
-    total_days: 0,
-    present_days: 0,
-    absent_days: 0,
-    late_days: 0,
-  })
-  const [employeeStats, setEmployeeStats] = useState<any>(null)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
+  const [holidays, setHolidays] = useState<Map<string, string>>(new Map()) // date -> name
+  const [exceptions, setExceptions] = useState<Map<string, { type: string; reason: string }[]>>(new Map()) // "empId|date" -> [{type, reason}]
 
-  useEffect(() => {
-    loadAttendanceData()
-  }, [month, year])
+  // ── Data Loading ──
 
-  async function loadAttendanceData() {
+  async function loadData() {
     try {
       setLoading(true)
       setRecords([])
-      setSelectedEmployee(null)
-      
-      // Fetch employees first
-      const { data: empData, error: empError } = await supabase
-        .from('employees')
-        .select('*')
-      
-      if (empError) {
-        throw empError
-      }
-      setEmployees(empData || [])
+      setSelectedEmployeeId(null)
 
-      // Fetch all attendance records WITHOUT any filtering
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .order('attendance_date')
-
-      if (error) {
-        throw error
-      }
-
-      
-      if (!data || data.length === 0) {
-        setStats({ total_days: 0, present_days: 0, absent_days: 0, late_days: 0 })
+      // Ensure auth session is valid before querying (prevents RLS returning empty)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast({ title: 'Session expired', description: 'Please log in again.', variant: 'destructive' })
         return
       }
 
-      // Debug: Show first and last records
-      const firstRecord = data[0]
-      const lastRecord = data[data.length - 1]
-      
-      // Filter by month and year from attendance_date
-      // Support both formats: YYYY-MM-DD (new) and M/D/YYYY (old/legacy)
-      const filteredData = (data || []).filter(record => {
-        try {
-          const dateStr = String(record.attendance_date).trim()
-          
-          let recordMonth = -1
-          let recordYear = -1
-          
-          // Try parsing as Date first - works for most formats
-          const parsedDate = new Date(dateStr)
-          if (!isNaN(parsedDate.getTime())) {
-            recordMonth = parsedDate.getMonth() + 1
-            recordYear = parsedDate.getFullYear()
-          } else {
-            // Manual parsing as fallback
-            // Try YYYY-MM-DD format first (new format)
-            if (dateStr.includes('-')) {
-              const parts = dateStr.split('-')
-              if (parts.length === 3) {
-                recordYear = parseInt(parts[0], 10)
-                recordMonth = parseInt(parts[1], 10)
-              }
-            } 
-            // Try M/D/YYYY format (old format from toLocaleDateString)
-            else if (dateStr.includes('/')) {
-              const parts = dateStr.split('/')
-              if (parts.length === 3) {
-                recordMonth = parseInt(parts[0], 10)
-                recordYear = parseInt(parts[2], 10)
-              }
-            }
-          }
-          
-          // Validate parsed values
-          if (recordMonth < 1 || recordMonth > 12 || recordYear < 2000 || recordYear > 2100) {
-            return false
-          }
-          
-          // Only return records matching the selected month/year
-          return recordMonth === month && recordYear === year
-        } catch (err) {
-          return false
-        }
-      })
+      // Fetch employees — use * and map fields for resilience
+      const empResult = await supabase.from('employees').select('*')
+      const mappedEmployees: Employee[] = (empResult.data || []).map((e: Record<string, unknown>) => ({
+        id: e.id as string,
+        employee_id: e.employee_id as string,
+        first_name: e.first_name as string,
+        last_name: e.last_name as string,
+        designation: (e.designation as string) || null,
+        is_probation: Boolean(e.is_probation),
+        probation_end_date: (e.probation_end_date as string) || null,
+        leaves_taken: Number(e.leaves_taken || 0),
+        base_salary: Number(e.base_salary || 0),
+      }))
+      setEmployees(mappedEmployees)
 
-      
-      if (filteredData.length === 0) {
-      }
+      const { data: attData, error: attError } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('month', month)
+        .eq('year', year)
+        .order('attendance_date', { ascending: true })
 
-      // Enrich records with employee data
-      const enrichedRecords = filteredData.map(record => {
-        const employee = empData?.find(e => e.id === record.employee_id)
-        return {
-          ...record,
-          employee_name: employee ? `${employee.first_name} ${employee.last_name}` : record.employee_name,
-          designation: employee?.designation || '-',
-          base_salary: employee?.base_salary || 0,
-          employee_data: employee
-        }
-      })
-
-      setRecords(enrichedRecords)
-
-      // Calculate stats
-      if (enrichedRecords.length > 0) {
-        const unique = [...new Set(enrichedRecords.map(r => r.attendance_date))]
-        const absent = enrichedRecords.filter(r => r.is_absent).length
-        const late = enrichedRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
-
-        setStats({
-          total_days: unique.length,
-          present_days: enrichedRecords.length - absent,
-          absent_days: absent,
-          late_days: late,
-        })
-      } else {
-        setStats({
-          total_days: 0,
-          present_days: 0,
-          absent_days: 0,
-          late_days: 0,
-        })
-      }
+      if (attError) throw attError
+      setRecords(attData || [])
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to load attendance records',
-        variant: 'destructive'
+        description: error instanceof Error ? error.message : 'Failed to load data',
+        variant: 'destructive',
       })
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+    async function fetchData() {
+      try {
+        setLoading(true)
+
+        // Validate auth session first — getUser() hits the server to confirm
+        // the JWT is valid, which also triggers token refresh if expired.
+        // Without this, RLS silently returns empty results for stale sessions.
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+          if (!cancelled) {
+            console.warn('[Attendance] Auth check failed, skipping data fetch', authError?.message)
+          }
+          return
+        }
+
+        // Fetch employees — use * and map fields for resilience
+        const empResult = await supabase.from('employees').select('*')
+        if (empResult.error) throw empResult.error
+
+        const mappedEmployees: Employee[] = (empResult.data || []).map((e: Record<string, unknown>) => ({
+          id: e.id as string,
+          employee_id: e.employee_id as string,
+          first_name: e.first_name as string,
+          last_name: e.last_name as string,
+          designation: (e.designation as string) || null,
+          is_probation: Boolean(e.is_probation),
+          probation_end_date: (e.probation_end_date as string) || null,
+          leaves_taken: Number(e.leaves_taken || 0),
+          base_salary: Number(e.base_salary || 0),
+        }))
+
+        // Fetch attendance records for this month
+        const attResult = await supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('month', month)
+          .eq('year', year)
+          .order('attendance_date', { ascending: true })
+
+        if (cancelled) return
+
+        setEmployees(mappedEmployees)
+
+        if (attResult.error) throw attResult.error
+        setRecords(attResult.data || [])
+        setSelectedEmployeeId(null)
+
+        // Fetch holidays and exceptions for this month
+        const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
+        const lastDay = new Date(year, month, 0).toISOString().split('T')[0]
+
+        const [holRes, excRes] = await Promise.all([
+          supabase.from('company_holidays').select('holiday_date, name').gte('holiday_date', firstDay).lte('holiday_date', lastDay),
+          supabase.from('attendance_exceptions').select('employee_id, exception_date, type, reason').gte('exception_date', firstDay).lte('exception_date', lastDay),
+        ])
+
+        if (!cancelled) {
+          const holMap = new Map<string, string>()
+          for (const h of (holRes.data || [])) holMap.set(h.holiday_date, h.name)
+          setHolidays(holMap)
+
+          const excMap = new Map<string, { type: string; reason: string }[]>()
+          for (const ex of (excRes.data || [])) {
+            const key = `${ex.employee_id}|${ex.exception_date}`
+            const arr = excMap.get(key) || []
+            arr.push({ type: ex.type, reason: ex.reason || '' })
+            excMap.set(key, arr)
+          }
+          setExceptions(excMap)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast({
+            title: 'Error',
+            description: error instanceof Error ? error.message : 'Failed to load data',
+            variant: 'destructive',
+          })
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { cancelled = true }
+  }, [month, year])
+
+  // ── File Upload ──
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -252,30 +246,9 @@ export function AttendanceManager() {
     try {
       setUploading(true)
 
-      // Phase 3: Client-side validation
-      const validation = await validateFileStructure(file, month, year)
-      
-      if (!validation.valid) {
-        toast({
-          title: 'File Validation Error',
-          description: validation.error!,
-          variant: 'destructive',
-        })
-        setUploading(false)
-        return
-      }
-
-      toast({
-        title: 'File Valid',
-        description: `Processing ${validation.sampleData?.totalRows} rows...`,
-      })
-
-      // Get the current session to send auth token
       const { data: { session } } = await supabase.auth.getSession()
-
       if (!session) {
-        toast({ title: 'Error', description: 'You must be logged in to upload attendance', variant: 'destructive' })
-        setUploading(false)
+        toast({ title: 'Error', description: 'You must be logged in', variant: 'destructive' })
         return
       }
 
@@ -286,114 +259,285 @@ export function AttendanceManager() {
 
       const response = await fetch('/api/attendance/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData,
       })
 
-      const result = (await response.json()) as UploadResponse
+      const result = await response.json()
 
       if (result.success) {
-        toast({
-          title: 'Success',
-          description: `Successfully uploaded ${result.recordsProcessed} records`,
-        })
-        loadAttendanceData()
-      } else {
-        // Safely extract error details with type guards
-        const errorDetails = getErrorDetails(result)
-        const formattedMessage = formatErrorDisplay(errorDetails, result.details?.totalErrors)
+        const unmatchedMsg =
+          result.employeesUnmatched?.length > 0
+            ? `\nUnmatched names: ${result.employeesUnmatched.join(', ')}`
+            : ''
 
         toast({
-          title: 'Upload Error',
-          description: formattedMessage,
+          title: 'Upload Successful',
+          description: `${result.recordsProcessed} records saved for ${result.employeesMatched} employees.${unmatchedMsg}`,
+        })
+        loadData()
+      } else {
+        toast({
+          title: 'Upload Failed',
+          description: result.error || 'Unknown error',
           variant: 'destructive',
         })
       }
     } catch (error) {
       toast({
         title: 'Upload Failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred during upload',
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       })
     } finally {
       setUploading(false)
+      e.target.value = ''
     }
   }
 
-  async function deleteRecord(id: string) {
+  // ── Delete ──
+
+  async function deleteAllRecords() {
+    if (!confirm(`Delete ALL attendance records for ${getMonthName(month)} ${year}?`)) return
+
     try {
       const { error } = await supabase
         .from('attendance_records')
         .delete()
-        .eq('id', id)
+        .eq('month', month)
+        .eq('year', year)
 
       if (error) throw error
-
-      toast({
-        title: 'Record Deleted',
-        description: 'Attendance record has been deleted successfully',
-      })
-      loadAttendanceData()
+      toast({ title: 'Deleted', description: 'All records for this month removed.' })
+      loadData()
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete record',
+        description: error instanceof Error ? error.message : 'Failed to delete',
         variant: 'destructive',
       })
     }
   }
 
-  const filteredRecords = records.filter(r =>
-    r.employee_name?.toLowerCase().includes(search.toLowerCase())
-  )
+  // ── Computed Values ──
 
-  function handleEmployeeClick(record: any) {
-    const employeeRecords = records.filter(r => r.employee_id === record.employee_id)
-    const uniqueDates = [...new Set(employeeRecords.map(r => r.attendance_date))]
-    const absent = employeeRecords.filter(r => r.is_absent).length
-    const late = employeeRecords.filter(r => r.is_late && !r.nine_hour_waiver).length
-    const earlyOut = employeeRecords.filter(r => r.is_early_out && !r.nine_hour_waiver).length
-    const leavesDeducted = employeeRecords.filter(r => r.leaves_deducted).reduce((sum, r) => sum + (r.leaves_deducted || 0), 0)
+  // Build a lookup: employee UUID → full name from portal
+  const employeeNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const emp of employees) {
+      map.set(emp.id, `${emp.first_name} ${emp.last_name}`)
+    }
+    return map
+  }, [employees])
 
-    const baseSalary = record.base_salary || 0
-    const deductions = (absent * (baseSalary / 30)) + (late * 100) + (earlyOut * 100)
-    const netPayable = baseSalary - deductions
-
-    setSelectedEmployee(record)
-    setEmployeeStats({
-      total_days: uniqueDates.length,
-      present_days: employeeRecords.length - absent,
-      absent_days: absent,
-      late_days: late,
-      early_out_days: earlyOut,
-      leaves_deducted: leavesDeducted,
-      base_salary: baseSalary,
-      deductions: Math.round(deductions),
-      net_payable: Math.round(netPayable),
+  const filteredRecords = useMemo(() => {
+    if (!search.trim()) return records
+    const q = search.toLowerCase()
+    return records.filter(r => {
+      // Search by portal employee name (primary) or stored name (fallback)
+      const portalName = employeeNameMap.get(r.employee_id) || ''
+      return portalName.toLowerCase().includes(q) ||
+        r.employee_name?.toLowerCase().includes(q)
     })
+  }, [records, search, employeeNameMap])
+
+  const overallStats = useMemo(() => {
+    const data = filteredRecords
+    const absent = data.filter(r => r.is_absent).length
+    const late = data.filter(r => r.is_late).length
+    const earlyOut = data.filter(r => r.is_early_out).length
+    const uniqueDates = new Set(data.map(r => r.attendance_date))
+    return {
+      totalDays: uniqueDates.size,
+      presentDays: data.length - absent,
+      absentDays: absent,
+      lateDays: late,
+      earlyOutDays: earlyOut,
+    }
+  }, [filteredRecords])
+
+  const selectedEmployeeStats: EmployeeStats | null = useMemo(() => {
+    let targetEmployeeId: string | null = selectedEmployeeId
+
+    if (!targetEmployeeId && search.trim()) {
+      const uniqueEmployees = [...new Set(filteredRecords.map(r => r.employee_id))]
+      if (uniqueEmployees.length === 1) {
+        targetEmployeeId = uniqueEmployees[0]
+      }
+    }
+
+    if (!targetEmployeeId) return null
+
+    const empRecords = records.filter(r => r.employee_id === targetEmployeeId)
+    if (empRecords.length === 0) return null
+
+    const emp = employees.find(e => e.id === targetEmployeeId)
+    if (!emp) return null
+
+    const baseSalary = emp.base_salary || 0
+
+    const totalDays = empRecords.length
+    const absentDays = empRecords.filter(r => r.is_absent).length
+    const presentDays = totalDays - absentDays
+    const lateDays = empRecords.filter(r => r.is_late).length
+    const earlyOutDays = empRecords.filter(r => r.is_early_out).length
+
+    const totalViolations = lateDays + earlyOutDays
+    const violationDeductions = Math.floor(totalViolations / 3)
+
+    const remainingLeaves = Math.max(0, ANNUAL_LEAVES - (emp.leaves_taken || 0))
+    let leavesUsed: number
+    let absentSalaryDays: number
+
+    if (emp.is_probation) {
+      leavesUsed = 0
+      absentSalaryDays = absentDays
+    } else {
+      leavesUsed = Math.min(absentDays, remainingLeaves)
+      absentSalaryDays = Math.max(0, absentDays - remainingLeaves)
+    }
+
+    const totalSalaryDeductionDays = violationDeductions + absentSalaryDays
+    const dailyRate = baseSalary / 30
+    const salaryDeduction = Math.round(totalSalaryDeductionDays * dailyRate)
+    const netPayable = Math.round(baseSalary - salaryDeduction)
+
+    return {
+      employeeName: `${emp.first_name} ${emp.last_name}`,
+      totalDays,
+      presentDays,
+      absentDays,
+      lateDays,
+      earlyOutDays,
+      violationDeductions,
+      leavesUsed,
+      salaryDeductionDays: totalSalaryDeductionDays,
+      baseSalary,
+      dailyRate: Math.round(dailyRate),
+      salaryDeduction,
+      netPayable,
+      designation: emp.designation || '-',
+      isProbation: emp.is_probation,
+      remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
+    }
+  }, [selectedEmployeeId, search, filteredRecords, records, employees])
+
+  // ── Helpers ──
+
+  function getMonthName(m: number): string {
+    return new Date(2024, m - 1).toLocaleDateString('en-US', { month: 'long' })
   }
+
+  function formatTime12h(time: string | null): string {
+    if (!time) return '--:--'
+    const [h, m] = time.split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const EXCEPTION_LABELS: Record<string, { label: string; color: string }> = {
+    approved_leave: { label: 'Approved Leave', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    approved_late: { label: 'Approved Late', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    approved_early_out: { label: 'Approved Early Out', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    half_day: { label: 'Half Day', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    work_from_home: { label: 'WFH', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  }
+
+  function getDateBadges(date: string, employeeId: string) {
+    const badges: React.ReactElement[] = []
+
+    // Holiday badge
+    const holidayName = holidays.get(date)
+    if (holidayName) {
+      badges.push(
+        <span key="holiday" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+          🏖️ {holidayName}
+        </span>
+      )
+    }
+
+    // Exception badges
+    const excKey = `${employeeId}|${date}`
+    const excs = exceptions.get(excKey)
+    if (excs) {
+      for (const exc of excs) {
+        const style = EXCEPTION_LABELS[exc.type] || { label: exc.type.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-700 border-gray-200' }
+        badges.push(
+          <span key={exc.type} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${style.color}`}>
+            ✓ {style.label}
+          </span>
+        )
+      }
+    }
+
+    return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-0.5">{badges}</div> : null
+  }
+
+  function getStatusBadge(record: AttendanceRecord) {
+    if (record.is_absent) {
+      return (
+        <span className="px-2 py-1 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+          Absent
+        </span>
+      )
+    }
+    const badges = []
+    if (record.is_late) {
+      badges.push(
+        <span key="late" className="px-2 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          Late In
+        </span>
+      )
+    }
+    if (record.is_early_out) {
+      badges.push(
+        <span key="early" className="px-2 py-1 rounded text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
+          Early Out
+        </span>
+      )
+    }
+    if (record.nine_hour_waiver) {
+      badges.push(
+        <span key="waiver" className="px-2 py-1 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          9hr Waiver
+        </span>
+      )
+    }
+    if (badges.length === 0) {
+      badges.push(
+        <span key="ontime" className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          On Time
+        </span>
+      )
+    }
+    return <div className="flex gap-1 flex-wrap">{badges}</div>
+  }
+
+  // ── Render ──
 
   return (
     <div className="space-y-6">
-      {/* Header with Month/Year Selector */}
+      {/* Header: Month/Year + Upload + Search */}
       <Card>
         <CardHeader>
-          <CardTitle>Attendance Management</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 text-purple-400" />
+            Attendance Management
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Month</label>
-              <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
+              <label className="text-sm font-medium mb-2 block text-muted-foreground">Month</label>
+              <Select value={String(month)} onValueChange={v => setMonth(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 12 }, (_, i) => (
                     <SelectItem key={i + 1} value={String(i + 1)}>
-                      {new Date(2024, i).toLocaleDateString('en-US', { month: 'long' })}
+                      {getMonthName(i + 1)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -401,8 +545,8 @@ export function AttendanceManager() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Year</label>
-              <Select value={String(year)} onValueChange={(v) => setYear(parseInt(v))}>
+              <label className="text-sm font-medium mb-2 block text-muted-foreground">Year</label>
+              <Select value={String(year)} onValueChange={v => setYear(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -420,28 +564,45 @@ export function AttendanceManager() {
             </div>
 
             <div className="flex items-end">
-              <Button asChild disabled={uploading}>
-                <label className="cursor-pointer flex gap-2">
-                  <Upload className="w-4 h-4" />
-                  {uploading ? 'Uploading...' : 'Upload File'}
+              <Button asChild disabled={uploading} className="w-full">
+                <label className="cursor-pointer flex items-center justify-center gap-2">
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  {uploading ? 'Processing...' : 'Upload File'}
                   <input
                     type="file"
                     accept=".txt,.csv"
                     hidden
                     onChange={handleFileUpload}
+                    disabled={uploading}
                   />
                 </label>
               </Button>
             </div>
 
-            <div className="flex items-end">
+            {records.length > 0 && (
+              <div className="flex items-end">
+                <Button variant="outline" onClick={deleteAllRecords} className="w-full text-red-400 hover:text-red-300">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear Month
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-end sm:col-span-2 lg:col-span-1">
               <div className="relative w-full">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search employee..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8"
+                  onChange={e => {
+                    setSearch(e.target.value)
+                    setSelectedEmployeeId(null)
+                  }}
+                  className="pl-9"
                 />
               </div>
             </div>
@@ -449,129 +610,241 @@ export function AttendanceManager() {
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      {/* Overview Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="border-l-4 border-l-purple-500">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Total Days</p>
-            <p className="text-2xl font-bold">{stats.total_days}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <CalendarDays className="w-4 h-4 text-purple-400" />
+              <p className="text-sm text-muted-foreground">Total Days</p>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{overallStats.totalDays}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Present</p>
-            <p className="text-2xl font-bold text-green-600">{stats.present_days}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <p className="text-sm text-muted-foreground">Present</p>
+            </div>
+            <p className="text-2xl font-bold text-emerald-400">{overallStats.presentDays}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-red-500">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Absent</p>
-            <p className="text-2xl font-bold text-red-600">{stats.absent_days}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <UserX className="w-4 h-4 text-red-400" />
+              <p className="text-sm text-muted-foreground">Absent</p>
+            </div>
+            <p className="text-2xl font-bold text-red-400">{overallStats.absentDays}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-l-4 border-l-amber-500">
           <CardContent className="pt-6">
-            <p className="text-sm text-gray-600">Late</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.late_days}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <p className="text-sm text-muted-foreground">Late</p>
+            </div>
+            <p className="text-2xl font-bold text-amber-400">{overallStats.lateDays}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <LogOutIcon className="w-4 h-4 text-orange-400" />
+              <p className="text-sm text-muted-foreground">Early Out</p>
+            </div>
+            <p className="text-2xl font-bold text-orange-400">{overallStats.earlyOutDays}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payroll Cards - Show when employee is selected */}
-      {selectedEmployee && employeeStats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Designation</p>
-              <p className="text-xl font-bold text-blue-600">{selectedEmployee.designation}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Base Salary</p>
-              <p className="text-xl font-bold">₨ {employeeStats.base_salary?.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Deductions</p>
-              <p className="text-xl font-bold text-red-600">₨ {employeeStats.deductions?.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Net Payable</p>
-              <p className="text-xl font-bold text-green-600">₨ {employeeStats.net_payable?.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Early Out Days</p>
-              <p className="text-2xl font-bold text-orange-600">{employeeStats.early_out_days}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-sm text-gray-600">Leaves Deducted</p>
-              <p className="text-2xl font-bold">{employeeStats.leaves_deducted}</p>
-            </CardContent>
-          </Card>
+      {/* Employee Payroll Summary */}
+      {selectedEmployeeStats && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-lg font-semibold text-foreground">
+              {selectedEmployeeStats.employeeName}
+            </h3>
+            {selectedEmployeeStats.isProbation && (
+              <span className="px-2 py-1 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                <ShieldAlert className="w-3 h-3" />
+                Probation
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Total Days</p>
+                <p className="text-xl font-bold text-foreground">{selectedEmployeeStats.totalDays}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Present</p>
+                <p className="text-xl font-bold text-emerald-400">{selectedEmployeeStats.presentDays}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Late</p>
+                <p className="text-xl font-bold text-amber-400">{selectedEmployeeStats.lateDays}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Early Out</p>
+                <p className="text-xl font-bold text-orange-400">{selectedEmployeeStats.earlyOutDays}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Absent</p>
+                <p className="text-xl font-bold text-red-400">{selectedEmployeeStats.absentDays}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-xs text-muted-foreground">Leaves Remaining</p>
+                <p className="text-xl font-bold text-blue-400">{selectedEmployeeStats.remainingLeaves}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Card className="border-t-2 border-t-purple-500/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <Briefcase className="w-3 h-3 text-purple-400" />
+                  <p className="text-xs text-muted-foreground">Designation</p>
+                </div>
+                <p className="text-sm font-bold text-purple-400">{selectedEmployeeStats.designation}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-t-2 border-t-blue-500/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <DollarSign className="w-3 h-3 text-blue-400" />
+                  <p className="text-xs text-muted-foreground">Base Salary</p>
+                </div>
+                <p className="text-lg font-bold text-foreground">₨ {selectedEmployeeStats.baseSalary.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-t-2 border-t-amber-500/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <AlertTriangle className="w-3 h-3 text-amber-400" />
+                  <p className="text-xs text-muted-foreground">Deduction Days</p>
+                </div>
+                <p className="text-lg font-bold text-amber-400">
+                  {selectedEmployeeStats.salaryDeductionDays}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {selectedEmployeeStats.violationDeductions} violations + {selectedEmployeeStats.salaryDeductionDays - selectedEmployeeStats.violationDeductions} absences
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-t-2 border-t-red-500/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <TrendingDown className="w-3 h-3 text-red-400" />
+                  <p className="text-xs text-muted-foreground">Total Deduction</p>
+                </div>
+                <p className="text-lg font-bold text-red-400">₨ {selectedEmployeeStats.salaryDeduction.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-t-2 border-t-emerald-500/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center gap-1 mb-1">
+                  <Wallet className="w-3 h-3 text-emerald-400" />
+                  <p className="text-xs text-muted-foreground">Net Payable</p>
+                </div>
+                <p className="text-lg font-bold text-emerald-400">₨ {selectedEmployeeStats.netPayable.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50">
+            <strong>Deduction rules:</strong>{' '}
+            3 late/early-outs = 1 day salary deducted ({selectedEmployeeStats.lateDays} + {selectedEmployeeStats.earlyOutDays} = {selectedEmployeeStats.lateDays + selectedEmployeeStats.earlyOutDays} violations → {selectedEmployeeStats.violationDeductions} day{selectedEmployeeStats.violationDeductions !== 1 ? 's' : ''})
+            {selectedEmployeeStats.isProbation
+              ? ' · Probation: no leave quota, all absences deducted from salary'
+              : ` · ${selectedEmployeeStats.leavesUsed} absence${selectedEmployeeStats.leavesUsed !== 1 ? 's' : ''} covered by leave quota`
+            }
+            {' · '}Daily rate: ₨ {selectedEmployeeStats.dailyRate.toLocaleString()}
+          </div>
         </div>
       )}
 
       {/* Records Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Attendance Records ({filteredRecords.length})</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            Attendance Records ({filteredRecords.length})
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredRecords.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No records found for this month</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Loading records...
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <p className="text-muted-foreground text-center py-12">
+              {records.length === 0
+                ? `No records for ${getMonthName(month)} ${year}. Upload a ZKTeco attendance file to get started.`
+                : 'No matching records found.'}
+            </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-2">Employee</th>
-                    <th className="text-left p-2">Date</th>
-                    <th className="text-left p-2">Check In</th>
-                    <th className="text-left p-2">Check Out</th>
-                    <th className="text-left p-2">Status</th>
-                    <th className="text-center p-2">Action</th>
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-border bg-muted/50 backdrop-blur-sm">
+                    <th className="text-left p-3 text-muted-foreground font-medium">Employee</th>
+                    <th className="text-left p-3 text-muted-foreground font-medium">Date</th>
+                    <th className="text-left p-3 text-muted-foreground font-medium">Check In</th>
+                    <th className="text-left p-3 text-muted-foreground font-medium">Check Out</th>
+                    <th className="text-left p-3 text-muted-foreground font-medium">Hours</th>
+                    <th className="text-left p-3 text-muted-foreground font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRecords.map((record) => (
-                    <tr 
-                      key={record.id} 
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => handleEmployeeClick(record)}
+                  {filteredRecords.map(record => (
+                    <tr
+                      key={record.id}
+                      className={`border-b border-border/30 hover:bg-muted/30 cursor-pointer transition-colors ${
+                        record.is_absent ? 'opacity-60' : ''
+                      } ${
+                        selectedEmployeeId === record.employee_id ? 'bg-purple-500/5' : ''
+                      }`}
+                      onClick={() => setSelectedEmployeeId(record.employee_id)}
                     >
-                      <td className="p-2 font-medium">{record.employee_name}</td>
-                      <td className="p-2">{record.attendance_date}</td>
-                      <td className="p-2">{record.check_in || '-'}</td>
-                      <td className="p-2">{record.check_out || '-'}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          record.is_absent ? 'bg-red-100 text-red-800' :
-                          record.is_late ? 'bg-yellow-100 text-yellow-800' :
-                          record.is_early_out ? 'bg-orange-100 text-orange-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {record.status || (record.is_absent ? 'Absent' : record.is_late ? 'Late' : record.is_early_out ? 'Early Out' : 'Present')}
-                        </span>
+                      <td className="p-3 font-medium text-foreground">
+                        {employeeNameMap.get(record.employee_id) || record.employee_name}
                       </td>
-                      <td className="p-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteRecord(record.id)
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
+                      <td className="p-3 text-muted-foreground">
+                        <div>
+                          {new Date(record.attendance_date + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </div>
+                        {getDateBadges(record.attendance_date, record.employee_id)}
+                      </td>
+                      <td className={`p-3 ${record.is_late ? 'text-amber-400 font-medium' : 'text-muted-foreground'}`}>
+                        {formatTime12h(record.check_in)}
+                      </td>
+                      <td className={`p-3 ${record.is_early_out ? 'text-orange-400 font-medium' : 'text-muted-foreground'}`}>
+                        {formatTime12h(record.check_out)}
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {record.work_hours > 0 ? `${Number(record.work_hours).toFixed(1)} hrs` : '--'}
+                      </td>
+                      <td className="p-3">
+                        {getStatusBadge(record)}
                       </td>
                     </tr>
                   ))}

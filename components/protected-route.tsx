@@ -51,10 +51,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     )

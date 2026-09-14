@@ -58,7 +58,7 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
@@ -66,17 +66,17 @@ export default function SignUpPage() {
               <Image src="/images/image.png" alt="OviTech Logo" width={128} height={128} />
             </div>
           </div>
-          <Card className="border border-gray-200 shadow-sm">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-center text-gray-900">Create Account</CardTitle>
-              <CardDescription className="text-center text-gray-600">Sign up for OviTech Salary Portal</CardDescription>
+              <CardTitle className="text-2xl text-center">Create Account</CardTitle>
+              <CardDescription className="text-center">Sign up for OviTech Salary Portal</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSignUp}>
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label htmlFor="firstName" className="text-gray-900">First Name</Label>
+                      <Label htmlFor="firstName">First Name</Label>
                       <Input
                         id="firstName"
                         type="text"
@@ -84,11 +84,10 @@ export default function SignUpPage() {
                         required
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="border border-gray-300 text-gray-900 placeholder-gray-500"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="lastName" className="text-gray-900">Last Name</Label>
+                      <Label htmlFor="lastName">Last Name</Label>
                       <Input
                         id="lastName"
                         type="text"
@@ -96,12 +95,11 @@ export default function SignUpPage() {
                         required
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="border border-gray-300 text-gray-900 placeholder-gray-500"
                       />
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="email" className="text-gray-900">Email</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       type="email"
@@ -109,39 +107,36 @@ export default function SignUpPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="border border-gray-300 text-gray-900 placeholder-gray-500"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="password" className="text-gray-900">Password</Label>
+                    <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
                       type="password"
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="border border-gray-300 text-gray-900 placeholder-gray-500"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="repeat-password" className="text-gray-900">Confirm Password</Label>
+                    <Label htmlFor="repeat-password">Confirm Password</Label>
                     <Input
                       id="repeat-password"
                       type="password"
                       required
                       value={repeatPassword}
                       onChange={(e) => setRepeatPassword(e.target.value)}
-                      className="border border-gray-300 text-gray-900 placeholder-gray-500"
                     />
                   </div>
-                  {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                  {error && <p className="text-sm text-red-400 text-center">{error}</p>}
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : "Sign up"}
                   </Button>
                 </div>
-                <div className="mt-4 text-center text-sm text-gray-600">
+                <div className="mt-4 text-center text-sm text-muted-foreground">
                   Already have an account?{" "}
-                  <Link href="/auth/login" className="text-gray-900 font-medium underline underline-offset-4">
+                  <Link href="/auth/login" className="text-purple-400 font-medium underline underline-offset-4 hover:text-purple-300">
                     Login
                   </Link>
                 </div>

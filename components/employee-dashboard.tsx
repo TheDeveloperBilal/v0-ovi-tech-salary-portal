@@ -2,19 +2,67 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Download, Eye } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Download, Eye, Calendar, Clock, CalendarDays, Plus,
+  CheckCircle, XCircle, Loader2, FileText, AlertCircle, Send, Trash2,
+} from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
 
+const LEAVE_TYPES = [
+  { value: 'casual_leave', label: 'Casual Leave' },
+  { value: 'sick_leave', label: 'Sick Leave' },
+  { value: 'work_from_home', label: 'Work From Home' },
+  { value: 'half_day', label: 'Half Day' },
+  { value: 'early_out', label: 'Early Out' },
+  { value: 'other', label: 'Other' },
+]
+
+const STATUS_STYLES: Record<string, { bg: string; text: string; icon: any }> = {
+  pending: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', icon: Clock },
+  approved: { bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400', icon: CheckCircle },
+  rejected: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', icon: XCircle },
+}
+
 export function EmployeeDashboard({ userId }: { userId: string }) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'attendance' | 'leaves' | 'slips'>('overview')
   const [salarySlips, setSalarySlips] = useState<any[]>([])
   const [employeeData, setEmployeeData] = useState<any>(null)
   const [selectedSlip, setSelectedSlip] = useState<any>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Attendance view
+  const [attMonth, setAttMonth] = useState(new Date().getMonth() + 1)
+  const [attYear, setAttYear] = useState(new Date().getFullYear())
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([])
+  const [isLoadingAtt, setIsLoadingAtt] = useState(false)
+  const [holidays, setHolidays] = useState<Map<string, string>>(new Map())
+  const [exceptions, setExceptions] = useState<Map<string, { type: string; reason: string }[]>>(new Map())
+
+  // Leave requests
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([])
+  const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false)
+  const [leaveForm, setLeaveForm] = useState({
+    leave_type: 'casual_leave',
+    start_date: '',
+    end_date: '',
+    reason: '',
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -22,38 +70,38 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     fetchEmployeeData()
   }, [userId])
 
+  useEffect(() => {
+    if (employeeData?.id && activeTab === 'attendance') {
+      fetchAttendance()
+    }
+  }, [employeeData?.id, attMonth, attYear, activeTab])
+
+  useEffect(() => {
+    if (employeeData?.id && activeTab === 'leaves') {
+      fetchLeaveRequests()
+    }
+  }, [employeeData?.id, activeTab])
+
   const fetchEmployeeData = async () => {
     try {
       setIsLoading(true)
-      
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user?.email) {
-        throw new Error("User not authenticated")
-      }
+      if (!user?.email) throw new Error('User not authenticated')
 
-      // Get employee record linked to this user's email
       const { data: employee, error: empError } = await supabase
         .from('employees')
         .select('*')
         .eq('email', user.email)
         .single()
-
       if (empError) throw empError
-
       setEmployeeData(employee)
 
-      // Fetch salary slips ONLY for this employee
-      const { data: slips, error: slipsError } = await supabase
+      const { data: slips } = await supabase
         .from('salary_slips')
         .select('*')
         .eq('employee_id', employee.id)
         .order('year', { ascending: false })
         .order('month', { ascending: false })
-
-      if (slipsError) throw slipsError
-
       setSalarySlips(slips || [])
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
@@ -62,12 +110,120 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     }
   }
 
+  const fetchAttendance = async () => {
+    if (!employeeData?.id) return
+    setIsLoadingAtt(true)
+    try {
+      const firstDay = `${attYear}-${String(attMonth).padStart(2, '0')}-01`
+      const lastDay = new Date(attYear, attMonth, 0).toISOString().split('T')[0]
+
+      const [attRes, holRes, excRes] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('employee_id', employeeData.id)
+          .eq('month', attMonth)
+          .eq('year', attYear)
+          .order('attendance_date', { ascending: true }),
+        supabase
+          .from('company_holidays')
+          .select('holiday_date, name')
+          .gte('holiday_date', firstDay)
+          .lte('holiday_date', lastDay),
+        supabase
+          .from('attendance_exceptions')
+          .select('employee_id, exception_date, type, reason')
+          .eq('employee_id', employeeData.id)
+          .gte('exception_date', firstDay)
+          .lte('exception_date', lastDay),
+      ])
+
+      if (attRes.error) throw attRes.error
+      setAttendanceRecords(attRes.data || [])
+
+      const holMap = new Map<string, string>()
+      for (const h of (holRes.data || [])) holMap.set(h.holiday_date, h.name)
+      setHolidays(holMap)
+
+      const excMap = new Map<string, { type: string; reason: string }[]>()
+      for (const ex of (excRes.data || [])) {
+        const key = `${ex.employee_id}|${ex.exception_date}`
+        const arr = excMap.get(key) || []
+        arr.push({ type: ex.type, reason: ex.reason || '' })
+        excMap.set(key, arr)
+      }
+      setExceptions(excMap)
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } finally {
+      setIsLoadingAtt(false)
+    }
+  }
+
+  const fetchLeaveRequests = async () => {
+    if (!employeeData?.id) return
+    try {
+      const { data, error } = await supabase
+        .from('leave_requests')
+        .select('*')
+        .eq('employee_id', employeeData.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setLeaveRequests(data || [])
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    }
+  }
+
+  const handleSubmitLeave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!employeeData?.id) return
+
+    if (leaveForm.end_date < leaveForm.start_date) {
+      toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' })
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const { error } = await supabase.from('leave_requests').insert({
+        employee_id: employeeData.id,
+        leave_type: leaveForm.leave_type,
+        start_date: leaveForm.start_date,
+        end_date: leaveForm.end_date,
+        reason: leaveForm.reason || null,
+        status: 'pending',
+      })
+      if (error) throw error
+
+      toast({ title: 'Leave request submitted', description: 'Your request has been sent to admin for approval.' })
+      setLeaveForm({ leave_type: 'casual_leave', start_date: '', end_date: '', reason: '' })
+      setIsLeaveFormOpen(false)
+      fetchLeaveRequests()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCancelRequest = async (id: string) => {
+    if (!confirm('Cancel this leave request?')) return
+    try {
+      const { error } = await supabase.from('leave_requests').delete().eq('id', id)
+      if (error) throw error
+      setLeaveRequests(leaveRequests.filter(r => r.id !== id))
+      toast({ title: 'Cancelled', description: 'Leave request cancelled.' })
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    }
+  }
+
   const handleViewSlip = (slip: any) => {
+    const summary = slip.attendance_summary || {}
     setSelectedSlip({
       basic_salary: slip.basic_salary,
-      allowances: slip.allowances || {},
-      deductions: slip.deductions || {},
-      leaves_deducted: slip.leaves_deducted || 0,
+      baseSalary: slip.basic_salary,
       net_salary: slip.net_salary,
       month: slip.month,
       year: slip.year,
@@ -78,25 +234,116 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       designation: employeeData?.designation,
       position: employeeData?.designation,
       joinDate: employeeData?.date_of_joining,
-      leaves_taken: employeeData?.leaves_taken || 0,
-      is_probation: employeeData?.is_probation || false,
+      is_probation: slip.is_probation || employeeData?.is_probation || false,
       probation_end_date: employeeData?.probation_end_date || null,
+      working_days: slip.working_days,
+      present_days: slip.present_days,
+      absent_days: slip.absent_days,
+      leaves_deducted: slip.leaves_deducted,
+      total_deductions: slip.total_deductions,
+      lateDays: summary.lateDays || 0,
+      earlyOutDays: summary.earlyOutDays || 0,
+      violationDeductions: summary.violationDeductions || 0,
+      leavesUsed: summary.leavesUsed || 0,
+      absentSalaryDays: summary.absentSalaryDays || 0,
+      remainingLeaves: summary.remainingLeaves || 0,
+      dailyRate: summary.dailyRate || 0,
+      incomeTax: summary.incomeTax || slip.income_tax || 0,
+      allowances: slip.allowances || {},
+      deductions: slip.deductions || {},
     })
     setIsPreviewOpen(true)
   }
 
-  const getMonthName = (month: number) => {
-    const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    return months[month] || 'Unknown'
+  const getMonthName = (m: number) => {
+    return new Date(2024, m - 1).toLocaleDateString('en-US', { month: 'long' })
   }
+
+  const getStatusBadge = (status: string) => {
+    const s = STATUS_STYLES[status] || STATUS_STYLES.pending
+    const Icon = s.icon
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${s.bg} ${s.text}`}>
+        <Icon className="w-3 h-3" />
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    )
+  }
+
+  const formatTime12h = (time: string | null): string => {
+    if (!time) return '—'
+    const [h, m] = time.split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`
+  }
+
+  const EXCEPTION_LABELS: Record<string, { label: string; color: string }> = {
+    approved_leave: { label: 'Approved Leave', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    approved_late: { label: 'Approved Late', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    approved_early_out: { label: 'Approved Early Out', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    half_day: { label: 'Half Day', color: 'bg-violet-100 text-violet-700 border-violet-200' },
+    work_from_home: { label: 'WFH', color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  }
+
+  const getDateBadges = (date: string, employeeId: string) => {
+    const badges: React.ReactElement[] = []
+    const holidayName = holidays.get(date)
+    if (holidayName) {
+      badges.push(
+        <span key="holiday" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+          🏖️ {holidayName}
+        </span>
+      )
+    }
+    const excKey = `${employeeId}|${date}`
+    const excs = exceptions.get(excKey)
+    if (excs) {
+      for (const exc of excs) {
+        const style = EXCEPTION_LABELS[exc.type] || { label: exc.type.replace(/_/g, ' '), color: 'bg-gray-100 text-gray-700 border-gray-200' }
+        badges.push(
+          <span key={exc.type} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${style.color}`}>
+            ✓ {style.label}
+          </span>
+        )
+      }
+    }
+    return badges.length > 0 ? <div className="flex flex-wrap gap-1 mt-0.5">{badges}</div> : null
+  }
+
+  const getAttStatusColor = (record: any) => {
+    if (record.is_absent) return 'text-red-400'
+    if (record.is_late && record.is_early_out) return 'text-orange-400'
+    if (record.is_late) return 'text-amber-400'
+    if (record.is_early_out) return 'text-orange-400'
+    return 'text-emerald-400'
+  }
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PK', {
+      weekday: 'short', day: 'numeric', month: 'short',
+    })
+  }
+
+  const formatDateFull = (dateStr: string) => {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PK', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    })
+  }
+
+  // Attendance summary stats
+  const attPresent = attendanceRecords.filter(r => !r.is_absent).length
+  const attAbsent = attendanceRecords.filter(r => r.is_absent).length
+  const attLate = attendanceRecords.filter(r => r.is_late && !r.is_absent).length
+  const attEarlyOut = attendanceRecords.filter(r => r.is_early_out && !r.is_absent).length
+  const pendingRequests = leaveRequests.filter(r => r.status === 'pending').length
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mb-4"></div>
-          <p className="text-gray-600">Loading your salary slips...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     )
@@ -104,7 +351,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Employee Profile Header */}
+      {/* Profile Header */}
       <Card>
         <CardHeader>
           <CardTitle>My Profile</CardTitle>
@@ -112,39 +359,39 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">Name</p>
-              <p className="font-semibold text-sm sm:text-base">{employeeData?.first_name} {employeeData?.last_name}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Name</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.first_name} {employeeData?.last_name}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">Employee ID</p>
-              <p className="font-semibold text-sm sm:text-base">{employeeData?.employee_id}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Employee ID</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.employee_id}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">Department</p>
-              <p className="font-semibold text-sm sm:text-base">{employeeData?.department || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Department</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.department || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-gray-600">Designation</p>
-              <p className="font-semibold text-sm sm:text-base">{employeeData?.designation || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Designation</p>
+              <p className="font-semibold text-sm sm:text-base text-foreground">{employeeData?.designation || 'N/A'}</p>
             </div>
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
               {employeeData?.is_probation ? (
                 <>
-                  <p className="text-xs sm:text-sm text-yellow-800 font-semibold">Probation Period</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    You are on probation. Leave benefits will be available after probation ends.
-                  </p>
+                  <p className="text-xs sm:text-sm text-amber-400 font-semibold">Probation Period</p>
+                  <p className="text-sm text-amber-300 mt-1">No paid leave benefits during probation.</p>
                   {employeeData?.probation_end_date && (
-                    <p className="text-xs text-gray-600 mt-2">
-                      Probation ends: {new Date(employeeData.probation_end_date).toLocaleDateString()}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Ends: {new Date(employeeData.probation_end_date).toLocaleDateString()}
                     </p>
                   )}
                 </>
               ) : (
                 <>
-                  <p className="text-xs sm:text-sm text-gray-600">Remaining Leaves</p>
-                  <p className="font-bold text-lg sm:text-xl text-blue-600">{14 - (employeeData?.leaves_taken || 0)} / 14</p>
-                  <p className="text-xs text-gray-500 mt-1">Annual leaves used: {employeeData?.leaves_taken || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Remaining Leaves</p>
+                  <p className="font-bold text-lg sm:text-xl text-purple-400">
+                    {Math.max(0, 14 - (employeeData?.leaves_taken || 0))} / 14
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Used: {employeeData?.leaves_taken || 0}</p>
                 </>
               )}
             </div>
@@ -152,57 +399,39 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         </CardContent>
       </Card>
 
-      {/* Salary Slips List */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">My Salary Slips</h2>
-        {salarySlips.length === 0 ? (
-          <Card>
-            <CardContent className="pt-8 pb-8">
-              <p className="text-center text-gray-500">No salary slips yet. Please contact HR.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {salarySlips.map((slip) => {
-              // Support both JSON object format and individual columns format
-              let allowances = slip.allowances || {}
-              let deductions = slip.deductions || {}
-              
-              // If allowances is empty but individual fields exist, reconstruct the object
-              if (Object.keys(allowances).length === 0 && slip.hra !== undefined) {
-                allowances = {
-                  hra: slip.hra || 0,
-                  dearness_allowance: slip.dearness_allowance || 0,
-                  medical_allowance: slip.medical_allowance || 0,
-                  transport_allowance: slip.transport_allowance || 0,
-                  other_allowance: slip.other_allowance || 0,
-                }
-              }
-              
-              // If deductions is empty but individual fields exist, reconstruct the object
-              if (Object.keys(deductions).length === 0 && slip.pf_deduction !== undefined) {
-                deductions = {
-                  pf_deduction: slip.pf_deduction || 0,
-                  esi_deduction: slip.esi_deduction || 0,
-                  professional_tax: slip.professional_tax || 0,
-                  loan_deduction: slip.loan_deduction || 0,
-                  other_deduction: slip.other_deduction || 0,
-                }
-              }
-              
-              const earnings = (slip.base_salary || slip.basic_salary || 0) + Object.values(allowances).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)
-              
-              // Calculate leave deduction only if all 14 annual leaves have been used
-              const baseSalary = slip.base_salary || slip.basic_salary || 0
-              const totalLeavesUsed = (employeeData?.leaves_taken || 0) + (slip.leaves_deducted || 0)
-              const leavesDeductionAmount = baseSalary > 0 && totalLeavesUsed >= 14 && slip.leaves_deducted > 0
-                ? (baseSalary / 26) * slip.leaves_deducted
-                : 0
-              
-              const deductionsTotal = Object.values(deductions).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + leavesDeductionAmount
-              
-              return (
-                <Card key={slip.id} className="hover:shadow-lg transition-shadow">
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'overview', label: 'Salary Slips', icon: FileText },
+          { key: 'attendance', label: 'My Attendance', icon: Calendar },
+          { key: 'leaves', label: `Leave Requests${pendingRequests > 0 ? ` (${pendingRequests})` : ''}`, icon: CalendarDays },
+        ].map(tab => (
+          <Button
+            key={tab.key}
+            variant={activeTab === tab.key ? 'default' : 'outline'}
+            onClick={() => setActiveTab(tab.key as any)}
+            className="gap-2"
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* ═══════ SALARY SLIPS TAB ═══════ */}
+      {activeTab === 'overview' && (
+        <div>
+          <h2 className="text-2xl font-bold mb-4 text-foreground">My Salary Slips</h2>
+          {salarySlips.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="pt-8 pb-8">
+                <p className="text-center text-muted-foreground">No salary slips yet. Please contact HR.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {salarySlips.map((slip) => (
+                <Card key={slip.id} className="hover:border-purple-500/20 transition-all duration-200">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base sm:text-lg">
                       {getMonthName(slip.month)} {slip.year}
@@ -211,92 +440,302 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600">Earnings</span>
-                        <span className="font-semibold text-green-600">PKR {earnings.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-muted-foreground">Base Salary</span>
+                        <span className="font-semibold text-foreground">
+                          PKR {(slip.basic_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600">Deductions</span>
-                        <span className="font-semibold text-red-600">PKR {deductionsTotal.toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                        <span className="text-muted-foreground">Deductions</span>
+                        <span className="font-semibold text-red-400">
+                          PKR {(slip.total_deductions || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}
+                        </span>
                       </div>
-                      <div className="flex justify-between text-xs sm:text-sm border-t pt-2">
-                        <span className="text-gray-600 font-semibold">Net Salary</span>
-                        <span className="font-bold text-gray-900">PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}</span>
+                      <div className="flex justify-between text-xs sm:text-sm border-t border-border pt-2">
+                        <span className="text-muted-foreground font-semibold">Net Salary</span>
+                        <span className="font-bold text-foreground">
+                          PKR {(slip.net_salary || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2 flex-col sm:flex-row">
-                      <Button 
-                        onClick={() => handleViewSlip(slip)} 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 w-full sm:w-auto"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          const slipData = {
-                            basic_salary: slip.base_salary || slip.basic_salary,
-                            hra: slip.hra,
-                            dearness_allowance: slip.dearness_allowance,
-                            medical_allowance: slip.medical_allowance,
-                            transport_allowance: slip.transport_allowance,
-                            other_allowance: slip.other_allowance,
-                            allowances: allowances,
-                            pf_deduction: slip.pf_deduction,
-                            esi_deduction: slip.esi_deduction,
-                            professional_tax: slip.professional_tax,
-                            loan_deduction: slip.loan_deduction,
-                            other_deduction: slip.other_deduction,
-                            deductions: deductions,
-                            leaves_deducted: slip.leaves_deducted || 0,
-                            net_salary: slip.net_salary,
-                            month: slip.month,
-                            year: slip.year,
-                            employee_name: `${employeeData?.first_name} ${employeeData?.last_name}`,
-                            employee_id: employeeData?.employee_id,
-                            email: employeeData?.email,
-                            department: employeeData?.department,
-                            designation: employeeData?.designation,
-                            position: employeeData?.designation,
-                            joinDate: employeeData?.date_of_joining,
-                            leaves_taken: employeeData?.leaves_taken || 0,
-                            employeeName: `${employeeData?.first_name} ${employeeData?.last_name}`,
-                            employeeId: employeeData?.employee_id,
-                          }
-                          setSelectedSlip(slipData)
-                          setIsPreviewOpen(true)
-                          // Trigger PDF download after dialog opens
-                          setTimeout(() => {
-                            const downloadBtn = document.querySelector('[data-pdf-download]') as HTMLButtonElement
-                            if (downloadBtn) {
-                              downloadBtn.click()
-                            }
-                          }, 300)
-                        }}
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 w-full sm:w-auto bg-transparent"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
+                    <Button onClick={() => handleViewSlip(slip)} variant="outline" size="sm" className="w-full">
+                      <Eye className="w-4 h-4 mr-2" /> View Slip
+                    </Button>
                   </CardContent>
                 </Card>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ ATTENDANCE TAB ═══════ */}
+      {activeTab === 'attendance' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-purple-400" />
+                My Attendance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3 mb-4">
+                <Select value={String(attMonth)} onValueChange={v => setAttMonth(parseInt(v))}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{getMonthName(i + 1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(attYear)} onValueChange={v => setAttYear(parseInt(v))}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 3 }, (_, i) => {
+                      const y = new Date().getFullYear() - 1 + i
+                      return <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Stats */}
+              {attendanceRecords.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 text-center">
+                    <p className="text-2xl font-bold text-emerald-400">{attPresent}</p>
+                    <p className="text-xs text-muted-foreground">Present</p>
+                  </div>
+                  <div className="bg-red-500/10 p-3 rounded-lg border border-red-500/20 text-center">
+                    <p className="text-2xl font-bold text-red-400">{attAbsent}</p>
+                    <p className="text-xs text-muted-foreground">Absent</p>
+                  </div>
+                  <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 text-center">
+                    <p className="text-2xl font-bold text-amber-400">{attLate}</p>
+                    <p className="text-xs text-muted-foreground">Late</p>
+                  </div>
+                  <div className="bg-orange-500/10 p-3 rounded-lg border border-orange-500/20 text-center">
+                    <p className="text-2xl font-bold text-orange-400">{attEarlyOut}</p>
+                    <p className="text-xs text-muted-foreground">Early Out</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Records table */}
+              {isLoadingAtt ? (
+                <p className="text-center text-muted-foreground py-8">
+                  <Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...
+                </p>
+              ) : attendanceRecords.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No attendance records for {getMonthName(attMonth)} {attYear}.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 text-muted-foreground font-medium">Date</th>
+                        <th className="text-left p-3 text-muted-foreground font-medium">Check In</th>
+                        <th className="text-left p-3 text-muted-foreground font-medium">Check Out</th>
+                        <th className="text-right p-3 text-muted-foreground font-medium">Hours</th>
+                        <th className="text-left p-3 text-muted-foreground font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {attendanceRecords.map(r => (
+                        <tr key={r.id} className="border-b border-border/30 hover:bg-muted/30">
+                          <td className="p-3 text-foreground">
+                            <div>{formatDate(r.attendance_date)}</div>
+                            {getDateBadges(r.attendance_date, r.employee_id || employeeData?.id)}
+                          </td>
+                          <td className={`p-3 ${r.is_late ? 'text-amber-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_in)}</td>
+                          <td className={`p-3 ${r.is_early_out ? 'text-orange-500 font-medium' : 'text-foreground'}`}>{formatTime12h(r.check_out)}</td>
+                          <td className="p-3 text-right text-foreground">{r.work_hours ? `${r.work_hours}h` : '—'}</td>
+                          <td className={`p-3 font-medium ${getAttStatusColor(r)}`}>
+                            {r.status}
+                            {r.nine_hour_waiver && (
+                              <span className="text-xs text-green-400 ml-1">(9h waiver)</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ═══════ LEAVE REQUESTS TAB ═══════ */}
+      {activeTab === 'leaves' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarDays className="w-5 h-5 text-purple-400" />
+                    Leave Requests
+                  </CardTitle>
+                  <CardDescription>
+                    Apply for leave and track your request status
+                  </CardDescription>
+                </div>
+                <Button onClick={() => setIsLeaveFormOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Apply for Leave
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {leaveRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No leave requests yet. Click &quot;Apply for Leave&quot; to submit one.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {leaveRequests.map(req => {
+                    const lt = LEAVE_TYPES.find(t => t.value === req.leave_type)
+                    const startDate = formatDateFull(req.start_date)
+                    const endDate = formatDateFull(req.end_date)
+                    const isSingleDay = req.start_date === req.end_date
+
+                    return (
+                      <div key={req.id} className="p-4 rounded-lg border border-border hover:border-border/80">
+                        <div className="flex flex-col sm:flex-row justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-foreground">{lt?.label || req.leave_type}</span>
+                              {getStatusBadge(req.status)}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {isSingleDay ? startDate : `${startDate} → ${endDate}`}
+                            </p>
+                            {req.reason && (
+                              <p className="text-sm text-muted-foreground mt-1">Reason: {req.reason}</p>
+                            )}
+                            {req.admin_remarks && (
+                              <p className="text-sm mt-1">
+                                <span className="text-muted-foreground">Admin: </span>
+                                <span className="text-foreground">{req.admin_remarks}</span>
+                              </p>
+                            )}
+                          </div>
+                          {req.status === 'pending' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCancelRequest(req.id)}
+                              className="text-red-400 hover:text-red-300 self-start"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Apply for Leave Dialog */}
+          <Dialog open={isLeaveFormOpen} onOpenChange={setIsLeaveFormOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Apply for Leave</DialogTitle>
+                <DialogDescription>
+                  Submit a leave request. Admin will review and approve or reject.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmitLeave} className="space-y-4">
+                <div>
+                  <Label>Leave Type *</Label>
+                  <Select
+                    value={leaveForm.leave_type}
+                    onValueChange={v => setLeaveForm({ ...leaveForm, leave_type: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAVE_TYPES.map(t => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Start Date *</Label>
+                    <Input
+                      type="date"
+                      value={leaveForm.start_date}
+                      onChange={e => setLeaveForm({ ...leaveForm, start_date: e.target.value, end_date: leaveForm.end_date || e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>End Date *</Label>
+                    <Input
+                      type="date"
+                      value={leaveForm.end_date}
+                      onChange={e => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
+                      min={leaveForm.start_date}
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Reason</Label>
+                  <Input
+                    placeholder="e.g. Doctor appointment, family event"
+                    value={leaveForm.reason}
+                    onChange={e => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                  />
+                </div>
+                {!employeeData?.is_probation && (
+                  <p className="text-xs text-muted-foreground">
+                    Remaining leave quota: {Math.max(0, 14 - (employeeData?.leaves_taken || 0))} / 14
+                  </p>
+                )}
+                {employeeData?.is_probation && (
+                  <p className="text-xs text-amber-400">
+                    <AlertCircle className="w-3 h-3 inline mr-1" />
+                    Probation employees have no paid leave. Absences will be deducted from salary.
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  Submit Request
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-      <DialogContent className="max-w-4xl w-full mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
-        <DialogHeader>
-          <DialogTitle>Salary Slip Details</DialogTitle>
-          <DialogDescription>View your salary slip information</DialogDescription>
-        </DialogHeader>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Salary Slip Details</DialogTitle>
+            <DialogDescription>View your salary slip information</DialogDescription>
+          </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
           </div>

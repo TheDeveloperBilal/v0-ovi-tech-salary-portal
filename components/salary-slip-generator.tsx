@@ -1,65 +1,128 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { FileText, Download, Eye, Trash2 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { FileText, Download, Eye, Trash2, Zap, Loader2, CalendarDays } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SalarySlipPreview } from "@/components/salary-slip-preview"
+import { ANNUAL_LEAVES } from "@/lib/attendance-calculations"
+
+interface Employee {
+  id: string
+  employee_id: string
+  first_name: string
+  last_name: string
+  email: string
+  phone: string | null
+  department: string | null
+  designation: string | null
+  date_of_joining: string | null
+  base_salary: number
+  income_tax: number
+  is_probation: boolean
+  probation_end_date: string | null
+  leaves_taken: number
+}
+
+interface AttendanceRecord {
+  id: string
+  employee_id: string
+  employee_name: string
+  attendance_date: string
+  is_late: boolean
+  is_early_out: boolean
+  is_absent: boolean
+}
+
+interface GeneratedSlip {
+  employeeId: string
+  employeeName: string
+  designation: string
+  baseSalary: number
+  incomeTax: number
+  workingDays: number
+  presentDays: number
+  absentDays: number
+  lateDays: number
+  earlyOutDays: number
+  violationDeductions: number
+  leavesUsed: number
+  absentSalaryDays: number
+  totalDeductionDays: number
+  dailyRate: number
+  salaryDeduction: number
+  netSalary: number
+  isProbation: boolean
+  remainingLeaves: number
+  holidaysExcluded: number
+  exceptionsApplied: number
+}
 
 export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
+  const [month, setMonth] = useState(new Date().getMonth() + 1)
+  const [year, setYear] = useState(new Date().getFullYear())
   const [slips, setSlips] = useState<any[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [selectedSlip, setSelectedSlip] = useState<any>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [employees, setEmployees] = useState<any[]>([])
-  const [formData, setFormData] = useState({
-    employee_id: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    basic_salary: 0,
-    hra: 0,
-    dearness_allowance: 0,
-    medical_allowance: 0,
-    transport_allowance: 0,
-    other_allowance: 0,
-    pf_deduction: 0,
-    esi_deduction: 0,
-    professional_tax: 0,
-    loan_deduction: 0,
-    other_deduction: 0,
-    leaves_deducted: 0,
-    present_days: 26,
-    working_days: 26,
-  })
+  const [generatedPreview, setGeneratedPreview] = useState<GeneratedSlip[]>([])
+  const [showPreviewList, setShowPreviewList] = useState(false)
+
   const supabase = createClient()
   const { toast } = useToast()
 
   useEffect(() => {
-    fetchSalarySlips()
-    fetchEmployeesData()
-  }, [])
+    fetchData()
+  }, [month, year])
 
-  // Refetch employees when create dialog opens
-  useEffect(() => {
-    if (isCreateOpen) {
-      fetchEmployeesData()
-    }
-  }, [isCreateOpen])
-
-  const fetchSalarySlips = async () => {
+  async function fetchData() {
     setIsLoading(true)
     try {
-      const { data, error } = await supabase
+      // Fetch existing slips for this month
+      const { data: slipData, error: slipError } = await supabase
         .from("salary_slips")
-        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date)")
+        .select("*, employees(first_name, last_name, employee_id, email, department, designation, date_of_joining, is_probation, probation_end_date, leaves_taken, base_salary)")
+        .eq("month", month)
+        .eq("year", year)
         .order("created_at", { ascending: false })
 
-      if (error) throw error
-      setSlips(data || [])
+      if (slipError) throw slipError
+      setSlips(slipData || [])
+
+      // Fetch employees
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("*")
+        .order("first_name", { ascending: true })
+
+      setEmployees((empData || []).map((e: any) => ({
+        id: e.id,
+        employee_id: e.employee_id || '',
+        first_name: e.first_name || '',
+        last_name: e.last_name || '',
+        email: e.email || '',
+        phone: e.phone || null,
+        department: e.department || null,
+        designation: e.designation || null,
+        date_of_joining: e.date_of_joining || null,
+        base_salary: Number(e.base_salary || 0),
+        income_tax: Number(e.income_tax || 0),
+        is_probation: Boolean(e.is_probation),
+        probation_end_date: e.probation_end_date || null,
+        leaves_taken: Number(e.leaves_taken || 0),
+      })))
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" })
     } finally {
@@ -67,547 +130,686 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
-  const fetchEmployeesData = async () => {
+  // Preview what will be generated (compute from attendance data)
+  async function previewGeneration() {
     try {
-      const { data, error } = await supabase
-        .from("employees")
-        .select("id, first_name, last_name, employee_id, email, department, designation, date_of_joining, leaves_taken, is_probation, probation_end_date")
-        .order("first_name", { ascending: true })
+      setIsGenerating(true)
 
-      if (error) {
-        throw error
-      }
-      setEmployees(data || [])
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to load employees: ${error.message}`, variant: "destructive" })
-      setEmployees([])
-    }
-  }
+      // Fetch attendance records, holidays, exceptions, and salary history in parallel
+      const lastDayOfMonth = new Date(year, month, 0).toISOString().split("T")[0]
+      const firstDayOfMonth = `${year}-${String(month).padStart(2, "0")}-01`
 
-  const createSalarySlip = async () => {
-    if (!formData.employee_id) {
-      toast({ title: "Error", description: "Please select an employee", variant: "destructive" })
-      return
-    }
-
-    try {
-
-      const allowances = {
-        hra: formData.hra,
-        dearness_allowance: formData.dearness_allowance,
-        medical_allowance: formData.medical_allowance,
-        transport_allowance: formData.transport_allowance,
-        other_allowance: formData.other_allowance,
-      }
-
-      const deductions = {
-        pf_deduction: formData.pf_deduction,
-        esi_deduction: formData.esi_deduction,
-        professional_tax: formData.professional_tax,
-        loan_deduction: formData.loan_deduction,
-        other_deduction: formData.other_deduction,
-      }
-
-      const totalEarnings =
-        formData.basic_salary +
-        formData.hra +
-        formData.dearness_allowance +
-        formData.medical_allowance +
-        formData.transport_allowance +
-        formData.other_allowance
-
-      const totalDeductions =
-        formData.pf_deduction +
-        formData.esi_deduction +
-        formData.professional_tax +
-        formData.loan_deduction +
-        formData.other_deduction
-
-      // Get the selected employee to check probation status
-      const selectedEmployee = employees.find(e => e.id === formData.employee_id)
-      const isProbation = selectedEmployee?.is_probation === true
-
-      // Calculate leave deduction based on probation status
-      let leavesDeductionAmount = 0
-      if (formData.leaves_deducted > 0 && formData.basic_salary > 0) {
-        const dailyRate = formData.basic_salary / 26
-        if (isProbation) {
-          // For probation: deduct ALL leaves immediately
-          leavesDeductionAmount = dailyRate * formData.leaves_deducted
-        } else {
-          // For permanent: only deduct if total leaves >= 14
-          const slipsUpToThisMonth = slips.filter(s => 
-            s.employee_id === formData.employee_id && 
-            (s.year < formData.year || (s.year === formData.year && s.month <= formData.month))
-          )
-          const totalLeavesDeductedSoFar = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
-          const totalLeavesUsed = (selectedEmployee?.leaves_taken || 0) + totalLeavesDeductedSoFar + formData.leaves_deducted
-          
-          if (totalLeavesUsed >= 14) {
-            leavesDeductionAmount = dailyRate * formData.leaves_deducted
-          }
-        }
-      }
-
-      const netSalary = totalEarnings - (totalDeductions + leavesDeductionAmount)
-
-      const { error } = await supabase.from("salary_slips").insert([
-        {
-          employee_id: formData.employee_id,
-          month: formData.month,
-          year: formData.year,
-          basic_salary: formData.basic_salary,
-          allowances: allowances,
-          deductions: deductions,
-          leaves_deducted: formData.leaves_deducted,
-          net_salary: netSalary,
-          is_probation: isProbation,
-        },
+      const [attRes, holidayRes, exceptionRes, salaryHistRes] = await Promise.all([
+        supabase
+          .from("attendance_records")
+          .select("*")
+          .eq("month", month)
+          .eq("year", year),
+        supabase
+          .from("company_holidays")
+          .select("holiday_date")
+          .gte("holiday_date", firstDayOfMonth)
+          .lte("holiday_date", lastDayOfMonth),
+        supabase
+          .from("attendance_exceptions")
+          .select("employee_id, exception_date, type")
+          .gte("exception_date", firstDayOfMonth)
+          .lte("exception_date", lastDayOfMonth),
+        supabase
+          .from("salary_history")
+          .select("employee_id, salary, effective_from")
+          .lte("effective_from", lastDayOfMonth)
+          .order("effective_from", { ascending: false }),
       ])
 
-      if (error) {
-        throw error
+      const attData = attRes.data
+      if (attRes.error) throw attRes.error
+      if (!attData || attData.length === 0) {
+        toast({
+          title: "No attendance data",
+          description: `No attendance records found for ${getMonthName(month)} ${year}. Upload attendance data first.`,
+          variant: "destructive",
+        })
+        return
       }
 
-      // Update employee's leaves_taken
-      if (formData.leaves_deducted > 0) {
-        const employee = employees.find(e => e.id === formData.employee_id)
-        const currentLeavesUsed = employee?.leaves_taken || 0
-        
-        const { error: updateError } = await supabase
-          .from("employees")
-          .update({ leaves_taken: currentLeavesUsed + formData.leaves_deducted })
-          .eq("id", formData.employee_id)
-
-        if (updateError) {
-        }
-      }
-
-      toast({ title: "Success", description: "Salary slip created successfully" })
-      setIsCreateOpen(false)
-      setFormData({
-        employee_id: "",
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        basic_salary: 0,
-        hra: 0,
-        dearness_allowance: 0,
-        medical_allowance: 0,
-        transport_allowance: 0,
-        other_allowance: 0,
-        pf_deduction: 0,
-        esi_deduction: 0,
-        professional_tax: 0,
-        loan_deduction: 0,
-        other_deduction: 0,
-        leaves_deducted: 0,
-        present_days: 26,
-        working_days: 26,
-      })
-      fetchSalarySlips()
-    } catch (error: any) {
-      toast({ title: "Error", description: `Failed to create salary slip: ${error.message}`, variant: "destructive" })
-    }
-  }
-
-  const downloadPDF = async (slip: any) => {
-    try {
-      // Calculate total leaves deducted up to and including this slip
-      const slipsUpToThisMonth = slips.filter(s => 
-        s.employee_id === slip.employee_id && 
-        (s.year < slip.year || (s.year === slip.year && s.month <= slip.month))
+      // Build holiday set (YYYY-MM-DD strings)
+      const holidayDates = new Set(
+        (holidayRes.data || []).map((h: any) => h.holiday_date)
       )
-      
-      const totalLeavesDeductedUpToNow = slipsUpToThisMonth.reduce((sum: number, s: any) => sum + (s.leaves_deducted || 0), 0)
-      const employeeCurrentLeavesTaken = slip.employees?.leaves_taken || 0
-      const totalLeavesUsed = employeeCurrentLeavesTaken + totalLeavesDeductedUpToNow
 
-      setSelectedSlip({
-        basic_salary: slip.basic_salary,
-        allowances: slip.allowances || {},
-        deductions: slip.deductions || {},
-        leaves_deducted: slip.leaves_deducted || 0,
-        net_salary: slip.net_salary,
-        month: slip.month,
-        year: slip.year,
-        employee_name: `${slip.employees?.first_name} ${slip.employees?.last_name}`,
-        employee_id: slip.employees?.employee_id,
-        email: slip.employees?.email,
-        department: slip.employees?.department,
-        designation: slip.employees?.designation,
-        position: slip.employees?.designation,
-        joinDate: slip.employees?.date_of_joining,
-        leaves_taken: employeeCurrentLeavesTaken,
-        total_leaves_used: totalLeavesUsed, // Pass cumulative leaves
-      })
-      setIsPreviewOpen(true)
-      // Trigger PDF download after dialog opens
-      setTimeout(() => {
-        const downloadBtn = document.querySelector('[data-pdf-download]') as HTMLButtonElement
-        if (downloadBtn) {
-          downloadBtn.click()
+      // Build exception map: employee_id -> { date -> [types] }
+      const exceptionMap = new Map<string, Map<string, string[]>>()
+      for (const ex of (exceptionRes.data || [])) {
+        if (!exceptionMap.has(ex.employee_id)) {
+          exceptionMap.set(ex.employee_id, new Map())
         }
-      }, 300)
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to prepare salary slip for download", variant: "destructive" })
+        const dateMap = exceptionMap.get(ex.employee_id)!
+        const types = dateMap.get(ex.exception_date) || []
+        types.push(ex.type)
+        dateMap.set(ex.exception_date, types)
+      }
+
+      // Build salary history map: employee_id -> latest salary effective for this month
+      const salaryForMonth = new Map<string, number>()
+      for (const sh of (salaryHistRes.data || [])) {
+        // First match per employee is the latest effective_from <= end of month
+        if (!salaryForMonth.has(sh.employee_id)) {
+          salaryForMonth.set(sh.employee_id, Number(sh.salary))
+        }
+      }
+
+      // Group attendance by employee
+      const employeeRecords = new Map<string, AttendanceRecord[]>()
+      for (const record of attData) {
+        const existing = employeeRecords.get(record.employee_id) || []
+        existing.push(record)
+        employeeRecords.set(record.employee_id, existing)
+      }
+
+      const previews: GeneratedSlip[] = []
+
+      for (const [empUuid, records] of employeeRecords) {
+        const emp = employees.find(e => e.id === empUuid)
+        if (!emp) continue
+
+        // Use salary from history if available (handles promotions), else current
+        const effectiveSalary = salaryForMonth.get(empUuid) ?? emp.base_salary
+        if (effectiveSalary <= 0) continue
+
+        const empExceptions = exceptionMap.get(empUuid)
+
+        // Filter out holiday records (don't count holidays as absent/late/early)
+        let holidaysExcluded = 0
+        let exceptionsApplied = 0
+        const effectiveRecords: AttendanceRecord[] = []
+
+        for (const r of records) {
+          const date = r.attendance_date
+
+          // Skip holidays entirely — not counted at all
+          if (holidayDates.has(date)) {
+            holidaysExcluded++
+            continue
+          }
+
+          const dayExceptions = empExceptions?.get(date) || []
+
+          // approved_leave or work_from_home → treat as present (not absent, not late/early)
+          if (dayExceptions.includes("approved_leave") || dayExceptions.includes("work_from_home")) {
+            exceptionsApplied++
+            // Push as a "present" record — override absence/late/early
+            effectiveRecords.push({ ...r, is_absent: false, is_late: false, is_early_out: false })
+            continue
+          }
+
+          // half_day → present, ignore early out
+          if (dayExceptions.includes("half_day")) {
+            exceptionsApplied++
+            effectiveRecords.push({ ...r, is_absent: false, is_early_out: false })
+            continue
+          }
+
+          // approved_late → forgive late
+          let isLate = r.is_late
+          if (dayExceptions.includes("approved_late") && isLate) {
+            isLate = false
+            exceptionsApplied++
+          }
+
+          // approved_early_out → forgive early out
+          let isEarlyOut = r.is_early_out
+          if (dayExceptions.includes("approved_early_out") && isEarlyOut) {
+            isEarlyOut = false
+            exceptionsApplied++
+          }
+
+          effectiveRecords.push({ ...r, is_late: isLate, is_early_out: isEarlyOut })
+        }
+
+        const totalDays = effectiveRecords.length
+        const absentDays = effectiveRecords.filter(r => r.is_absent).length
+        const presentDays = totalDays - absentDays
+        const lateDays = effectiveRecords.filter(r => r.is_late && !r.is_absent).length
+        const earlyOutDays = effectiveRecords.filter(r => r.is_early_out && !r.is_absent).length
+
+        // Deduction rules: 3 violations = 1 day salary deducted
+        const totalViolations = lateDays + earlyOutDays
+        const violationDeductions = Math.floor(totalViolations / 3)
+
+        // Absent handling: probation = all absences deducted, else use leave quota
+        const remainingLeaves = Math.max(0, ANNUAL_LEAVES - (emp.leaves_taken || 0))
+        let leavesUsed: number
+        let absentSalaryDays: number
+
+        if (emp.is_probation) {
+          leavesUsed = 0
+          absentSalaryDays = absentDays
+        } else {
+          leavesUsed = Math.min(absentDays, remainingLeaves)
+          absentSalaryDays = Math.max(0, absentDays - remainingLeaves)
+        }
+
+        const totalDeductionDays = violationDeductions + absentSalaryDays
+        const dailyRate = effectiveSalary / 30
+        const salaryDeduction = Math.round(totalDeductionDays * dailyRate)
+        const incomeTax = emp.income_tax || 0
+        const netSalary = Math.round(effectiveSalary - salaryDeduction - incomeTax)
+
+        previews.push({
+          employeeId: empUuid,
+          employeeName: `${emp.first_name} ${emp.last_name}`,
+          designation: emp.designation || '-',
+          baseSalary: effectiveSalary,
+          incomeTax,
+          workingDays: totalDays,
+          presentDays,
+          absentDays,
+          lateDays,
+          earlyOutDays,
+          violationDeductions,
+          leavesUsed,
+          absentSalaryDays,
+          totalDeductionDays,
+          dailyRate: Math.round(dailyRate),
+          salaryDeduction,
+          netSalary,
+          isProbation: emp.is_probation,
+          remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
+          holidaysExcluded,
+          exceptionsApplied,
+        })
+      }
+
+      if (previews.length === 0) {
+        toast({
+          title: "No data to generate",
+          description: "No employees with salary data found in attendance records.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Sort by name
+      previews.sort((a, b) => a.employeeName.localeCompare(b.employeeName))
+      setGeneratedPreview(previews)
+      setShowPreviewList(true)
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setIsGenerating(false)
     }
   }
 
-  const handleDeleteSlip = async (slipId: string) => {
-    if (!confirm("Are you sure you want to delete this salary slip? This action cannot be undone.")) return
+  // Save all generated slips to DB
+  async function saveAllSlips() {
+    if (generatedPreview.length === 0) return
 
     try {
+      setIsGenerating(true)
 
-      // Get the current session to send auth token
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (!session) {
-        throw new Error("Not authenticated. Please log in.")
+      // Delete existing slips for this month first (clean regeneration)
+      const empIds = generatedPreview.map(p => p.employeeId)
+      for (const empId of empIds) {
+        await supabase
+          .from("salary_slips")
+          .delete()
+          .eq("employee_id", empId)
+          .eq("month", month)
+          .eq("year", year)
       }
 
-      const response = await fetch(`/api/salary-slips/delete/${slipId}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+      // Build slip records
+      const slipRecords = generatedPreview.map(p => ({
+        employee_id: p.employeeId,
+        month,
+        year,
+        basic_salary: p.baseSalary,
+        total_earnings: p.baseSalary,
+        total_deductions: p.salaryDeduction + p.incomeTax,
+        net_salary: p.netSalary,
+        income_tax: p.incomeTax,
+        working_days: p.workingDays,
+        present_days: p.presentDays,
+        absent_days: p.absentDays,
+        leaves_deducted: p.totalDeductionDays,
+        is_probation: p.isProbation,
+        attendance_summary: {
+          lateDays: p.lateDays,
+          earlyOutDays: p.earlyOutDays,
+          violationDeductions: p.violationDeductions,
+          leavesUsed: p.leavesUsed,
+          absentSalaryDays: p.absentSalaryDays,
+          remainingLeaves: p.remainingLeaves,
+          dailyRate: p.dailyRate,
+          incomeTax: p.incomeTax,
+          holidaysExcluded: p.holidaysExcluded,
+          exceptionsApplied: p.exceptionsApplied,
         },
+      }))
+
+      const { error } = await supabase.from("salary_slips").insert(slipRecords)
+      if (error) throw error
+
+      // Sync leaves_taken on employees from actual attendance data
+      for (const p of generatedPreview) {
+        await syncEmployeeLeaves(p.employeeId)
+      }
+
+      toast({
+        title: "Salary slips generated",
+        description: `${slipRecords.length} salary slips created for ${getMonthName(month)} ${year}. Leave quotas synced.`,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to delete salary slip")
-      }
-
-
-      // Remove from local state
-      setSlips(slips.filter(slip => slip.id !== slipId))
-
-      toast({ title: "Success", description: "Salary slip deleted successfully" })
+      setShowPreviewList(false)
+      setGeneratedPreview([])
+      fetchData()
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete salary slip", variant: "destructive" })
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setIsGenerating(false)
     }
   }
+
+  function openSlipPreview(slip: any) {
+    const emp = slip.employees || {}
+    const summary = slip.attendance_summary || {}
+
+    setSelectedSlip({
+      basic_salary: slip.basic_salary,
+      baseSalary: slip.basic_salary,
+      net_salary: slip.net_salary,
+      month: slip.month,
+      year: slip.year,
+      employee_name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+      employee_id: emp.employee_id,
+      email: emp.email,
+      department: emp.department,
+      designation: emp.designation,
+      position: emp.designation,
+      joinDate: emp.date_of_joining,
+      is_probation: slip.is_probation,
+      probation_end_date: emp.probation_end_date,
+      // Attendance data
+      working_days: slip.working_days,
+      present_days: slip.present_days,
+      absent_days: slip.absent_days,
+      leaves_deducted: slip.leaves_deducted,
+      total_deductions: slip.total_deductions,
+      // Detailed breakdown
+      lateDays: summary.lateDays || 0,
+      earlyOutDays: summary.earlyOutDays || 0,
+      violationDeductions: summary.violationDeductions || 0,
+      leavesUsed: summary.leavesUsed || 0,
+      absentSalaryDays: summary.absentSalaryDays || 0,
+      remainingLeaves: summary.remainingLeaves || 0,
+      dailyRate: summary.dailyRate || 0,
+      incomeTax: summary.incomeTax || slip.income_tax || 0,
+      holidaysExcluded: summary.holidaysExcluded || 0,
+      exceptionsApplied: summary.exceptionsApplied || 0,
+    })
+    setIsPreviewOpen(true)
+  }
+
+  // Recalculate leaves_taken for an employee from attendance data (May 2026+)
+  async function syncEmployeeLeaves(employeeId: string) {
+    try {
+      // Count absences from May 2026 onwards, excluding holidays & approved exceptions
+      const { data: absences } = await supabase
+        .from("attendance_records")
+        .select("attendance_date")
+        .eq("employee_id", employeeId)
+        .eq("is_absent", true)
+        .or("year.gt.2026,and(year.eq.2026,month.gte.5)")
+
+      if (!absences) return
+
+      // Fetch holidays and approved exceptions to exclude
+      const dates = absences.map(a => a.attendance_date)
+      if (dates.length === 0) {
+        await supabase.from("employees").update({ leaves_taken: 0 }).eq("id", employeeId)
+        return
+      }
+
+      const [holidayRes, exceptionRes] = await Promise.all([
+        supabase.from("company_holidays").select("holiday_date").in("holiday_date", dates),
+        supabase.from("attendance_exceptions").select("exception_date")
+          .eq("employee_id", employeeId)
+          .in("exception_date", dates)
+          .in("type", ["approved_leave", "work_from_home"]),
+      ])
+
+      const excludedDates = new Set([
+        ...(holidayRes.data || []).map(h => h.holiday_date),
+        ...(exceptionRes.data || []).map(e => e.exception_date),
+      ])
+
+      const actualAbsences = dates.filter(d => !excludedDates.has(d)).length
+      await supabase.from("employees").update({ leaves_taken: actualAbsences }).eq("id", employeeId)
+    } catch (error) {
+      console.error("Failed to sync leaves for employee:", employeeId, error)
+    }
+  }
+
+  async function handleDeleteSlip(slipId: string) {
+    if (!confirm("Are you sure you want to delete this salary slip?")) return
+
+    try {
+      // Get the employee_id before deleting
+      const slip = slips.find(s => s.id === slipId)
+      const empId = slip?.employee_id
+
+      const { error } = await supabase
+        .from("salary_slips")
+        .delete()
+        .eq("id", slipId)
+
+      if (error) throw error
+
+      setSlips(slips.filter(s => s.id !== slipId))
+
+      // Re-sync leaves for the affected employee
+      if (empId) {
+        await syncEmployeeLeaves(empId)
+      }
+
+      toast({ title: "Deleted", description: "Salary slip deleted. Leave quota re-synced." })
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    }
+  }
+
+  function getMonthName(m: number): string {
+    return new Date(2024, m - 1).toLocaleDateString('en-US', { month: 'long' })
+  }
+
+  const slipsExistForMonth = slips.length > 0
 
   return (
-    <div className="space-y-4">
-      {isAdmin && (
-        <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <FileText className="w-4 h-4 mr-2" />
-          Create Salary Slip
-        </Button>
+    <div className="space-y-6">
+      {/* Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-purple-400" />
+            Salary Slip Generator
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block text-muted-foreground">Month</label>
+              <Select value={String(month)} onValueChange={v => setMonth(parseInt(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>
+                      {getMonthName(i + 1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block text-muted-foreground">Year</label>
+              <Select value={String(year)} onValueChange={v => setYear(parseInt(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const y = new Date().getFullYear() - 2 + i
+                    return (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {isAdmin && (
+              <div className="flex items-end sm:col-span-2">
+                <Button
+                  onClick={previewGeneration}
+                  disabled={isGenerating}
+                  className="w-full"
+                >
+                  {isGenerating ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4 mr-2" />
+                  )}
+                  {slipsExistForMonth
+                    ? `Regenerate Slips (${slips.length} exist)`
+                    : 'Generate Salary Slips'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Preview before saving */}
+      {showPreviewList && generatedPreview.length > 0 && (
+        <Card className="border-purple-500/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Zap className="w-4 h-4 text-purple-400" />
+              Preview — {generatedPreview.length} Salary Slips for {getMonthName(month)} {year}
+            </CardTitle>
+            <CardDescription>
+              Review the auto-computed salary slips below. Click &quot;Save All&quot; to generate.
+              {slipsExistForMonth && (
+                <span className="text-amber-400 ml-1">
+                  This will replace the {slips.length} existing slip(s) for this month.
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left p-3 text-muted-foreground font-medium">Employee</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Base Salary</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Present</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Late</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Early Out</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Absent</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Att. Deduction</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Tax</th>
+                    <th className="text-right p-3 text-muted-foreground font-medium">Net Payable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {generatedPreview.map(p => (
+                    <tr key={p.employeeId} className="border-b border-border/30 hover:bg-muted/30">
+                      <td className="p-3">
+                        <div className="font-medium text-foreground">{p.employeeName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.designation}
+                          {(p.holidaysExcluded > 0 || p.exceptionsApplied > 0) && (
+                            <span className="text-green-400 ml-1">
+                              ({p.holidaysExcluded > 0 ? `${p.holidaysExcluded} holiday` : ''}{p.holidaysExcluded > 0 && p.exceptionsApplied > 0 ? ', ' : ''}{p.exceptionsApplied > 0 ? `${p.exceptionsApplied} exception` : ''})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3 text-right text-foreground">₨ {p.baseSalary.toLocaleString()}</td>
+                      <td className="p-3 text-right text-emerald-400">{p.presentDays}</td>
+                      <td className="p-3 text-right text-amber-400">{p.lateDays}</td>
+                      <td className="p-3 text-right text-orange-400">{p.earlyOutDays}</td>
+                      <td className="p-3 text-right text-red-400">{p.absentDays}</td>
+                      <td className="p-3 text-right text-red-400">₨ {p.salaryDeduction.toLocaleString()}</td>
+                      <td className="p-3 text-right text-red-400">{p.incomeTax > 0 ? `₨ ${p.incomeTax.toLocaleString()}` : '—'}</td>
+                      <td className="p-3 text-right font-semibold text-emerald-400">₨ {p.netSalary.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/30">
+                    <td className="p-3 font-semibold text-foreground">Total ({generatedPreview.length} employees)</td>
+                    <td className="p-3 text-right font-semibold text-foreground">
+                      ₨ {generatedPreview.reduce((s, p) => s + p.baseSalary, 0).toLocaleString()}
+                    </td>
+                    <td className="p-3" />
+                    <td className="p-3" />
+                    <td className="p-3" />
+                    <td className="p-3" />
+                    <td className="p-3 text-right font-semibold text-red-400">
+                      ₨ {generatedPreview.reduce((s, p) => s + p.salaryDeduction, 0).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-semibold text-red-400">
+                      ₨ {generatedPreview.reduce((s, p) => s + p.incomeTax, 0).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right font-semibold text-emerald-400">
+                      ₨ {generatedPreview.reduce((s, p) => s + p.netSalary, 0).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <Button onClick={saveAllSlips} disabled={isGenerating} className="flex-1">
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <FileText className="w-4 h-4 mr-2" />
+                )}
+                Save All Salary Slips
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPreviewList(false)
+                  setGeneratedPreview([])
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
+      {/* Existing Slips */}
       {isLoading ? (
         <Card>
           <CardContent className="pt-8">
-            <p className="text-center text-muted-foreground">Loading salary slips...</p>
+            <div className="flex items-center justify-center text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Loading salary slips...
+            </div>
           </CardContent>
         </Card>
       ) : slips.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8">
-            <p className="text-center text-muted-foreground">No salary slips generated yet</p>
+            <p className="text-center text-muted-foreground">
+              No salary slips for {getMonthName(month)} {year}.
+              {isAdmin && ' Click "Generate Salary Slips" to auto-create from attendance data.'}
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {slips.map((slip) => (
-                <Card key={slip.id} className="hover:border-blue-600/50 transition">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  {slip.employees?.first_name} {slip.employees?.last_name}
-                </CardTitle>
-                <CardDescription>
-                  {slip.employees?.employee_id} • {slip.month}/{slip.year}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Earnings</p>
-                    <p className="font-semibold text-green-600">
-                      PKR {(slip.basic_salary + Object.values(slip.allowances || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Deductions</p>
-                    <p className="font-semibold text-red-600">
-                      PKR {(Object.values(slip.deductions || {}).reduce((sum: number, val: any) => sum + (Number.parseFloat(val) || 0), 0) + (slip.leaves_deducted ? (slip.basic_salary / 26) * slip.leaves_deducted : 0)).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Net Salary</p>
-                    <p className="font-semibold text-blue-600">
-                      PKR {(slip.net_salary || 0).toLocaleString("en-PK", { maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-3 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedSlip({
-                        basic_salary: slip.basic_salary,
-                        allowances: slip.allowances || {},
-                        deductions: slip.deductions || {},
-                        leaves_deducted: slip.leaves_deducted || 0,
-                        net_salary: slip.net_salary,
-                        month: slip.month,
-                        year: slip.year,
-                        employee_name: `${slip.employees?.first_name} ${slip.employees?.last_name}`,
-                        employee_id: slip.employees?.employee_id,
-                        email: slip.employees?.email,
-                        department: slip.employees?.department,
-                        designation: slip.employees?.designation,
-                        position: slip.employees?.designation,
-                        joinDate: slip.employees?.date_of_joining,
-                        leaves_taken: slip.employees?.leaves_taken || 0,
-                      })
-                      setIsPreviewOpen(true)
-                    }}
-                    className="flex-1"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => downloadPDF(slip)} className="flex-1">
-                    <Download className="w-4 h-4 mr-2" />
-                    PDF
-                  </Button>
-                  {isAdmin && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleDeleteSlip(slip.id)}
-                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-foreground">
+            {getMonthName(month)} {year} — {slips.length} Salary Slip{slips.length !== 1 ? 's' : ''}
+          </h3>
+          <div className="grid gap-4">
+            {slips.map((slip) => {
+              const emp = slip.employees || {}
+              const summary = slip.attendance_summary || {}
+              return (
+                <Card key={slip.id} className="hover:border-purple-500/30 transition-all duration-200">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-purple-400" />
+                      {emp.first_name} {emp.last_name}
+                      {slip.is_probation && (
+                        <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                          Probation
+                        </span>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      {emp.employee_id} • {emp.designation || 'N/A'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Base Salary</p>
+                        <p className="font-semibold text-foreground">
+                          ₨ {(slip.basic_salary || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Attendance</p>
+                        <p className="font-semibold text-foreground">
+                          {slip.present_days || 0}P / {slip.absent_days || 0}A / {summary.lateDays || 0}L
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Deduction</p>
+                        <p className="font-semibold text-red-400">
+                          ₨ {(slip.total_deductions || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Net Payable</p>
+                        <p className="font-semibold text-emerald-400">
+                          ₨ {(slip.net_salary || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openSlipPreview(slip)}
+                        className="flex-1"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSlip(slip.id)}
+                          className="flex-1 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
         </div>
       )}
 
+      {/* Slip Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-        <DialogContent className="max-w-7xl w-[95vw] mx-auto h-screen max-h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900" style={{ backgroundColor: '#ffffff' }}>
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Salary Slip Preview</DialogTitle>
+            <DialogTitle>Salary Slip</DialogTitle>
             <DialogDescription>View and download employee salary slip</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto">
             {selectedSlip && <SalarySlipPreview employee={selectedSlip} />}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-3xl max-h-96 overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Salary Slip</DialogTitle>
-            <DialogDescription>Create a new salary slip for an employee</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Employee</label>
-              <select
-                value={formData.employee_id}
-                onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Select Employee</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.first_name} {emp.last_name} ({emp.employee_id})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Month</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={formData.month}
-                  onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Year</label>
-                <input
-                  type="number"
-                  value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <h3 className="font-semibold text-sm">Earnings</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Basic Salary</label>
-                  <input
-                    type="number"
-                    value={formData.basic_salary}
-                    onChange={(e) => setFormData({ ...formData, basic_salary: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">HRA</label>
-                  <input
-                    type="number"
-                    value={formData.hra}
-                    onChange={(e) => setFormData({ ...formData, hra: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Dearness Allowance</label>
-                  <input
-                    type="number"
-                    value={formData.dearness_allowance}
-                    onChange={(e) => setFormData({ ...formData, dearness_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Medical Allowance</label>
-                  <input
-                    type="number"
-                    value={formData.medical_allowance}
-                    onChange={(e) => setFormData({ ...formData, medical_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Transport Allowance</label>
-                  <input
-                    type="number"
-                    value={formData.transport_allowance}
-                    onChange={(e) => setFormData({ ...formData, transport_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Other Allowance</label>
-                  <input
-                    type="number"
-                    value={formData.other_allowance}
-                    onChange={(e) => setFormData({ ...formData, other_allowance: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <h3 className="font-semibold text-sm">Deductions</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">PF Deduction</label>
-                  <input
-                    type="number"
-                    value={formData.pf_deduction}
-                    onChange={(e) => setFormData({ ...formData, pf_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">ESI Deduction</label>
-                  <input
-                    type="number"
-                    value={formData.esi_deduction}
-                    onChange={(e) => setFormData({ ...formData, esi_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Professional Tax</label>
-                  <input
-                    type="number"
-                    value={formData.professional_tax}
-                    onChange={(e) => setFormData({ ...formData, professional_tax: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Loan Deduction</label>
-                  <input
-                    type="number"
-                    value={formData.loan_deduction}
-                    onChange={(e) => setFormData({ ...formData, loan_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Other Deduction</label>
-                  <input
-                    type="number"
-                    value={formData.other_deduction}
-                    onChange={(e) => setFormData({ ...formData, other_deduction: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Leaves Deducted</label>
-                  <input
-                    type="number"
-                    value={formData.leaves_deducted}
-                    onChange={(e) => setFormData({ ...formData, leaves_deducted: parseFloat(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    min="0"
-                    max="14"
-                    title="Maximum 14 annual leaves"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-4 border-t">
-              <h3 className="font-semibold text-sm">Attendance</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Days Present</label>
-                  <input
-                    type="number"
-                    value={formData.present_days}
-                    onChange={(e) => setFormData({ ...formData, present_days: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Working Days</label>
-                  <input
-                    type="number"
-                    value={formData.working_days}
-                    onChange={(e) => setFormData({ ...formData, working_days: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-4 border-t">
-              <Button onClick={createSalarySlip} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                Create Salary Slip
-              </Button>
-              <Button onClick={() => setIsCreateOpen(false)} variant="outline" className="flex-1">
-                Cancel
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

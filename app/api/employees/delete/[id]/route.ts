@@ -50,10 +50,10 @@ export async function DELETE(
       );
     }
 
-    // Get employee info before deletion
+    // Get employee info before deletion (need user_id to cascade auth delete)
     const { data: employee, error: fetchError } = await supabase
       .from("employees")
-      .select("email")
+      .select("email, user_id")
       .eq("id", employeeId)
       .single();
 
@@ -63,7 +63,6 @@ export async function DELETE(
         { status: 404 }
       );
     }
-
 
     // Delete the employee record
     const { error: deleteError } = await supabase
@@ -78,6 +77,15 @@ export async function DELETE(
       );
     }
 
+    // Cascade: delete the Supabase Auth user so login is disabled and email is freed
+    if (employee.user_id) {
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
+        employee.user_id
+      );
+      if (authDeleteError) {
+        console.error("Failed to delete auth user:", authDeleteError.message);
+      }
+    }
 
     return NextResponse.json(
       {
