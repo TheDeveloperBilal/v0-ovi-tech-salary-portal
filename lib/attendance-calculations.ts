@@ -316,11 +316,12 @@ export function calculateEmployeeSummary(
     designation: string
     isProbation: boolean
     leavesTaken: number   // leaves already taken this year
-  }
+  },
+  wfhDates?: Set<string>,
 ): EmployeeSummary {
   const empRecords = records
   const totalDays = empRecords.length
-  const absentDays = empRecords.filter(r => r.isAbsent).length
+  const absentDays = empRecords.filter(r => r.isAbsent && !(wfhDates?.has(r.date))).length
   const presentDays = totalDays - absentDays
   const lateDays = empRecords.filter(r => r.isLate && !r.isAbsent).length
   const earlyOutDays = empRecords.filter(r => r.isEarlyOut && !r.isAbsent).length
