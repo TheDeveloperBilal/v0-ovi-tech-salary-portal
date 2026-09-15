@@ -17,6 +17,7 @@ import {
 import {
   Download, Eye, Calendar, Clock, CalendarDays, Plus,
   CheckCircle, XCircle, Loader2, FileText, AlertCircle, Send, Trash2,
+  Home, LogIn, LogOut,
 } from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
@@ -62,6 +63,13 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
     reason: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // WFH clock
+  const [wfhStatus, setWfhStatus] = useState<{
+    is_wfh_today: boolean
+    record: { check_in: string; check_out: string | null; work_hours: number; status: string; is_late: boolean; is_early_out: boolean } | null
+  } | null>(null)
+  const [isClocking, setIsClocking] = useState(false)
 
   const supabase = createClient()
   const { toast } = useToast()
@@ -218,6 +226,44 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
     }
   }
+
+  // WFH clock functions
+  const fetchWfhStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const res = await fetch('/api/wfh/clock', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        setWfhStatus(await res.json())
+      }
+    } catch {
+      // silently fail — not critical for dashboard load
+    }
+  }
+
+  const handleWfhClock = async () => {
+    setIsClocking(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+      const res = await fetch('/api/wfh/clock', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast({ title: data.action === 'check_in' ? 'Checked In' : 'Checked Out', description: data.message })
+      fetchWfhStatus()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } finally {
+      setIsClocking(false)
+    }
+  }
+
+  useEffect(() => { fetchWfhStatus() }, [employeeData])
 
   const handleViewSlip = (slip: any) => {
     const summary = slip.attendance_summary || {}
@@ -398,6 +444,54 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* WFH Clock Widget */}
+      {wfhStatus?.is_wfh_today && (
+        <Card className="border-cyan-500/30 bg-cyan-500/5">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10">
+                  <Home className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Work From Home — Today</p>
+                  {wfhStatus.record ? (
+                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                      <span>In: <span className="text-foreground font-medium">{formatTime12h(wfhStatus.record.check_in)}</span></span>
+                      {wfhStatus.record.check_out && (
+                        <>
+                          <span>Out: <span className="text-foreground font-medium">{formatTime12h(wfhStatus.record.check_out)}</span></span>
+                          <span>Hours: <span className="text-foreground font-medium">{wfhStatus.record.work_hours}h</span></span>
+                        </>
+                      )}
+                      {wfhStatus.record.is_late && <span className="text-amber-400 text-xs font-medium">(Late)</span>}
+                      {wfhStatus.record.is_early_out && <span className="text-orange-400 text-xs font-medium">(Early Out)</span>}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">You haven&apos;t checked in yet.</p>
+                  )}
+                </div>
+              </div>
+              {!wfhStatus.record ? (
+                <Button onClick={handleWfhClock} disabled={isClocking} className="bg-emerald-600 hover:bg-emerald-700 gap-2">
+                  {isClocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                  Check In
+                </Button>
+              ) : !wfhStatus.record.check_out ? (
+                <Button onClick={handleWfhClock} disabled={isClocking} variant="outline" className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 gap-2">
+                  {isClocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                  Check Out
+                </Button>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle className="w-3.5 h-3.5" /> Completed
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tab Navigation */}
       <div className="flex flex-wrap gap-2">
