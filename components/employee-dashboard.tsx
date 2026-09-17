@@ -17,7 +17,7 @@ import {
 import {
   Eye, Calendar, Clock, CalendarDays, Plus,
   CheckCircle, XCircle, Loader2, FileText, AlertCircle, Send, Trash2,
-  Home, User, Briefcase, Play, Square,
+  Home, Briefcase, Play, Square,
 } from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
@@ -37,15 +37,8 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; icon: any }> = {
   rejected: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400', icon: XCircle },
 }
 
-const TAB_ITEMS = [
-  { key: 'overview', label: 'Overview', icon: User },
-  { key: 'slips', label: 'Salary Slips', icon: FileText },
-  { key: 'attendance', label: 'Attendance', icon: Calendar },
-  { key: 'leaves', label: 'Leave Requests', icon: CalendarDays },
-]
 
-export function EmployeeDashboard({ userId }: { userId: string }) {
-  const [activeTab, setActiveTab] = useState<string>('overview')
+export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId: string; activeView?: string }) {
   const [salarySlips, setSalarySlips] = useState<any[]>([])
   const [employeeData, setEmployeeData] = useState<any>(null)
   const [selectedSlip, setSelectedSlip] = useState<any>(null)
@@ -85,16 +78,16 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
   }, [userId])
 
   useEffect(() => {
-    if (employeeData?.id && activeTab === 'attendance') {
+    if (employeeData?.id && activeView === 'attendance') {
       fetchAttendance()
     }
-  }, [employeeData?.id, attMonth, attYear, activeTab])
+  }, [employeeData?.id, attMonth, attYear, activeView])
 
   useEffect(() => {
-    if (employeeData?.id && activeTab === 'leaves') {
+    if (employeeData?.id && activeView === 'leaves') {
       fetchLeaveRequests()
     }
-  }, [employeeData?.id, activeTab])
+  }, [employeeData?.id, activeView])
 
   useEffect(() => {
     if (wfhStatus?.record?.check_in && !wfhStatus?.record?.check_out) {
@@ -555,40 +548,8 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="glass-card rounded-2xl border border-border/50 p-1.5 flex flex-wrap gap-1">
-        {TAB_ITEMS.map(tab => {
-          const isActive = activeTab === tab.key
-          const Icon = tab.icon
-          const badge = tab.key === 'leaves' && pendingRequests > 0 ? pendingRequests : null
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`
-                flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer relative
-                ${isActive
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/25'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                }
-              `}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
-              {badge && (
-                <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full ${
-                  isActive ? 'bg-white/25 text-white' : 'bg-amber-500 text-white'
-                }`}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
       {/* ═══════ OVERVIEW TAB ═══════ */}
-      {activeTab === 'overview' && (
+      {activeView === 'overview' && (
         <div className="space-y-6">
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             <div className="glass-card rounded-2xl p-4 border border-border/50 border-l-4 border-l-purple-500">
@@ -689,7 +650,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       )}
 
       {/* ═══════ SALARY SLIPS TAB ═══════ */}
-      {activeTab === 'slips' && (
+      {activeView === 'slips' && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-foreground">My Salary Slips</h2>
           {salarySlips.length === 0 ? (
@@ -738,7 +699,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       )}
 
       {/* ═══════ ATTENDANCE TAB ═══════ */}
-      {activeTab === 'attendance' && (
+      {activeView === 'attendance' && (
         <div className="space-y-4">
           <Card className="glass-card">
             <CardHeader>
@@ -841,7 +802,7 @@ export function EmployeeDashboard({ userId }: { userId: string }) {
       )}
 
       {/* ═══════ LEAVE REQUESTS TAB ═══════ */}
-      {activeTab === 'leaves' && (
+      {activeView === 'leaves' && (
         <div className="space-y-4">
           <Card className="glass-card">
             <CardHeader>
