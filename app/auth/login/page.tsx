@@ -61,7 +61,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
             <div className="w-32 h-32 relative">
-              <Image src="/images/image.png" alt="OviTech Logo" width={128} height={128} />
+              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={128} height={128} />
             </div>
           </div>
           <Card>
