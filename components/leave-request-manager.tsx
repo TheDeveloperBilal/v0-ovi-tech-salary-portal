@@ -92,6 +92,9 @@ export function LeaveRequestManager() {
   }
 
   async function handleApprove(request: any) {
+    const emp = request.employees || {}
+    const label = LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type
+    if (!confirm(`Approve ${label} for ${emp.first_name} ${emp.last_name}?\n\n${request.start_date} → ${request.end_date}`)) return
     setProcessingId(request.id)
     try {
       // 1. Update leave request status
@@ -140,6 +143,9 @@ export function LeaveRequestManager() {
   }
 
   async function handleReject(request: any) {
+    const emp = request.employees || {}
+    const label = LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type
+    if (!confirm(`Reject ${label} for ${emp.first_name} ${emp.last_name}?\n\n${request.start_date} → ${request.end_date}`)) return
     setProcessingId(request.id)
     try {
       const { error } = await supabase
