@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, FileText, Settings, Calendar, CalendarDays, Inbox } from "lucide-react"
+import { Users, FileText, Settings, Calendar, CalendarDays, Inbox, BarChart3, Shield } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
 import { SalarySlipGenerator } from "./salary-slip-generator"
 import { CompanySettings } from "./company-settings"
@@ -12,6 +12,8 @@ import { EmployeeDashboard } from "./employee-dashboard"
 import { AttendanceManager } from "./attendance-manager"
 import { HolidayManager } from "./holiday-manager"
 import { LeaveRequestManager } from "./leave-request-manager"
+import { AnalyticsDashboard } from "./analytics-dashboard"
+import { AuditLogViewer } from "./audit-log-viewer"
 
 export function DashboardContent({ user }: { user: any }) {
   const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0, pendingLeaves: 0 })
@@ -107,7 +109,7 @@ export function DashboardContent({ user }: { user: any }) {
                 <FileText className="w-4 h-4 mr-2" />
                 Salary Slips
               </TabsTrigger>
-              <TabsTrigger value="leave-requests" className="relative">
+              <TabsTrigger value="leave-requests" className="relative" data-tab-value="leave-requests">
                 <Inbox className="w-4 h-4 mr-2" />
                 Leave Requests
                 {stats.pendingLeaves > 0 && (
@@ -119,6 +121,14 @@ export function DashboardContent({ user }: { user: any }) {
               <TabsTrigger value="holidays">
                 <CalendarDays className="w-4 h-4 mr-2" />
                 Holidays
+              </TabsTrigger>
+              <TabsTrigger value="analytics">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="audit-log">
+                <Shield className="w-4 h-4 mr-2" />
+                Audit Log
               </TabsTrigger>
               <TabsTrigger value="settings">
                 <Settings className="w-4 h-4 mr-2" />
@@ -144,6 +154,14 @@ export function DashboardContent({ user }: { user: any }) {
 
             <TabsContent value="holidays">
               <HolidayManager />
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <AnalyticsDashboard />
+            </TabsContent>
+
+            <TabsContent value="audit-log">
+              <AuditLogViewer />
             </TabsContent>
 
             <TabsContent value="settings">

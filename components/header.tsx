@@ -1,15 +1,27 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { LogOut, Sun, Moon } from "lucide-react"
+import { LogOut, Sun, Moon, Bell } from "lucide-react"
 import { useTheme } from "next-themes"
 
 export function Header({ user }: { user: any }) {
   const router = useRouter()
   const supabase = createClient()
   const { theme, setTheme } = useTheme()
+  const [pendingLeaves, setPendingLeaves] = useState(0)
+  const isAdmin = user?.is_admin === true
+
+  useEffect(() => {
+    if (!isAdmin) return
+    supabase
+      .from("leave_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending")
+      .then(({ count }) => setPendingLeaves(count || 0))
+  }, [isAdmin])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -29,11 +41,29 @@ export function Header({ user }: { user: any }) {
               <p className="text-xs text-muted-foreground">Employee Management System</p>
             </div>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right text-sm">
+          <div className="flex items-center gap-4">
+            <div className="text-right text-sm hidden sm:block">
               <p className="font-medium text-foreground">{user?.full_name || user?.email || "User"}</p>
               <p className="text-xs text-muted-foreground capitalize">{user?.is_admin ? "Admin" : "Employee"}</p>
             </div>
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="relative text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  const el = document.querySelector('[data-tab-value="leave-requests"]') as HTMLButtonElement
+                  el?.click()
+                }}
+              >
+                <Bell className="h-4 w-4" />
+                {pendingLeaves > 0 && (
+                  <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-amber-500 text-white rounded-full">
+                    {pendingLeaves}
+                  </span>
+                )}
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"

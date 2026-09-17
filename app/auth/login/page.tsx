@@ -104,10 +104,7 @@ export default function LoginPage() {
                   </Button>
                 </div>
                 <div className="mt-4 text-center text-sm text-muted-foreground">
-                  Don&apos;t have an account?{" "}
-                  <Link href="/auth/sign-up" className="text-purple-400 font-medium underline underline-offset-4 hover:text-purple-300">
-                    Sign up
-                  </Link>
+                  OviTech Global
                 </div>
               </form>
             </CardContent>
