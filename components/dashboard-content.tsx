@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, FileText, Settings, Calendar, CalendarDays, Inbox, BarChart3, Shield } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Users, FileText, Inbox, Calendar, TrendingUp, Clock, UserCheck } from "lucide-react"
 import { EmployeeManagement } from "./employee-management"
 import { SalarySlipGenerator } from "./salary-slip-generator"
 import { CompanySettings } from "./company-settings"
@@ -15,163 +14,200 @@ import { LeaveRequestManager } from "./leave-request-manager"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import { AuditLogViewer } from "./audit-log-viewer"
 
-export function DashboardContent({ user }: { user: any }) {
-  const [stats, setStats] = useState({ totalEmployees: 0, totalSalarySlips: 0, pendingLeaves: 0 })
+interface DashboardContentProps {
+  user: any
+  activeView: string
+}
+
+export function DashboardContent({ user, activeView }: DashboardContentProps) {
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    totalSalarySlips: 0,
+    pendingLeaves: 0,
+    totalAttendance: 0,
+  })
   const supabase = createClient()
+  const isAdmin = user?.is_admin === true
 
   useEffect(() => {
+    if (!isAdmin) return
     const fetchStats = async () => {
       try {
-        const [empRes, slipRes, leaveRes] = await Promise.all([
+        const now = new Date()
+        const month = now.getMonth() + 1
+        const year = now.getFullYear()
+
+        const [empRes, slipRes, leaveRes, attRes] = await Promise.all([
           supabase.from("employees").select("*", { count: "exact", head: true }),
           supabase.from("salary_slips").select("*", { count: "exact", head: true }),
           supabase.from("leave_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("attendance_records").select("*", { count: "exact", head: true }).eq("month", month).eq("year", year),
         ])
 
         setStats({
           totalEmployees: empRes.count || 0,
           totalSalarySlips: slipRes.count || 0,
           pendingLeaves: leaveRes.count || 0,
+          totalAttendance: attRes.count || 0,
         })
-      } catch (error) {
-        setStats({ totalEmployees: 0, totalSalarySlips: 0, pendingLeaves: 0 })
+      } catch {
+        // silently handle
       }
     }
-
     fetchStats()
-  }, [])
+  }, [isAdmin])
 
-  const isAdmin = user?.is_admin === true
+  if (!isAdmin) {
+    return <EmployeeDashboard userId={user.id} />
+  }
+
+  if (activeView === 'overview') {
+    return <OverviewDashboard stats={stats} />
+  }
+
+  const views: Record<string, React.ReactNode> = {
+    'employees': <EmployeeManagement />,
+    'attendance': <AttendanceManager />,
+    'slips': <SalarySlipGenerator isAdmin={true} />,
+    'leave-requests': <LeaveRequestManager />,
+    'holidays': <HolidayManager />,
+    'analytics': <AnalyticsDashboard />,
+    'audit-log': <AuditLogViewer />,
+    'settings': <CompanySettings />,
+  }
+
+  return views[activeView] || <OverviewDashboard stats={stats} />
+}
+
+function OverviewDashboard({ stats }: { stats: { totalEmployees: number; totalSalarySlips: number; pendingLeaves: number; totalAttendance: number } }) {
+  const now = new Date()
+  const monthName = now.toLocaleDateString('en-PK', { month: 'long' })
 
   return (
     <div className="space-y-6">
-      {/* Main Tabs */}
-      {isAdmin ? (
-        <>
-          {/* Statistics Cards - Admin Only */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-l-4 border-l-purple-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-purple-500/10">
-                    <Users className="w-4 h-4 text-purple-400" />
-                  </div>
-                  Total Employees
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-foreground">{stats.totalEmployees}</p>
-              </CardContent>
-            </Card>
+      {/* Stats Grid */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<Users className="w-5 h-5" />}
+          label="Total Employees"
+          value={stats.totalEmployees}
+          iconBg="bg-purple-500/10"
+          iconColor="text-purple-500"
+          borderColor="border-l-purple-500"
+        />
+        <StatCard
+          icon={<Calendar className="w-5 h-5" />}
+          label={`${monthName} Records`}
+          value={stats.totalAttendance}
+          iconBg="bg-blue-500/10"
+          iconColor="text-blue-500"
+          borderColor="border-l-blue-500"
+        />
+        <StatCard
+          icon={<Inbox className="w-5 h-5" />}
+          label="Pending Requests"
+          value={stats.pendingLeaves}
+          iconBg={stats.pendingLeaves > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}
+          iconColor={stats.pendingLeaves > 0 ? "text-amber-500" : "text-emerald-500"}
+          borderColor={stats.pendingLeaves > 0 ? "border-l-amber-500" : "border-l-emerald-500"}
+          highlight={stats.pendingLeaves > 0}
+        />
+        <StatCard
+          icon={<FileText className="w-5 h-5" />}
+          label="Salary Slips"
+          value={stats.totalSalarySlips}
+          iconBg="bg-cyan-500/10"
+          iconColor="text-cyan-500"
+          borderColor="border-l-cyan-500"
+        />
+      </div>
 
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-blue-500/10">
-                    <FileText className="w-4 h-4 text-blue-400" />
-                  </div>
-                  Salary Slips Generated
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-foreground">{stats.totalSalarySlips}</p>
-              </CardContent>
-            </Card>
+      {/* Quick summary */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-400" />
+              Quick Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Active Employees</span>
+                <span className="font-semibold text-foreground">{stats.totalEmployees}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Attendance Records ({monthName})</span>
+                <span className="font-semibold text-foreground">{stats.totalAttendance}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Pending Leave Requests</span>
+                <span className={`font-semibold ${stats.pendingLeaves > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>{stats.pendingLeaves}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-muted-foreground">Salary Slips Generated</span>
+                <span className="font-semibold text-foreground">{stats.totalSalarySlips}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card className={`border-l-4 ${stats.pendingLeaves > 0 ? 'border-l-amber-500' : 'border-l-emerald-500'}`}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <div className={`p-1.5 rounded-md ${stats.pendingLeaves > 0 ? 'bg-amber-500/10' : 'bg-emerald-500/10'}`}>
-                    <Inbox className={`w-4 h-4 ${stats.pendingLeaves > 0 ? 'text-amber-400' : 'text-emerald-400'}`} />
-                  </div>
-                  Pending Leave Requests
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className={`text-3xl font-bold ${stats.pendingLeaves > 0 ? 'text-amber-400' : 'text-foreground'}`}>
-                  {stats.pendingLeaves}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="employees" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="employees">
-                <Users className="w-4 h-4 mr-2" />
-                Employees
-              </TabsTrigger>
-              <TabsTrigger value="attendance">
-                <Calendar className="w-4 h-4 mr-2" />
-                Attendance
-              </TabsTrigger>
-              <TabsTrigger value="slips">
-                <FileText className="w-4 h-4 mr-2" />
-                Salary Slips
-              </TabsTrigger>
-              <TabsTrigger value="leave-requests" className="relative" data-tab-value="leave-requests">
-                <Inbox className="w-4 h-4 mr-2" />
-                Leave Requests
-                {stats.pendingLeaves > 0 && (
-                  <span className="ml-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
-                    {stats.pendingLeaves}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="holidays">
-                <CalendarDays className="w-4 h-4 mr-2" />
-                Holidays
-              </TabsTrigger>
-              <TabsTrigger value="analytics">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Analytics
-              </TabsTrigger>
-              <TabsTrigger value="audit-log">
-                <Shield className="w-4 h-4 mr-2" />
-                Audit Log
-              </TabsTrigger>
-              <TabsTrigger value="settings">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="employees">
-              <EmployeeManagement />
-            </TabsContent>
-
-            <TabsContent value="attendance">
-              <AttendanceManager />
-            </TabsContent>
-
-            <TabsContent value="slips">
-              <SalarySlipGenerator isAdmin={true} />
-            </TabsContent>
-
-            <TabsContent value="leave-requests">
-              <LeaveRequestManager />
-            </TabsContent>
-
-            <TabsContent value="holidays">
-              <HolidayManager />
-            </TabsContent>
-
-            <TabsContent value="analytics">
-              <AnalyticsDashboard />
-            </TabsContent>
-
-            <TabsContent value="audit-log">
-              <AuditLogViewer />
-            </TabsContent>
-
-            <TabsContent value="settings">
-              <CompanySettings />
-            </TabsContent>
-          </Tabs>
-        </>
-      ) : (
-        <EmployeeDashboard userId={user.id} />
-      )}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-400" />
+              System Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Portal Status</span>
+                <span className="text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Online</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Office Hours</span>
+                <span className="text-sm font-medium text-foreground">11:00 AM - 8:00 PM</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-sm text-muted-foreground">Grace Period</span>
+                <span className="text-sm font-medium text-foreground">15 minutes</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-muted-foreground">Annual Leave Quota</span>
+                <span className="text-sm font-medium text-foreground">14 days</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
+  )
+}
+
+function StatCard({ icon, label, value, iconBg, iconColor, borderColor, highlight }: {
+  icon: React.ReactNode
+  label: string
+  value: number
+  iconBg: string
+  iconColor: string
+  borderColor: string
+  highlight?: boolean
+}) {
+  return (
+    <Card className={`border-l-4 ${borderColor} glass-card`}>
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+            <p className={`text-3xl font-bold mt-1 ${highlight ? 'text-amber-500' : 'text-foreground'}`}>{value}</p>
+          </div>
+          <div className={`p-3 rounded-xl ${iconBg}`}>
+            <div className={iconColor}>{icon}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
