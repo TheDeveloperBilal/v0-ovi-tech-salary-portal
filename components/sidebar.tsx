@@ -103,7 +103,7 @@ export function Sidebar({ activeView, onViewChange, pendingLeaves, isCollapsed, 
       `}>
         {/* Logo */}
         <div className={`flex items-center gap-3 px-4 h-16 border-b border-[hsl(var(--sidebar-border))] ${isCollapsed ? 'justify-center px-2' : ''}`}>
-          <img src="/ovitech-logo.png" alt="OviTech" className="h-9 w-9 rounded-xl flex-shrink-0 object-contain" />
+          <img src="/favicon.png" alt="OviTech" className="h-9 w-9 rounded-xl flex-shrink-0 object-contain" />
           {!isCollapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-foreground truncate">OviTech</h1>

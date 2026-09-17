@@ -92,12 +92,11 @@ export default function DashboardPage() {
   const isAdmin = profile?.is_admin === true
   const userObj = profile || { full_name: "User", email: "", is_admin: false }
 
-  // Employee view — no sidebar
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <Header user={userObj} />
-        <main className="container mx-auto py-8 px-4">
+        <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
           <DashboardContent user={userObj} activeView="employee" />
         </main>
       </div>
