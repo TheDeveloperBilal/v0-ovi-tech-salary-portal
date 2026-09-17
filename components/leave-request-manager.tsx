@@ -16,6 +16,7 @@ import {
   CheckCircle, XCircle, Clock, Loader2, CalendarDays, Inbox,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { logAudit } from "@/lib/audit"
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   casual_leave: 'Casual Leave',
@@ -129,6 +130,13 @@ export function LeaveRequestManager() {
         }
       }
 
+      logAudit({
+        action: 'approve_leave',
+        entity_type: 'leave_request',
+        entity_id: request.id,
+        details: { employee_name: `${emp.first_name} ${emp.last_name}`, leave_type: request.leave_type, dates: dates.length },
+      })
+
       toast({
         title: "Approved",
         description: `Leave request approved. ${dates.length} attendance exception(s) created.`,
@@ -158,6 +166,13 @@ export function LeaveRequestManager() {
         .eq("id", request.id)
 
       if (error) throw error
+
+      logAudit({
+        action: 'reject_leave',
+        entity_type: 'leave_request',
+        entity_id: request.id,
+        details: { employee_name: `${emp.first_name} ${emp.last_name}`, leave_type: request.leave_type, reason: remarks[request.id] || '' },
+      })
 
       toast({ title: "Rejected", description: "Leave request rejected." })
       fetchRequests()
