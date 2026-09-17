@@ -57,8 +57,9 @@ export function DashboardContent({ user, activeView }: DashboardContentProps) {
     fetchStats()
   }, [isAdmin])
 
-  if (!isAdmin) {
-    return <EmployeeDashboard userId={user.id} />
+  if (!isAdmin || activeView.startsWith('emp-')) {
+    const empView = activeView.startsWith('emp-') ? activeView.slice(4) : activeView
+    return <EmployeeDashboard userId={user.id} activeView={empView} />
   }
 
   if (activeView === 'overview') {

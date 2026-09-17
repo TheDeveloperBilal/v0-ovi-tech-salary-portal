@@ -5,9 +5,18 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
+import type { NavItem } from "@/components/sidebar"
 import { DashboardContent } from "@/components/dashboard-content"
+import { LayoutDashboard, FileText, Calendar, CalendarDays, Home } from "lucide-react"
 
 export const dynamic = 'force-dynamic'
+
+const EMPLOYEE_NAV_ITEMS: NavItem[] = [
+  { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'slips', label: 'Salary Slips', icon: FileText },
+  { id: 'attendance', label: 'My Attendance', icon: Calendar },
+  { id: 'leaves', label: 'Leave Requests', icon: CalendarDays },
+]
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null)
@@ -92,18 +101,6 @@ export default function DashboardPage() {
   const isAdmin = profile?.is_admin === true
   const userObj = profile || { full_name: "User", email: "", is_admin: false }
 
-  // Employee view — no sidebar
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header user={userObj} />
-        <main className="container mx-auto py-8 px-4">
-          <DashboardContent user={userObj} activeView="employee" />
-        </main>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {error && (
@@ -118,6 +115,7 @@ export default function DashboardPage() {
         pendingLeaves={pendingLeaves}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        navItems={isAdmin ? undefined : EMPLOYEE_NAV_ITEMS}
       />
 
       <Header
@@ -131,7 +129,7 @@ export default function DashboardPage() {
         transition-all duration-300 p-6
         ${sidebarCollapsed ? 'lg:pl-[96px]' : 'lg:pl-[284px]'}
       `}>
-        <DashboardContent user={userObj} activeView={activeView} />
+        <DashboardContent user={userObj} activeView={isAdmin ? activeView : `emp-${activeView}`} />
       </main>
     </div>
   )

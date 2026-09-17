@@ -1,10 +1,18 @@
 "use client"
 
 import { useState } from "react"
+import type { LucideIcon } from "lucide-react"
 import {
   Users, Calendar, FileText, Inbox, CalendarDays, BarChart3, Shield,
   Settings, ChevronLeft, ChevronRight, LayoutDashboard, Menu, X,
 } from "lucide-react"
+
+export interface NavItem {
+  id: string
+  label: string
+  icon: LucideIcon
+  badge?: boolean
+}
 
 interface SidebarProps {
   activeView: string
@@ -12,9 +20,10 @@ interface SidebarProps {
   pendingLeaves: number
   isCollapsed: boolean
   onToggleCollapse: () => void
+  navItems?: NavItem[]
 }
 
-const NAV_ITEMS = [
+const ADMIN_NAV_ITEMS: NavItem[] = [
   { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
@@ -26,12 +35,13 @@ const NAV_ITEMS = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
-export function Sidebar({ activeView, onViewChange, pendingLeaves, isCollapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, pendingLeaves, isCollapsed, onToggleCollapse, navItems }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const items = navItems || ADMIN_NAV_ITEMS
 
   const navContent = (
     <nav className="flex-1 px-3 py-2 space-y-1">
-      {NAV_ITEMS.map(item => {
+      {items.map(item => {
         const isActive = activeView === item.id
         const Icon = item.icon
         return (
@@ -103,7 +113,7 @@ export function Sidebar({ activeView, onViewChange, pendingLeaves, isCollapsed, 
       `}>
         {/* Logo */}
         <div className={`flex items-center gap-3 px-4 h-16 border-b border-[hsl(var(--sidebar-border))] ${isCollapsed ? 'justify-center px-2' : ''}`}>
-          <img src="/ovitech-logo.png" alt="OviTech" className="h-9 w-9 rounded-xl flex-shrink-0 object-contain" />
+          <img src="/favicon.png" alt="OviTech" className="h-9 w-9 rounded-xl flex-shrink-0 object-contain" />
           {!isCollapsed && (
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-foreground truncate">OviTech</h1>
