@@ -1,5 +1,6 @@
 // lib/attendance-calculations.ts
-// Business logic for attendance processing — mirrors the static HTML converter
+// Business logic for attendance processing
+// Updated: sandwich leave rule, 9h waiver removed
 
 // ── Office Schedule ──────────────────────────────────────────────────
 export const OFFICE_START = { hour: 11, minute: 0 }  // 11:00 AM
