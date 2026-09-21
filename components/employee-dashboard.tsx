@@ -786,9 +786,6 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                           <td className="p-3 text-right text-foreground">{r.work_hours ? `${r.work_hours}h` : '—'}</td>
                           <td className={`p-3 font-medium ${getAttStatusColor(r)}`}>
                             {r.status}
-                            {r.nine_hour_waiver && (
-                              <span className="text-xs text-green-400 ml-1">(9h waiver)</span>
-                            )}
                           </td>
                         </tr>
                       ))}

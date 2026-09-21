@@ -4,7 +4,6 @@ import {
   OFFICE_START,
   OFFICE_END,
   GRACE_MINUTES,
-  MIN_HOURS_FOR_WAIVER,
 } from '@/lib/attendance-calculations'
 
 export async function POST(request: NextRequest) {
@@ -130,12 +129,8 @@ export async function POST(request: NextRequest) {
 
     const officeEndMinutes = OFFICE_END.hour * 60 + OFFICE_END.minute
     const isEarlyOut = currentMinutes < officeEndMinutes
-    const nineHourWaiver = workedHours >= MIN_HOURS_FOR_WAIVER
-
-    // Recalculate late status with 9-hour waiver
     const graceEnd = OFFICE_START.hour * 60 + OFFICE_START.minute + GRACE_MINUTES
-    const wasLate = checkInMinutes > graceEnd
-    const isLate = wasLate && !nineHourWaiver
+    const isLate = checkInMinutes > graceEnd
 
     let status = 'On Time'
     if (isLate && isEarlyOut) status = 'Late & Early Out'
@@ -149,7 +144,7 @@ export async function POST(request: NextRequest) {
         work_hours: workedHours,
         is_early_out: isEarlyOut,
         is_late: isLate,
-        nine_hour_waiver: nineHourWaiver,
+        nine_hour_waiver: false,
         status,
       })
       .eq('id', existingRecord.id)

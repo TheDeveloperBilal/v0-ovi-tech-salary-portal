@@ -1,11 +1,11 @@
 // lib/attendance-calculations.ts
-// Business logic for attendance processing — mirrors the static HTML converter
+// Business logic for attendance processing
+// Updated: sandwich leave rule, 9h waiver removed
 
 // ── Office Schedule ──────────────────────────────────────────────────
 export const OFFICE_START = { hour: 11, minute: 0 }  // 11:00 AM
 export const OFFICE_END = { hour: 20, minute: 0 }    // 8:00 PM
 export const GRACE_MINUTES = 15                        // 15-min grace
-export const MIN_HOURS_FOR_WAIVER = 9                  // 9-hour late waiver
 export const ANNUAL_LEAVES = 14                        // 14 annual leaves
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -106,6 +106,51 @@ export function getWeekdaysInMonth(month: number, year: number): string[] {
     }
   }
   return days
+}
+
+// ── Sandwich Leave Rule ─────────────────────────────────────────────
+
+/**
+ * Apply the sandwich leave rule: if a leave falls on Friday, the adjacent
+ * Saturday+Sunday are also counted. Same for Monday. If both Friday and
+ * Monday around the same weekend are leaves, the weekend counts only once.
+ *
+ * @param absentDates - Set of YYYY-MM-DD strings that are leave/absent days
+ * @returns The effective leave count after adding sandwiched weekends
+ */
+export function applySandwichRule(absentDates: Set<string>): number {
+  if (absentDates.size === 0) return 0
+
+  let sandwichDays = 0
+
+  const checkedWeekends = new Set<string>()
+
+  for (const dateStr of absentDates) {
+    const date = new Date(dateStr + 'T00:00:00')
+    const dow = date.getDay()
+
+    if (dow === 5) {
+      // Friday — add the following Saturday+Sunday
+      const sat = new Date(date)
+      sat.setDate(sat.getDate() + 1)
+      const satKey = toDateKey(sat)
+      if (!checkedWeekends.has(satKey)) {
+        checkedWeekends.add(satKey)
+        sandwichDays += 2
+      }
+    } else if (dow === 1) {
+      // Monday — add the preceding Saturday+Sunday
+      const sat = new Date(date)
+      sat.setDate(sat.getDate() - 2)
+      const satKey = toDateKey(sat)
+      if (!checkedWeekends.has(satKey)) {
+        checkedWeekends.add(satKey)
+        sandwichDays += 2
+      }
+    }
+  }
+
+  return absentDates.size + sandwichDays
 }
 
 // ── ZKTeco File Parser ───────────────────────────────────────────────
@@ -225,16 +270,9 @@ export function processScans(
 
     let isLate = false
     let isEarlyOut = false
-    let nineHourWaiver = false
-
     // Late check: arrived after grace period
     if (checkInMin > officeStartMin + GRACE_MINUTES) {
       isLate = true
-      // 9-hour waiver: if worked ≥9 hours, forgive late
-      if (workHours >= MIN_HOURS_FOR_WAIVER) {
-        isLate = false
-        nineHourWaiver = true
-      }
     }
 
     // Early out check
@@ -265,7 +303,7 @@ export function processScans(
       isLate,
       isEarlyOut,
       isAbsent: false,
-      nineHourWaiver
+      nineHourWaiver: false
     })
   }
 
@@ -321,8 +359,11 @@ export function calculateEmployeeSummary(
 ): EmployeeSummary {
   const empRecords = records
   const totalDays = empRecords.length
-  const absentDays = empRecords.filter(r => r.isAbsent && !(wfhDates?.has(r.date))).length
-  const presentDays = totalDays - absentDays
+  const absentDateSet = new Set(
+    empRecords.filter(r => r.isAbsent && !(wfhDates?.has(r.date))).map(r => r.date)
+  )
+  const absentDays = applySandwichRule(absentDateSet)
+  const presentDays = totalDays - absentDateSet.size
   const lateDays = empRecords.filter(r => r.isLate && !r.isAbsent).length
   const earlyOutDays = empRecords.filter(r => r.isEarlyOut && !r.isAbsent).length
 

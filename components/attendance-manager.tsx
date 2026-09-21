@@ -509,13 +509,6 @@ export function AttendanceManager() {
         </span>
       )
     }
-    if (record.nine_hour_waiver) {
-      badges.push(
-        <span key="waiver" className="px-2 py-1 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          9hr Waiver
-        </span>
-      )
-    }
     if (badges.length === 0) {
       badges.push(
         <span key="ontime" className="px-2 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
