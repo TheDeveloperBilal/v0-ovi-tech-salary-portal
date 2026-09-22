@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react"
 import {
   Users, Calendar, FileText, Inbox, CalendarDays, BarChart3, Shield,
   Settings, ChevronLeft, ChevronRight, LayoutDashboard, Menu, X,
+  Megaphone, ShieldCheck,
 } from "lucide-react"
 
 export interface NavItem {
@@ -30,6 +31,8 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { id: 'slips', label: 'Salary Slips', icon: FileText },
   { id: 'leave-requests', label: 'Leave Requests', icon: Inbox, badge: true },
   { id: 'holidays', label: 'Holidays', icon: CalendarDays },
+  { id: 'notices', label: 'Notices', icon: Megaphone },
+  { id: 'policies', label: 'Policies', icon: ShieldCheck },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'audit-log', label: 'Audit Log', icon: Shield },
   { id: 'settings', label: 'Settings', icon: Settings },

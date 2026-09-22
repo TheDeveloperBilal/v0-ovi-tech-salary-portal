@@ -13,6 +13,8 @@ import { HolidayManager } from "./holiday-manager"
 import { LeaveRequestManager } from "./leave-request-manager"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import { AuditLogViewer } from "./audit-log-viewer"
+import { NoticeManager } from "./notice-manager"
+import { PolicyManager } from "./policy-manager"
 
 interface DashboardContentProps {
   user: any
@@ -72,6 +74,8 @@ export function DashboardContent({ user, activeView }: DashboardContentProps) {
     'slips': <SalarySlipGenerator isAdmin={true} />,
     'leave-requests': <LeaveRequestManager />,
     'holidays': <HolidayManager />,
+    'notices': <NoticeManager />,
+    'policies': <PolicyManager />,
     'analytics': <AnalyticsDashboard />,
     'audit-log': <AuditLogViewer />,
     'settings': <CompanySettings />,

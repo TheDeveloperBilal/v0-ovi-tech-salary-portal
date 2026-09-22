@@ -7,7 +7,7 @@ import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import type { NavItem } from "@/components/sidebar"
 import { DashboardContent } from "@/components/dashboard-content"
-import { LayoutDashboard, FileText, Calendar, CalendarDays, Home } from "lucide-react"
+import { LayoutDashboard, FileText, Calendar, CalendarDays, Home, ShieldCheck } from "lucide-react"
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +16,7 @@ const EMPLOYEE_NAV_ITEMS: NavItem[] = [
   { id: 'slips', label: 'Salary Slips', icon: FileText },
   { id: 'attendance', label: 'My Attendance', icon: Calendar },
   { id: 'leaves', label: 'Leave Requests', icon: CalendarDays },
+  { id: 'policies', label: 'Office Policies', icon: ShieldCheck },
 ]
 
 export default function DashboardPage() {
