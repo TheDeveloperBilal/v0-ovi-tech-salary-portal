@@ -432,13 +432,19 @@ export function PolicyManager() {
                               {sig.employees?.department} · {sig.employees?.designation}
                             </p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end gap-1">
                             <p className="text-xs text-emerald-400">
                               Signed {new Date(sig.signed_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
-                            <p className="text-xs text-muted-foreground/60 italic truncate max-w-[200px]">
-                              "{sig.signature_text}"
-                            </p>
+                            {sig.signature_text?.startsWith('data:image') ? (
+                              <div className="bg-white rounded p-1 border border-border/30">
+                                <img src={sig.signature_text} alt="Signature" className="h-8 w-auto" />
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground/60 italic truncate max-w-[200px]">
+                                &ldquo;{sig.signature_text}&rdquo;
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}

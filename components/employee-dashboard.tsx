@@ -20,6 +20,7 @@ import {
   Home, Briefcase, Play, Square, Megaphone, ShieldCheck, Download,
 } from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
+import { SignatureCanvas } from './signature-canvas'
 import { useToast } from '@/hooks/use-toast'
 
 const LEAVE_TYPES = [
@@ -73,7 +74,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   const [policies, setPolicies] = useState<any[]>([])
   const [policySigs, setPolicySigs] = useState<any[]>([])
   const [signingPolicyId, setSigningPolicyId] = useState<string | null>(null)
-  const [signatureText, setSignatureText] = useState('')
+  const [signatureData, setSignatureData] = useState<string | null>(null)
   const [isSigningPolicy, setIsSigningPolicy] = useState(false)
 
   const supabase = createClient()
@@ -298,8 +299,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   }
 
   const handleSignPolicy = async (policyId: string) => {
-    if (!signatureText.trim()) {
-      toast({ title: 'Error', description: 'Please type your full name as signature', variant: 'destructive' })
+    if (!signatureData) {
+      toast({ title: 'Error', description: 'Please draw your signature', variant: 'destructive' })
       return
     }
     setIsSigningPolicy(true)
@@ -313,7 +314,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ policy_id: policyId, signature_text: signatureText.trim() }),
+        body: JSON.stringify({ policy_id: policyId, signature_text: signatureData }),
       })
 
       const data = await res.json()
@@ -321,7 +322,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
 
       toast({ title: 'Policy Signed', description: data.message })
       setSigningPolicyId(null)
-      setSignatureText('')
+      setSignatureData(null)
       fetchPolicies()
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
@@ -1119,15 +1120,25 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                           {policy.requires_signature && (
                             <div className="mt-4">
                               {isSigned ? (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
-                                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-                                  <div>
-                                    <p className="text-sm font-medium text-emerald-400">Signed & Accepted</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Signed on {new Date(mySig.signed_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                      {' · Signature: "'}{mySig.signature_text}{'"'}
-                                    </p>
+                                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <div>
+                                      <p className="text-sm font-medium text-emerald-400">Signed & Accepted</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        Signed on {new Date(mySig.signed_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                    </div>
                                   </div>
+                                  {mySig.signature_text?.startsWith('data:image') ? (
+                                    <div className="bg-white rounded-md p-2 inline-block border border-border/30">
+                                      <img src={mySig.signature_text} alt="Signature" className="h-12 w-auto" />
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Signature: &ldquo;{mySig.signature_text}&rdquo;
+                                    </p>
+                                  )}
                                 </div>
                               ) : signingPolicyId === policy.id ? (
                                 <div className="p-4 rounded-lg bg-purple-500/5 border border-purple-500/15 space-y-3">
@@ -1135,18 +1146,16 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                                     By signing below, I acknowledge that I have read, understood, and agree to comply with this policy.
                                   </p>
                                   <div>
-                                    <Label className="text-xs text-muted-foreground">Type your full name as electronic signature</Label>
-                                    <Input
-                                      placeholder={employeeData ? `${employeeData.first_name} ${employeeData.last_name}` : 'Your full name'}
-                                      value={signatureText}
-                                      onChange={e => setSignatureText(e.target.value)}
-                                      className="mt-1"
+                                    <Label className="text-xs text-muted-foreground mb-2 block">Draw your signature</Label>
+                                    <SignatureCanvas
+                                      onSignatureChange={setSignatureData}
+                                      height={160}
                                     />
                                   </div>
                                   <div className="flex gap-2">
                                     <Button
                                       onClick={() => handleSignPolicy(policy.id)}
-                                      disabled={isSigningPolicy || !signatureText.trim()}
+                                      disabled={isSigningPolicy || !signatureData}
                                       size="sm"
                                       className="gap-1"
                                     >
@@ -1160,7 +1169,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => { setSigningPolicyId(null); setSignatureText('') }}
+                                      onClick={() => { setSigningPolicyId(null); setSignatureData(null) }}
                                     >
                                       Cancel
                                     </Button>
