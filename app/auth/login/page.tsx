@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="flex flex-col gap-6">
           <div className="flex justify-center mb-4">
             <div className="w-32 h-32 relative">
-              <Image src="/images/image.png" alt="OviTech Logo" width={128} height={128} />
+              <Image src="/ovitech-logo.png" alt="OviTech Logo" width={128} height={128} />
             </div>
           </div>
           <Card>
@@ -81,7 +81,12 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <Link href="/auth/forgot-password" className="text-xs text-purple-400 hover:text-purple-300 underline underline-offset-4">
+                        Forgot password?
+                      </Link>
+                    </div>
                     <Input
                       id="password"
                       type="password"
@@ -96,10 +101,7 @@ export default function LoginPage() {
                   </Button>
                 </div>
                 <div className="mt-4 text-center text-sm text-muted-foreground">
-                  Don&apos;t have an account?{" "}
-                  <Link href="/auth/sign-up" className="text-purple-400 font-medium underline underline-offset-4 hover:text-purple-300">
-                    Sign up
-                  </Link>
+                  OviTech Global
                 </div>
               </form>
             </CardContent>

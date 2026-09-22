@@ -376,8 +376,20 @@ export function AttendanceManager() {
 
     const baseSalary = emp.base_salary || 0
 
+    // Collect WFH exception dates so they don't count as absences
+    const wfhDates = new Set<string>()
+    for (const [key, excs] of exceptions) {
+      if (key.startsWith(targetEmployeeId + '|')) {
+        for (const exc of excs) {
+          if (exc.type === 'work_from_home') {
+            wfhDates.add(key.split('|')[1])
+          }
+        }
+      }
+    }
+
     const totalDays = empRecords.length
-    const absentDays = empRecords.filter(r => r.is_absent).length
+    const absentDays = empRecords.filter(r => r.is_absent && !wfhDates.has(r.attendance_date)).length
     const presentDays = totalDays - absentDays
     const lateDays = empRecords.filter(r => r.is_late).length
     const earlyOutDays = empRecords.filter(r => r.is_early_out).length
@@ -420,7 +432,7 @@ export function AttendanceManager() {
       isProbation: emp.is_probation,
       remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
     }
-  }, [selectedEmployeeId, search, filteredRecords, records, employees])
+  }, [selectedEmployeeId, search, filteredRecords, records, employees, exceptions])
 
   // ── Helpers ──
 
@@ -494,13 +506,6 @@ export function AttendanceManager() {
       badges.push(
         <span key="early" className="px-2 py-1 rounded text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
           Early Out
-        </span>
-      )
-    }
-    if (record.nine_hour_waiver) {
-      badges.push(
-        <span key="waiver" className="px-2 py-1 rounded text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          9hr Waiver
         </span>
       )
     }

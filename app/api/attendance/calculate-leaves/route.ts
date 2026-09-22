@@ -1,6 +1,7 @@
 // app/api/attendance/calculate-leaves/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { applySandwichRule } from '@/lib/attendance-calculations'
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,10 +61,13 @@ export async function POST(request: NextRequest) {
 
     // Calculate leaves deducted based on business rules
     let leavesDeducted = 0
-    const absences = (records || []).filter((r: any) => r.is_absent).length
-    const violations = (records || []).filter((r: any) => (r.is_late || r.is_early_out) && !r.nine_hour_waiver).length
+    const absentDates = new Set(
+      (records || []).filter((r: any) => r.is_absent).map((r: any) => r.attendance_date)
+    )
+    const absences = applySandwichRule(absentDates)
+    const violations = (records || []).filter((r: any) => (r.is_late || r.is_early_out)).length
 
-    // 1 absent = 1 leave
+    // Absences with sandwich rule applied
     leavesDeducted += absences
 
     // 3 combined (late + early out) = 1 leave
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
         year,
         total_days: records?.length || 0,
         present_days: (records || []).filter((r: any) => !r.is_absent).length,
-        late_count: (records || []).filter((r: any) => r.is_late && !r.nine_hour_waiver).length,
+        late_count: (records || []).filter((r: any) => r.is_late).length,
         early_out_count: (records || []).filter((r: any) => r.is_early_out).length,
         absent_count: absences,
         leaves_deducted: leavesDeducted,

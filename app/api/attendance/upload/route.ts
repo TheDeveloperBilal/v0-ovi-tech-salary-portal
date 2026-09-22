@@ -188,7 +188,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
           is_absent: r.isAbsent,
           nine_hour_waiver: r.nineHourWaiver,
           month,
-          year
+          year,
+          source: 'biometric',
         }
       })
 
@@ -197,8 +198,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       new Map(recordsToSave.map(r => [`${r.employee_id}_${r.attendance_date}`, r])).values()
     )
 
-    // ── Delete existing records for this month/year before inserting ──
-    // This ensures a clean re-upload replaces old data
+    // ── Delete existing biometric records for this month/year before inserting ──
+    // Only removes source='biometric' so WFH self-service records survive re-uploads
     const matchedEmployeeIds = [...new Set(deduped.map(r => r.employee_id))]
     for (const empId of matchedEmployeeIds) {
       await supabase
@@ -207,6 +208,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         .eq('employee_id', empId)
         .eq('month', month)
         .eq('year', year)
+        .eq('source', 'biometric')
     }
 
     // ── Batch insert (Supabase max 1000 per upsert) ──
