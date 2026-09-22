@@ -17,7 +17,7 @@ import {
 import {
   Eye, Calendar, Clock, CalendarDays, Plus,
   CheckCircle, XCircle, Loader2, FileText, AlertCircle, Send, Trash2,
-  Home, Briefcase, Play, Square,
+  Home, Briefcase, Play, Square, Megaphone, ShieldCheck, Download,
 } from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { useToast } from '@/hooks/use-toast'
@@ -69,12 +69,21 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   const [isClocking, setIsClocking] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
 
+  const [notices, setNotices] = useState<any[]>([])
+  const [policies, setPolicies] = useState<any[]>([])
+  const [policySigs, setPolicySigs] = useState<any[]>([])
+  const [signingPolicyId, setSigningPolicyId] = useState<string | null>(null)
+  const [signatureText, setSignatureText] = useState('')
+  const [isSigningPolicy, setIsSigningPolicy] = useState(false)
+
   const supabase = createClient()
   const { toast } = useToast()
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     fetchEmployeeData()
+    fetchNotices()
+    fetchPolicies()
   }, [userId])
 
   useEffect(() => {
@@ -256,6 +265,68 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       toast({ title: 'Cancelled', description: 'Leave request cancelled.' })
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    }
+  }
+
+  const fetchNotices = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const res = await fetch('/api/notices', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setNotices(data.notices || [])
+      }
+    } catch {}
+  }
+
+  const fetchPolicies = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const res = await fetch('/api/policies', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setPolicies(data.policies || [])
+        setPolicySigs(data.signatures || [])
+      }
+    } catch {}
+  }
+
+  const handleSignPolicy = async (policyId: string) => {
+    if (!signatureText.trim()) {
+      toast({ title: 'Error', description: 'Please type your full name as signature', variant: 'destructive' })
+      return
+    }
+    setIsSigningPolicy(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+
+      const res = await fetch('/api/policies/sign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ policy_id: policyId, signature_text: signatureText.trim() }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      toast({ title: 'Policy Signed', description: data.message })
+      setSigningPolicyId(null)
+      setSignatureText('')
+      fetchPolicies()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } finally {
+      setIsSigningPolicy(false)
     }
   }
 
@@ -569,6 +640,54 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
               <p className="text-3xl font-bold mt-1 text-foreground">{employeeData?.leaves_taken || 0}</p>
             </div>
           </div>
+
+          {/* Active Notices */}
+          {notices.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-purple-400" />
+                Company Notices
+              </h3>
+              {notices.map((notice: any) => (
+                <Card key={notice.id} className={`glass-card border-l-4 ${
+                  notice.priority === 'urgent' ? 'border-l-red-500' :
+                  notice.priority === 'important' ? 'border-l-amber-500' : 'border-l-blue-500'
+                }`}>
+                  <CardContent className="py-3">
+                    <div className="flex items-start gap-3">
+                      <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                        notice.priority === 'urgent' ? 'bg-red-500/10' :
+                        notice.priority === 'important' ? 'bg-amber-500/10' : 'bg-blue-500/10'
+                      }`}>
+                        <Megaphone className={`w-4 h-4 ${
+                          notice.priority === 'urgent' ? 'text-red-400' :
+                          notice.priority === 'important' ? 'text-amber-400' : 'text-blue-400'
+                        }`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold text-sm text-foreground">{notice.title}</h4>
+                          {notice.priority !== 'normal' && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              notice.priority === 'urgent'
+                                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {notice.priority}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{notice.content}</p>
+                        <p className="text-xs text-muted-foreground/50 mt-2">
+                          {new Date(notice.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="glass-card">
@@ -949,6 +1068,135 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
               </form>
             </DialogContent>
           </Dialog>
+        </div>
+      )}
+
+      {/* ═══════ OFFICE POLICIES TAB ═══════ */}
+      {activeView === 'policies' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-purple-400" />
+              Office Policies
+            </h2>
+          </div>
+
+          {policies.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="py-12 text-center">
+                <ShieldCheck className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground">No policies available at the moment.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {policies.map((policy: any) => {
+                const mySig = policySigs.find((s: any) => s.policy_id === policy.id)
+                const isSigned = !!mySig
+                return (
+                  <Card key={policy.id} className={`glass-card border-l-4 ${
+                    isSigned ? 'border-l-emerald-500' :
+                    policy.requires_signature ? 'border-l-amber-500' : 'border-l-purple-500'
+                  }`}>
+                    <CardContent className="py-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <FileText className="w-5 h-5 text-purple-400 shrink-0" />
+                            <h3 className="font-semibold text-foreground text-lg">{policy.title}</h3>
+                          </div>
+                          {policy.description && (
+                            <p className="text-sm text-muted-foreground mb-3">{policy.description}</p>
+                          )}
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
+                            <span>{policy.file_name}</span>
+                            <span>
+                              Uploaded {new Date(policy.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+
+                          {/* Signature status */}
+                          {policy.requires_signature && (
+                            <div className="mt-4">
+                              {isSigned ? (
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+                                  <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+                                  <div>
+                                    <p className="text-sm font-medium text-emerald-400">Signed & Accepted</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Signed on {new Date(mySig.signed_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      {' · Signature: "'}{mySig.signature_text}{'"'}
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : signingPolicyId === policy.id ? (
+                                <div className="p-4 rounded-lg bg-purple-500/5 border border-purple-500/15 space-y-3">
+                                  <p className="text-sm text-foreground font-medium">
+                                    By signing below, I acknowledge that I have read, understood, and agree to comply with this policy.
+                                  </p>
+                                  <div>
+                                    <Label className="text-xs text-muted-foreground">Type your full name as electronic signature</Label>
+                                    <Input
+                                      placeholder={employeeData ? `${employeeData.first_name} ${employeeData.last_name}` : 'Your full name'}
+                                      value={signatureText}
+                                      onChange={e => setSignatureText(e.target.value)}
+                                      className="mt-1"
+                                    />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      onClick={() => handleSignPolicy(policy.id)}
+                                      disabled={isSigningPolicy || !signatureText.trim()}
+                                      size="sm"
+                                      className="gap-1"
+                                    >
+                                      {isSigningPolicy ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-3 h-3" />
+                                      )}
+                                      Sign & Accept
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => { setSigningPolicyId(null); setSignatureText('') }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSigningPolicyId(policy.id)}
+                                  className="gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                                >
+                                  <ShieldCheck className="w-4 h-4" />
+                                  Sign & Accept Policy
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(policy.file_url, '_blank')}
+                          className="shrink-0 gap-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          View PDF
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
