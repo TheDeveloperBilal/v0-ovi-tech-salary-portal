@@ -13,7 +13,6 @@ import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCirc
 import { useToast } from "@/hooks/use-toast"
 import { ProbationManager } from "./probation-manager"
 
-// Generate a strong random password
 function generateSecurePassword() {
   const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   const lowercase = "abcdefghijklmnopqrstuvwxyz"
@@ -21,17 +20,28 @@ function generateSecurePassword() {
   const special = "!@#$%^&*"
   const all = uppercase + lowercase + numbers + special
 
-  let password = ""
-  password += uppercase[Math.floor(Math.random() * uppercase.length)]
-  password += lowercase[Math.floor(Math.random() * lowercase.length)]
-  password += numbers[Math.floor(Math.random() * numbers.length)]
-  password += special[Math.floor(Math.random() * special.length)]
-
-  for (let i = password.length; i < 12; i++) {
-    password += all[Math.floor(Math.random() * all.length)]
+  const randomIndex = (max: number) => {
+    const arr = new Uint32Array(1)
+    crypto.getRandomValues(arr)
+    return arr[0] % max
   }
 
-  return password.split('').sort(() => Math.random() - 0.5).join('')
+  const chars: string[] = []
+  chars.push(uppercase[randomIndex(uppercase.length)])
+  chars.push(lowercase[randomIndex(lowercase.length)])
+  chars.push(numbers[randomIndex(numbers.length)])
+  chars.push(special[randomIndex(special.length)])
+
+  for (let i = chars.length; i < 14; i++) {
+    chars.push(all[randomIndex(all.length)])
+  }
+
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1)
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+
+  return chars.join('')
 }
 
 export function EmployeeManagement() {

@@ -141,7 +141,8 @@ export function SalarySlipPreview({ employee }: any) {
       toast({ title: "Error", description: "Please allow popups to print.", variant: "destructive" })
       return
     }
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Salary Slip - ${employeeName} - ${month} ${year}</title>
+    const safeTitle = `Salary Slip - ${(employeeName || '').replace(/[<>&"']/g, '')} - ${month} ${year}`
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title>
       <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;background:#fff;padding:20px}@media print{body{padding:0}}</style>
       </head><body>${slipRef.current.innerHTML}<script>window.onload=function(){setTimeout(function(){window.print();window.close()},300)};<\/script></body></html>`)
     printWindow.document.close()

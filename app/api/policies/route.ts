@@ -85,8 +85,8 @@ export async function GET(request: NextRequest) {
       policies: policies || [],
       signatures: signatures || [],
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch policies' }, { status: 500 })
   }
 }
 
@@ -161,8 +161,8 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
     return NextResponse.json({ policy: data }, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to upload policy' }, { status: 500 })
   }
 }
 
@@ -212,7 +212,7 @@ export async function DELETE(request: NextRequest) {
 
     if (error) throw error
     return NextResponse.json({ success: true })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete policy' }, { status: 500 })
   }
 }
