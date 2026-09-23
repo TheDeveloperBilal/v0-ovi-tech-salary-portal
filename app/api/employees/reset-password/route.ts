@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
         if (createError) {
           return NextResponse.json(
-            { error: `Failed to create auth account: ${createError.message}` },
+            { error: 'Failed to create auth account' },
             { status: 400 }
           );
         }
@@ -112,15 +112,15 @@ export async function POST(request: NextRequest) {
         },
         { status: 200 }
       );
-    } catch (authError: any) {
+    } catch {
       return NextResponse.json(
-        { error: `Failed to reset password: ${authError.message}` },
+        { error: 'Failed to reset password' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
       if (authError) {
         return NextResponse.json(
-          { error: `Failed to create auth account: ${authError.message}` },
+          { error: 'Failed to create auth account' },
           { status: 400 }
         );
       }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     if (empError) {
       return NextResponse.json(
-        { error: `Failed to create employee record: ${empError.message}` },
+        { error: 'Failed to create employee record' },
         { status: 400 }
       );
     }
@@ -131,9 +131,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
