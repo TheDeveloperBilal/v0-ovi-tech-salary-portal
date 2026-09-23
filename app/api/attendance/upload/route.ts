@@ -240,7 +240,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     return NextResponse.json<UploadResponse>(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: 'Failed to process attendance upload'
       },
       { status: 500 }
     )

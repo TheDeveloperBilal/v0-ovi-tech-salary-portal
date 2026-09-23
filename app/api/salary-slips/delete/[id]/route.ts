@@ -57,7 +57,7 @@ export async function DELETE(
 
     if (deleteError) {
       return NextResponse.json(
-        { error: `Failed to delete salary slip: ${deleteError.message}` },
+        { error: 'Failed to delete salary slip' },
         { status: 400 }
       )
     }
@@ -67,9 +67,9 @@ export async function DELETE(
       { message: "Salary slip deleted successfully" },
       { status: 200 }
     )
-  } catch (error: any) {
+  } catch {
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: "Internal server error" },
       { status: 500 }
     )
   }
