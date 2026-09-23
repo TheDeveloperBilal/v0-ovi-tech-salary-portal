@@ -58,13 +58,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query.order('attendance_date', { ascending: true })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch attendance records' }, { status: 500 })
     }
 
     return NextResponse.json({ data })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to fetch attendance records' },
       { status: 500 }
     )
   }
@@ -84,13 +84,13 @@ export async function DELETE(request: NextRequest) {
       .eq('id', recordId)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to delete record' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to delete attendance record' },
       { status: 500 }
     )
   }

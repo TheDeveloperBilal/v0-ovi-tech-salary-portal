@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Policy ID and signature are required' }, { status: 400 })
     }
 
+    const MAX_SIGNATURE_SIZE = 500_000
+    if (typeof signature_text !== 'string' || signature_text.length > MAX_SIGNATURE_SIZE) {
+      return NextResponse.json({ error: 'Invalid signature data' }, { status: 400 })
+    }
+
     // Check policy exists and requires signature
     const { data: policy } = await supabase
       .from('company_policies')
@@ -76,8 +81,8 @@ export async function POST(request: NextRequest) {
       signature: data,
       message: `Policy "${policy.title}" signed successfully`,
     }, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to sign policy' }, { status: 500 })
   }
 }
 
@@ -133,7 +138,7 @@ export async function GET(request: NextRequest) {
       signed: signatures || [],
       unsigned,
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch signature data' }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,7 +54,11 @@ export function AuditLogViewer() {
   async function fetchLogs() {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/audit-log?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`)
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/audit-log?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
       const json = await res.json()
       if (json.data) {
         setLogs(json.data)

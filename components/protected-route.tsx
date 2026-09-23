@@ -16,9 +16,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       try {
         
-        const { data: { session } } = await supabase.auth.getSession()
-        
-        if (session?.user) {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
           setIsAuthenticated(true)
           setIsLoading(false)
         } else {

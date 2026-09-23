@@ -11,14 +11,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Image from "next/image"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,6 +26,8 @@ export default function LoginPage() {
     const supabase = createClient()
     setIsLoading(true)
     setError(null)
+
+    const password = passwordRef.current?.value || ""
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -41,14 +43,12 @@ export default function LoginPage() {
         throw new Error("Invalid credentials")
       }
 
+      if (passwordRef.current) passwordRef.current.value = ""
 
-      // Wait for session to be fully established and propagated
       await new Promise(resolve => setTimeout(resolve, 1200))
-
-      // Force a hard reload to ensure session is recognized
       window.location.href = "/dashboard"
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Login failed - check console for details"
+      const errorMessage = error instanceof Error ? error.message : "Login failed"
       setError(errorMessage)
     } finally {
       setIsLoading(false)
@@ -90,12 +90,13 @@ export default function LoginPage() {
                         Forgot password?
                       </Link>
                     </div>
-                    <Input
+                    <input
+                      ref={passwordRef}
                       id="password"
                       type="password"
                       required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="bg-background border border-input text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:ring-primary/20 h-9 w-full min-w-0 rounded-md px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                     />
                   </div>
                   {error && <p className="text-sm text-red-400 text-center">{error}</p>}
