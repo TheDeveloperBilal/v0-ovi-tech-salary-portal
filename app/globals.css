@@ -236,14 +236,8 @@
   }
 
   .glass-header {
-    background: hsla(var(--card) / 0.75);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    background: hsl(var(--card));
     border-bottom: 1px solid hsl(var(--border));
-  }
-
-  .dark .glass-header {
-    background: hsla(var(--card) / 0.6);
   }
 }
 

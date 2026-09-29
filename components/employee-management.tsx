@@ -74,6 +74,7 @@ export function EmployeeManagement() {
   const [salaryHistory, setSalaryHistory] = useState<any[]>([])
   const [showSalaryHistory, setShowSalaryHistory] = useState<string | null>(null)
   const [salaryHistoryLoading, setSalaryHistoryLoading] = useState(false)
+  const [probationEmployee, setProbationEmployee] = useState<any | null>(null)
   const [newHistoryEntry, setNewHistoryEntry] = useState({ salary: "", effective_from: "", reason: "" })
   const [showAddHistory, setShowAddHistory] = useState(false)
   const supabase = createClient()
@@ -476,7 +477,7 @@ export function EmployeeManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {}}
+                      onClick={() => setProbationEmployee(emp)}
                       className="flex-1 w-full sm:w-auto bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
                     >
                       <AlertCircle className="w-4 h-4 mr-2" />
@@ -858,6 +859,24 @@ export function EmployeeManagement() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!probationEmployee} onOpenChange={(open) => { if (!open) setProbationEmployee(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Probation Status — {probationEmployee?.first_name} {probationEmployee?.last_name}</DialogTitle>
+            <DialogDescription>Manage probation period for this employee</DialogDescription>
+          </DialogHeader>
+          {probationEmployee && (
+            <ProbationManager
+              employee={probationEmployee}
+              onUpdate={() => {
+                setProbationEmployee(null)
+                fetchEmployees()
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
