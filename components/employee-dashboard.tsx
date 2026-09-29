@@ -153,8 +153,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
         .order('year', { ascending: false })
         .order('month', { ascending: false })
       setSalarySlips(slips || [])
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load your data. Please try refreshing the page.', variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -203,8 +203,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
         excMap.set(key, arr)
       }
       setExceptions(excMap)
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load attendance records.', variant: 'destructive' })
     } finally {
       setIsLoadingAtt(false)
     }
@@ -220,8 +220,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
         .order('created_at', { ascending: false })
       if (error) throw error
       setLeaveRequests(data || [])
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load leave requests.', variant: 'destructive' })
     }
   }
 
@@ -231,6 +231,26 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
 
     if (leaveForm.end_date < leaveForm.start_date) {
       toast({ title: 'Error', description: 'End date cannot be before start date', variant: 'destructive' })
+      return
+    }
+
+    const currentRemaining = Math.max(0, 14 - (employeeData?.leaves_taken || 0))
+    const start = new Date(leaveForm.start_date + 'T00:00:00')
+    const end = new Date(leaveForm.end_date + 'T00:00:00')
+    let requestedDays = 0
+    const d = new Date(start)
+    while (d <= end) {
+      const dow = d.getDay()
+      if (dow >= 1 && dow <= 5) requestedDays++
+      d.setDate(d.getDate() + 1)
+    }
+
+    if (leaveForm.leave_type !== 'work_from_home' && requestedDays > currentRemaining) {
+      toast({
+        title: 'Insufficient Leave Balance',
+        description: `You have ${currentRemaining} leave(s) remaining but requested ${requestedDays} day(s). Please reduce the duration or contact admin.`,
+        variant: 'destructive',
+      })
       return
     }
 
@@ -250,8 +270,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       setLeaveForm({ leave_type: 'casual_leave', start_date: '', end_date: '', reason: '' })
       setIsLeaveFormOpen(false)
       fetchLeaveRequests()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to submit leave request. Please try again or contact admin.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -264,8 +284,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       if (error) throw error
       setLeaveRequests(leaveRequests.filter(r => r.id !== id))
       toast({ title: 'Cancelled', description: 'Leave request cancelled.' })
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to cancel leave request.', variant: 'destructive' })
     }
   }
 
@@ -324,8 +344,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       setSigningPolicyId(null)
       setSignatureData(null)
       fetchPolicies()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to sign policy. Please try again.', variant: 'destructive' })
     } finally {
       setIsSigningPolicy(false)
     }
@@ -359,8 +379,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       if (!res.ok) throw new Error(data.error)
       toast({ title: data.action === 'check_in' ? 'Checked In' : 'Checked Out', description: data.message })
       fetchWfhStatus()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to record WFH clock. Please try again.', variant: 'destructive' })
     } finally {
       setIsClocking(false)
     }

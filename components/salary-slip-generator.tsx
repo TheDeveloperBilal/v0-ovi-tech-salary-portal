@@ -123,8 +123,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         probation_end_date: e.probation_end_date || null,
         leaves_taken: Number(e.leaves_taken || 0),
       })))
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to load data.", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -334,8 +334,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       previews.sort((a, b) => a.employeeName.localeCompare(b.employeeName))
       setGeneratedPreview(previews)
       setShowPreviewList(true)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to generate salary slip preview.", variant: "destructive" })
     } finally {
       setIsGenerating(false)
     }
@@ -404,8 +404,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       setShowPreviewList(false)
       setGeneratedPreview([])
       fetchData()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to save salary slips.", variant: "destructive" })
     } finally {
       setIsGenerating(false)
     }
@@ -514,8 +514,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       }
 
       toast({ title: "Deleted", description: "Salary slip deleted. Leave quota re-synced." })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete salary slip.", variant: "destructive" })
     }
   }
 

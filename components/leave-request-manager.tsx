@@ -66,8 +66,8 @@ export function LeaveRequestManager() {
       const { data, error } = await query.limit(100)
       if (error) throw error
       setRequests(data || [])
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to load leave requests.", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -143,8 +143,8 @@ export function LeaveRequestManager() {
       })
 
       fetchRequests()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to approve leave request.", variant: "destructive" })
     } finally {
       setProcessingId(null)
     }
@@ -176,8 +176,8 @@ export function LeaveRequestManager() {
 
       toast({ title: "Rejected", description: "Leave request rejected." })
       fetchRequests()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to reject leave request.", variant: "destructive" })
     } finally {
       setProcessingId(null)
     }

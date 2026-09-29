@@ -48,8 +48,8 @@ export function PolicyManager() {
         setPolicies(data.policies || [])
         setTotalEmployees(data.total_employees || 0)
       }
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load policies.', variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -93,8 +93,8 @@ export function PolicyManager() {
       setFormFile(null)
       setFormRequiresSig(true)
       fetchPolicies()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to upload policy.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -128,8 +128,8 @@ export function PolicyManager() {
       setSelectedPolicy(null)
       setSignatureData(null)
       fetchPolicies()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete policy.', variant: 'destructive' })
     }
   }
 
@@ -145,8 +145,8 @@ export function PolicyManager() {
       })
       const data = await res.json()
       if (res.ok) setSignatureData(data)
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load signatures.', variant: 'destructive' })
     } finally {
       setIsLoadingSignatures(false)
     }

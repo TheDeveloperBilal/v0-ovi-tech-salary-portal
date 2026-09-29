@@ -88,7 +88,7 @@ export function EmployeeManagement() {
     const { data, error } = await supabase.from("employees").select("*").order("created_at", { ascending: false })
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+      toast({ title: "Error", description: "Failed to load employees.", variant: "destructive" })
     } else {
       setEmployees(data || [])
     }
@@ -184,8 +184,8 @@ export function EmployeeManagement() {
       setEditingId(null)
       setIsOpen(false)
       fetchEmployees()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to save employee.", variant: "destructive" })
     }
   }
 
@@ -223,8 +223,8 @@ export function EmployeeManagement() {
 
       // Refresh from server to ensure consistency
       setTimeout(() => fetchEmployees(), 500)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete employee", variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete employee.", variant: "destructive" })
     }
   }
 
@@ -262,8 +262,8 @@ export function EmployeeManagement() {
       if (error) throw error
       setSalaryHistory(data || [])
       setShowSalaryHistory(employeeId)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to load salary history.", variant: "destructive" })
     } finally {
       setSalaryHistoryLoading(false)
     }
@@ -276,8 +276,8 @@ export function EmployeeManagement() {
       if (error) throw error
       setSalaryHistory(salaryHistory.filter(h => h.id !== id))
       toast({ title: "Deleted", description: "Salary history entry removed." })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete salary history entry.", variant: "destructive" })
     }
   }
 
@@ -298,8 +298,8 @@ export function EmployeeManagement() {
       setShowAddHistory(false)
       fetchSalaryHistory(showSalaryHistory)
       toast({ title: "Added", description: "Salary history entry added." })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to add salary history entry.", variant: "destructive" })
     }
   }
 
@@ -357,8 +357,8 @@ export function EmployeeManagement() {
         confirmPassword: "",
       })
       setIsResetPasswordOpen(false)
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to reset password.", variant: "destructive" })
     }
   }
 

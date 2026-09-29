@@ -127,7 +127,7 @@ export function SalarySlipPreview({ employee }: any) {
       toast({ title: "Success", description: "PDF downloaded successfully" })
     } catch (error: any) {
       console.error("PDF generation error:", error)
-      toast({ title: "Error", description: `Failed to generate PDF: ${error.message || 'Unknown error'}`, variant: "destructive" })
+      toast({ title: "Error", description: "Failed to generate PDF. Please try again.", variant: "destructive" })
     } finally {
       setIsGeneratingPDF(false)
     }

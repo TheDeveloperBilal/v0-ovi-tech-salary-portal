@@ -42,10 +42,10 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
         description: `${employee.first_name} ${employee.last_name} has been converted to permanent employee.`
       })
       onUpdate()
-    } catch (error: any) {
+    } catch {
       toast({
         title: 'Error',
-        description: error.message,
+        description: 'Failed to update employee status.',
         variant: 'destructive'
       })
     } finally {
@@ -72,10 +72,10 @@ export function ProbationManager({ employee, onUpdate }: ProbationManagerProps) 
       })
       setShowDialog(false)
       onUpdate()
-    } catch (error: any) {
+    } catch {
       toast({
         title: 'Error',
-        description: error.message,
+        description: 'Failed to update probation status.',
         variant: 'destructive'
       })
     } finally {

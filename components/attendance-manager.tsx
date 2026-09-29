@@ -141,7 +141,7 @@ export function AttendanceManager() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to load data',
+        description: 'Failed to load attendance data.',
         variant: 'destructive',
       })
     } finally {
@@ -225,7 +225,7 @@ export function AttendanceManager() {
         if (!cancelled) {
           toast({
             title: 'Error',
-            description: error instanceof Error ? error.message : 'Failed to load data',
+            description: 'Failed to load attendance data.',
             variant: 'destructive',
           })
         }
@@ -286,7 +286,7 @@ export function AttendanceManager() {
     } catch (error) {
       toast({
         title: 'Upload Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        description: 'Failed to upload attendance file.',
         variant: 'destructive',
       })
     } finally {
@@ -313,7 +313,7 @@ export function AttendanceManager() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete',
+        description: 'Failed to delete attendance records.',
         variant: 'destructive',
       })
     }
