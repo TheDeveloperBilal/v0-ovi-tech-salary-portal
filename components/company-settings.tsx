@@ -68,14 +68,14 @@ export function CompanySettings() {
     if (existing) {
       const { error } = await supabase.from("company_settings").update(formData).eq("id", existing.id)
       if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" })
+        toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" })
       } else {
         toast({ title: "Success", description: "Settings saved successfully" })
       }
     } else {
       const { error } = await supabase.from("company_settings").insert([formData])
       if (error) {
-        toast({ title: "Error", description: error.message, variant: "destructive" })
+        toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" })
       } else {
         toast({ title: "Success", description: "Settings saved successfully" })
       }

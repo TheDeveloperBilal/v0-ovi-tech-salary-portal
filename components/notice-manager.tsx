@@ -61,8 +61,8 @@ export function NoticeManager() {
       })
       const data = await res.json()
       if (res.ok) setNotices(data.notices || [])
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to load notices.', variant: 'destructive' })
     } finally {
       setIsLoading(false)
     }
@@ -107,8 +107,8 @@ export function NoticeManager() {
       setIsFormOpen(false)
       setForm({ title: '', content: '', priority: 'normal', target_type: 'all', target_employee_ids: [], duration_days: 3 })
       fetchNotices()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create notice.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
@@ -140,8 +140,8 @@ export function NoticeManager() {
 
       toast({ title: 'Deleted', description: 'Notice removed.' })
       fetchNotices()
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete notice.', variant: 'destructive' })
     }
   }
 

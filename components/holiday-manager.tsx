@@ -101,8 +101,8 @@ export function HolidayManager() {
       setHolidays(holidayRes.data || [])
       setExceptions(exceptionRes.data || [])
       setEmployees(empRes.data || [])
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to load holidays and exceptions.", variant: "destructive" })
     } finally {
       setIsLoading(false)
     }
@@ -122,8 +122,8 @@ export function HolidayManager() {
       setHolidayForm({ holiday_date: "", name: "", type: "public_holiday" })
       setIsHolidayOpen(false)
       fetchData()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to add holiday.", variant: "destructive" })
     }
   }
 
@@ -134,8 +134,8 @@ export function HolidayManager() {
       if (error) throw error
       setHolidays(holidays.filter(h => h.id !== id))
       toast({ title: "Deleted", description: "Holiday removed." })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete holiday.", variant: "destructive" })
     }
   }
 
@@ -154,8 +154,8 @@ export function HolidayManager() {
       setExceptionForm({ employee_id: "", exception_date: "", type: "approved_leave", reason: "" })
       setIsExceptionOpen(false)
       fetchData()
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to add exception.", variant: "destructive" })
     }
   }
 
@@ -166,8 +166,8 @@ export function HolidayManager() {
       if (error) throw error
       setExceptions(exceptions.filter(e => e.id !== id))
       toast({ title: "Deleted", description: "Exception removed." })
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } catch {
+      toast({ title: "Error", description: "Failed to delete exception.", variant: "destructive" })
     }
   }
 
