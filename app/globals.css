@@ -1,5 +1,51 @@
 @import "tailwindcss";
 
+@theme {
+  --color-emerald-50: #EEF5F0;
+  --color-emerald-100: #D5E8DA;
+  --color-emerald-200: #A8CEB3;
+  --color-emerald-300: #72B084;
+  --color-emerald-400: #4A9960;
+  --color-emerald-500: #3A8450;
+  --color-emerald-600: #2E6B40;
+  --color-emerald-700: #245533;
+
+  --color-amber-50: #FAF6ED;
+  --color-amber-100: #F0E5CA;
+  --color-amber-200: #DFCA98;
+  --color-amber-300: #CBAB60;
+  --color-amber-400: #B8963A;
+  --color-amber-500: #9F802E;
+
+  --color-red-50: #F9F0EF;
+  --color-red-100: #EEDBD9;
+  --color-red-200: #DBBAB6;
+  --color-red-300: #C4918C;
+  --color-red-400: #B06B65;
+  --color-red-500: #9C534D;
+  --color-red-600: #804340;
+  --color-red-700: #663534;
+
+  --color-orange-300: #CC9C63;
+  --color-orange-400: #B5804A;
+  --color-orange-500: #9A6C3B;
+
+  --color-blue-50: #EEF2F9;
+  --color-blue-100: #D6E0F0;
+  --color-blue-200: #ADC1E0;
+  --color-blue-300: #7FA0CC;
+  --color-blue-400: #5885B8;
+  --color-blue-500: #4570A0;
+
+  --color-cyan-50: #ECF4F2;
+  --color-cyan-100: #D0E6E2;
+  --color-cyan-200: #9DCCC4;
+  --color-cyan-300: #66AFA5;
+  --color-cyan-400: #3E9588;
+  --color-cyan-500: #317D72;
+  --color-cyan-700: #1F5C53;
+}
+
 :root {
   color-scheme: light;
   --background: 220 20% 97%;
@@ -129,6 +175,21 @@
 
   .dark [role="dialog"] {
     border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  [data-slot="button"]:not(:disabled),
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  summary {
+    cursor: pointer;
   }
 
   .overflow-y-auto::-webkit-scrollbar {
