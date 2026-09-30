@@ -256,22 +256,31 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
 
     setIsSubmitting(true)
     try {
-      const { error } = await supabase.from('leave_requests').insert({
-        employee_id: employeeData.id,
-        leave_type: leaveForm.leave_type,
-        start_date: leaveForm.start_date,
-        end_date: leaveForm.end_date,
-        reason: leaveForm.reason || null,
-        status: 'pending',
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+
+      const res = await fetch('/api/leave-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          leave_type: leaveForm.leave_type,
+          start_date: leaveForm.start_date,
+          end_date: leaveForm.end_date,
+          reason: leaveForm.reason || null,
+        }),
       })
-      if (error) throw error
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to submit')
 
       toast({ title: 'Leave request submitted', description: 'Your request has been sent to admin for approval.' })
       setLeaveForm({ leave_type: 'casual_leave', start_date: '', end_date: '', reason: '' })
       setIsLeaveFormOpen(false)
       fetchLeaveRequests()
-    } catch {
-      toast({ title: 'Error', description: 'Failed to submit leave request. Please try again or contact admin.', variant: 'destructive' })
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to submit leave request. Please try again or contact admin.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
     }
