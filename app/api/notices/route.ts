@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const { data: employee } = await supabase
       .from('employees')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('email', user.email)
       .single()
 
     const employeeId = employee?.id

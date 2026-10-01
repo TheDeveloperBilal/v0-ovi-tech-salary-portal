@@ -289,12 +289,24 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   const handleCancelRequest = async (id: string) => {
     if (!confirm('Cancel this leave request?')) return
     try {
-      const { error } = await supabase.from('leave_requests').delete().eq('id', id)
-      if (error) throw error
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+
+      const res = await fetch('/api/leave-requests', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ id }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to cancel')
+
       setLeaveRequests(leaveRequests.filter(r => r.id !== id))
       toast({ title: 'Cancelled', description: 'Leave request cancelled.' })
-    } catch {
-      toast({ title: 'Error', description: 'Failed to cancel leave request.', variant: 'destructive' })
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to cancel leave request.', variant: 'destructive' })
     }
   }
 

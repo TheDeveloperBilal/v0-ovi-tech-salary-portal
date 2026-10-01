@@ -298,7 +298,7 @@ export function AttendanceManager() {
   // ── Delete ──
 
   async function deleteAllRecords() {
-    if (!confirm(`Delete ALL attendance records for ${getMonthName(month)} ${year}?`)) return
+    if (!confirm(`Delete ALL biometric attendance records for ${getMonthName(month)} ${year}? (WFH self-service records will be preserved)`)) return
 
     try {
       const { error } = await supabase
@@ -306,9 +306,10 @@ export function AttendanceManager() {
         .delete()
         .eq('month', month)
         .eq('year', year)
+        .eq('source', 'biometric')
 
       if (error) throw error
-      toast({ title: 'Deleted', description: 'All records for this month removed.' })
+      toast({ title: 'Deleted', description: 'Biometric records for this month removed. WFH records preserved.' })
       loadData()
     } catch (error) {
       toast({
