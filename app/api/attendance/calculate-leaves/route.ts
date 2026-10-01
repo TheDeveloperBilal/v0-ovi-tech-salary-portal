@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       .select('*')
       .gte('attendance_date', startDate)
       .lte('attendance_date', endDate)
-      .eq('employee_name', employeeId)
+      .eq('employee_id', employeeId)
 
     if (recordError) {
       return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 })

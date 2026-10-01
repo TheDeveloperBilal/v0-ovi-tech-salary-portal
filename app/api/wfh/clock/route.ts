@@ -17,15 +17,15 @@ export async function POST(request: NextRequest) {
     }
     const token = authHeader.substring(7)
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    if (authError || !user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get employee record for this auth user
+    // Get employee record by email (user_id is NULL for most employees)
     const { data: employee, error: empError } = await supabase
       .from('employees')
       .select('id, employee_id, first_name, last_name')
-      .eq('user_id', user.id)
+      .eq('email', user.email)
       .single()
 
     if (empError || !employee) {
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
       if (insertError) {
         return NextResponse.json(
-          { error: `Check-in failed: ${insertError.message}` },
+          { error: 'Check-in failed. Please try again or contact admin.' },
           { status: 500 }
         )
       }
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       return NextResponse.json(
-        { error: `Check-out failed: ${updateError.message}` },
+        { error: 'Check-out failed. Please try again or contact admin.' },
         { status: 500 }
       )
     }
@@ -190,14 +190,14 @@ export async function GET(request: NextRequest) {
     }
     const token = authHeader.substring(7)
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
+    if (authError || !user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: employee } = await supabase
       .from('employees')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('email', user.email)
       .single()
 
     if (!employee) {

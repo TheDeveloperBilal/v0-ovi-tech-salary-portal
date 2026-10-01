@@ -78,3 +78,68 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: employee } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('email', user.email)
+      .single()
+
+    if (!employee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+
+    const { id } = await request.json()
+    if (!id) {
+      return NextResponse.json({ error: 'Leave request ID is required' }, { status: 400 })
+    }
+
+    const { data: leaveRequest } = await supabase
+      .from('leave_requests')
+      .select('id, employee_id, status')
+      .eq('id', id)
+      .single()
+
+    if (!leaveRequest) {
+      return NextResponse.json({ error: 'Leave request not found' }, { status: 404 })
+    }
+
+    if (leaveRequest.employee_id !== employee.id) {
+      return NextResponse.json({ error: 'You can only cancel your own leave requests' }, { status: 403 })
+    }
+
+    if (leaveRequest.status !== 'pending') {
+      return NextResponse.json({ error: 'Only pending requests can be cancelled' }, { status: 400 })
+    }
+
+    const { error: deleteError } = await supabase
+      .from('leave_requests')
+      .delete()
+      .eq('id', id)
+      .eq('employee_id', employee.id)
+
+    if (deleteError) {
+      console.error('Leave cancel error:', deleteError)
+      return NextResponse.json({ error: 'Failed to cancel leave request' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Leave cancel API error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
