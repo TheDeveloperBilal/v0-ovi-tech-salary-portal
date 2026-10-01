@@ -88,16 +88,16 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   }, [userId])
 
   useEffect(() => {
+    if (employeeData?.id) {
+      fetchLeaveRequests()
+    }
+  }, [employeeData?.id])
+
+  useEffect(() => {
     if (employeeData?.id && activeView === 'attendance') {
       fetchAttendance()
     }
   }, [employeeData?.id, attMonth, attYear, activeView])
-
-  useEffect(() => {
-    if (employeeData?.id && activeView === 'leaves') {
-      fetchLeaveRequests()
-    }
-  }, [employeeData?.id, activeView])
 
   useEffect(() => {
     if (wfhStatus?.record?.check_in && !wfhStatus?.record?.check_out) {
@@ -213,13 +213,16 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   const fetchLeaveRequests = async () => {
     if (!employeeData?.id) return
     try {
-      const { data, error } = await supabase
-        .from('leave_requests')
-        .select('*')
-        .eq('employee_id', employeeData.id)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      setLeaveRequests(data || [])
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+
+      const res = await fetch('/api/leave-requests', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const result = await res.json()
+        setLeaveRequests(result.leave_requests || [])
+      }
     } catch {
       toast({ title: 'Error', description: 'Failed to load leave requests.', variant: 'destructive' })
     }

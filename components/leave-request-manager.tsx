@@ -130,6 +130,23 @@ export function LeaveRequestManager() {
         }
       }
 
+      // 3. Deduct from leave quota (skip WFH — it doesn't count against quota)
+      if (request.leave_type !== 'work_from_home') {
+        const leaveDays = request.leave_type === 'half_day' ? dates.length * 0.5 : dates.length
+        const { data: currentEmp } = await supabase
+          .from('employees')
+          .select('leaves_taken')
+          .eq('id', request.employee_id)
+          .single()
+
+        if (currentEmp) {
+          await supabase
+            .from('employees')
+            .update({ leaves_taken: (currentEmp.leaves_taken || 0) + leaveDays })
+            .eq('id', request.employee_id)
+        }
+      }
+
       logAudit({
         action: 'approve_leave',
         entity_type: 'leave_request',

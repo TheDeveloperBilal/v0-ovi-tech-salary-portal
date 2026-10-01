@@ -1,6 +1,48 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: employee } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('email', user.email)
+      .single()
+
+    if (!employee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('employee_id', employee.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Leave requests fetch error:', error)
+      return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 })
+    }
+
+    return NextResponse.json({ leave_requests: data || [] })
+  } catch (err) {
+    console.error('Leave requests GET error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
