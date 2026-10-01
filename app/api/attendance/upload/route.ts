@@ -211,12 +211,29 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         .eq('source', 'biometric')
     }
 
+    // ── Skip dates that already have WFH records to avoid unique constraint violation ──
+    const { data: existingWfh } = await supabase
+      .from('attendance_records')
+      .select('employee_id, attendance_date')
+      .in('employee_id', matchedEmployeeIds)
+      .eq('month', month)
+      .eq('year', year)
+      .eq('source', 'wfh_portal')
+
+    const wfhKeys = new Set(
+      (existingWfh || []).map(r => `${r.employee_id}_${r.attendance_date}`)
+    )
+
+    const filteredRecords = deduped.filter(
+      r => !wfhKeys.has(`${r.employee_id}_${r.attendance_date}`)
+    )
+
     // ── Batch insert (Supabase max 1000 per upsert) ──
     const BATCH_SIZE = 500
     let totalSaved = 0
 
-    for (let i = 0; i < deduped.length; i += BATCH_SIZE) {
-      const batch = deduped.slice(i, i + BATCH_SIZE)
+    for (let i = 0; i < filteredRecords.length; i += BATCH_SIZE) {
+      const batch = filteredRecords.slice(i, i + BATCH_SIZE)
       const { error: saveError } = await supabase
         .from('attendance_records')
         .insert(batch)
