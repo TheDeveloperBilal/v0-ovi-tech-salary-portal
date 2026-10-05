@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       userId = existingUser.id
+      const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password })
+      if (updateError) {
+        return NextResponse.json({ error: 'Failed to update auth credentials' }, { status: 400 })
+      }
     } else {
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
@@ -73,7 +77,11 @@ export async function POST(request: NextRequest) {
       { message: "Employee created successfully", employee: empData },
       { status: 201 },
     )
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  } catch (error) {
+    console.error('Add employee error:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 },
+    )
   }
 }

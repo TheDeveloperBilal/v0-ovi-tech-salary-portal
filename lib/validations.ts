@@ -14,6 +14,8 @@ export const addEmployeeSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   base_salary: z.union([z.string(), z.number()]).optional(),
   income_tax: z.union([z.string(), z.number()]).optional(),
+  is_probation: z.boolean().optional(),
+  probation_end_date: z.string().optional().nullable(),
 })
 
 export const resetPasswordSchema = z.object({

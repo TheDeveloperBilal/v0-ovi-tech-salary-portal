@@ -56,6 +56,10 @@ describe('addEmployeeSchema', () => {
     expect(addEmployeeSchema.safeParse({ ...validEmployee, base_salary: '50000' }).success).toBe(true)
     expect(addEmployeeSchema.safeParse({ ...validEmployee, base_salary: 50000 }).success).toBe(true)
   })
+
+  it('accepts probation fields', () => {
+    expect(addEmployeeSchema.safeParse({ ...validEmployee, is_probation: true, probation_end_date: '2026-12-31' }).success).toBe(true)
+  })
 })
 
 describe('resetPasswordSchema', () => {
