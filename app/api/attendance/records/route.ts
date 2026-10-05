@@ -1,47 +1,11 @@
-// app/api/attendance/records/route.ts
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-
-/**
- * Verify the Bearer token and check admin status.
- * Returns the authenticated Supabase client or a JSON error response.
- */
-async function authenticateAdmin(request: NextRequest) {
-  const supabase = await createClient()
-
-  const authHeader = request.headers.get('authorization')
-  let currentUser = null
-
-  if (authHeader?.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.substring(7)
-      const { data: { user } } = await supabase.auth.getUser(token)
-      currentUser = user
-    } catch (err) {
-    }
-  }
-
-  if (!currentUser) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', currentUser.id)
-    .single()
-
-  if (!profile?.is_admin) {
-    return { error: NextResponse.json({ error: 'Only admins can access attendance records' }, { status: 403 }) }
-  }
-
-  return { supabase }
-}
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
+import { deleteAttendanceRecordSchema, parseBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateAdmin(request)
-    if ('error' in auth) return auth.error
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
     const { supabase } = auth
 
     const searchParams = request.nextUrl.searchParams
@@ -63,25 +27,26 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data })
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to fetch attendance records' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch attendance records' }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await authenticateAdmin(request)
-    if ('error' in auth) return auth.error
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
     const { supabase } = auth
 
-    const { recordId } = await request.json()
+    const body = await request.json()
+    const parsed = parseBody(deleteAttendanceRecordSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
+    }
 
     const { error } = await supabase
       .from('attendance_records')
       .delete()
-      .eq('id', recordId)
+      .eq('id', parsed.data.recordId)
 
     if (error) {
       return NextResponse.json({ error: 'Failed to delete record' }, { status: 500 })
@@ -89,9 +54,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch {
-    return NextResponse.json(
-      { error: 'Failed to delete attendance record' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to delete attendance record' }, { status: 500 })
   }
 }

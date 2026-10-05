@@ -12,13 +12,26 @@ import {
 } from "@/components/ui/select"
 import {
   Users, UserCheck, UserX, Clock, AlertTriangle, TrendingUp,
-  Loader2, BarChart3, Home,
+  Loader2, BarChart3, CalendarDays,
 } from "lucide-react"
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
+} from "recharts"
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
+
+const CHART_COLORS = {
+  present: '#22c55e',
+  absent: '#ef4444',
+  late: '#f59e0b',
+  earlyOut: '#f97316',
+  wfh: '#06b6d4',
+  onTime: '#8b5cf6',
+}
 
 interface AttendanceRecord {
   employee_id: string
@@ -29,6 +42,20 @@ interface AttendanceRecord {
   is_absent: boolean
   work_hours: number
   source: string
+  month: number
+  year: number
+}
+
+interface TrendRecord {
+  employee_id: string
+  attendance_date: string
+  is_late: boolean
+  is_early_out: boolean
+  is_absent: boolean
+  work_hours: number
+  source: string
+  month: number
+  year: number
 }
 
 interface Employee {
@@ -37,6 +64,18 @@ interface Employee {
   last_name: string
   department: string
   designation: string
+  leaves_taken: number
+  base_salary: number
+  date_of_joining: string
+}
+
+interface LeaveRequest {
+  id: string
+  employee_id: string
+  leave_type: string
+  status: string
+  start_date: string
+  end_date: string
 }
 
 export function AnalyticsDashboard() {
@@ -44,7 +83,9 @@ export function AnalyticsDashboard() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
   const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [trendRecords, setTrendRecords] = useState<TrendRecord[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const supabase = createClient()
@@ -56,19 +97,40 @@ export function AnalyticsDashboard() {
   async function fetchData() {
     setIsLoading(true)
     try {
-      const [recRes, empRes] = await Promise.all([
+      const trendMonths: { m: number; y: number }[] = []
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(year, month - 1 - i, 1)
+        trendMonths.push({ m: d.getMonth() + 1, y: d.getFullYear() })
+      }
+
+      const [recRes, empRes, leaveRes, trendRes] = await Promise.all([
         supabase
           .from("attendance_records")
-          .select("employee_id, employee_name, attendance_date, is_late, is_early_out, is_absent, work_hours, source")
+          .select("employee_id, employee_name, attendance_date, is_late, is_early_out, is_absent, work_hours, source, month, year")
           .eq("month", month)
           .eq("year", year),
         supabase
           .from("employees")
-          .select("id, first_name, last_name, department, designation"),
+          .select("id, first_name, last_name, department, designation, leaves_taken, base_salary, date_of_joining"),
+        supabase
+          .from("leave_requests")
+          .select("id, employee_id, leave_type, status, start_date, end_date")
+          .eq("status", "approved"),
+        supabase
+          .from("attendance_records")
+          .select("employee_id, attendance_date, is_late, is_early_out, is_absent, work_hours, source, month, year")
+          .gte("year", trendMonths[0].y)
+          .order("attendance_date"),
       ])
 
       setRecords(recRes.data || [])
       setEmployees(empRes.data || [])
+      setLeaveRequests(leaveRes.data || [])
+
+      const filtered = (trendRes.data || []).filter(r => {
+        return trendMonths.some(tm => tm.m === r.month && tm.y === r.year)
+      })
+      setTrendRecords(filtered)
     } catch {
       // silently handle
     } finally {
@@ -96,7 +158,6 @@ export function AnalyticsDashboard() {
     const attendanceRate = totalRecords > 0 ? +((present / totalRecords) * 100).toFixed(1) : 0
     const punctualityRate = present > 0 ? +((onTime / present) * 100).toFixed(1) : 0
 
-    // Per-employee stats
     const empMap = new Map<string, { name: string; late: number; earlyOut: number; absent: number; present: number }>()
     for (const r of records) {
       if (!empMap.has(r.employee_id)) {
@@ -117,23 +178,23 @@ export function AnalyticsDashboard() {
     const topPunctual = [...empStats]
       .filter(e => e.present > 0)
       .sort((a, b) => {
-        const rateA = (e => e.present > 0 ? ((e.present - e.late - e.earlyOut) / e.present) : 0)(a)
-        const rateB = (e => e.present > 0 ? ((e.present - e.late - e.earlyOut) / e.present) : 0)(b)
+        const rateA = (a.present - a.late - a.earlyOut) / a.present
+        const rateB = (b.present - b.late - b.earlyOut) / b.present
         return rateB - rateA
       })
       .slice(0, 5)
 
-    // Department breakdown
-    const deptMap = new Map<string, { present: number; absent: number; late: number }>()
+    const deptMap = new Map<string, { present: number; absent: number; late: number; wfh: number }>()
     for (const r of records) {
       const emp = employees.find(e => e.id === r.employee_id)
       const dept = emp?.department || 'Unknown'
-      if (!deptMap.has(dept)) deptMap.set(dept, { present: 0, absent: 0, late: 0 })
+      if (!deptMap.has(dept)) deptMap.set(dept, { present: 0, absent: 0, late: 0, wfh: 0 })
       const d = deptMap.get(dept)!
       if (r.is_absent) d.absent++
       else {
         d.present++
         if (r.is_late) d.late++
+        if (r.source === 'wfh_portal') d.wfh++
       }
     }
     const departments = Array.from(deptMap.entries()).map(([name, s]) => ({
@@ -143,12 +204,67 @@ export function AnalyticsDashboard() {
       rate: +((s.present / (s.present + s.absent)) * 100).toFixed(0),
     })).sort((a, b) => b.total - a.total)
 
+    const statusBreakdown = [
+      { name: 'On Time', value: onTime, color: CHART_COLORS.onTime },
+      { name: 'Late', value: late, color: CHART_COLORS.late },
+      { name: 'Early Out', value: earlyOut, color: CHART_COLORS.earlyOut },
+      { name: 'Absent', value: absent, color: CHART_COLORS.absent },
+      { name: 'WFH', value: wfh, color: CHART_COLORS.wfh },
+    ].filter(s => s.value > 0)
+
     return {
       totalRecords, present, absent, late, earlyOut, wfh, onTime,
       avgWorkHours, uniqueEmployees, attendanceRate, punctualityRate,
-      topLate, topAbsent, topPunctual, departments,
+      topLate, topAbsent, topPunctual, departments, statusBreakdown,
     }
   }, [records, employees])
+
+  const trendData = useMemo(() => {
+    const monthMap = new Map<string, { present: number; absent: number; late: number; total: number }>()
+
+    for (const r of trendRecords) {
+      const key = `${r.year}-${String(r.month).padStart(2, '0')}`
+      if (!monthMap.has(key)) monthMap.set(key, { present: 0, absent: 0, late: 0, total: 0 })
+      const m = monthMap.get(key)!
+      m.total++
+      if (r.is_absent) m.absent++
+      else {
+        m.present++
+        if (r.is_late) m.late++
+      }
+    }
+
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, data]) => ({
+        month: MONTHS[parseInt(key.split('-')[1]) - 1]?.slice(0, 3) || key,
+        ...data,
+        attendanceRate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
+        lateRate: data.present > 0 ? Math.round((data.late / data.present) * 100) : 0,
+      }))
+  }, [trendRecords])
+
+  const leaveBalanceData = useMemo(() => {
+    return employees
+      .map(emp => ({
+        name: `${emp.first_name} ${emp.last_name}`,
+        used: emp.leaves_taken || 0,
+        remaining: Math.max(0, 14 - (emp.leaves_taken || 0)),
+        department: emp.department || 'Unknown',
+      }))
+      .sort((a, b) => b.used - a.used)
+  }, [employees])
+
+  const deptChartData = useMemo(() => {
+    if (!stats) return []
+    return stats.departments.map(d => ({
+      name: d.name,
+      Present: d.present,
+      Absent: d.absent,
+      Late: d.late,
+      WFH: d.wfh,
+    }))
+  }, [stats])
 
   const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i)
 
@@ -165,7 +281,7 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header with month/year selector */}
+      {/* Header */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -209,13 +325,13 @@ export function AnalyticsDashboard() {
         <>
           {/* Overview Stats */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={<Users className="w-4 h-4 text-purple-400" />} label="Total Employees" value={stats.uniqueEmployees} color="purple" />
-            <StatCard icon={<TrendingUp className="w-4 h-4 text-emerald-400" />} label="Attendance Rate" value={`${stats.attendanceRate}%`} color="emerald" />
-            <StatCard icon={<Clock className="w-4 h-4 text-blue-400" />} label="Avg Work Hours" value={`${stats.avgWorkHours}h`} color="blue" />
-            <StatCard icon={<UserCheck className="w-4 h-4 text-cyan-400" />} label="Punctuality Rate" value={`${stats.punctualityRate}%`} color="cyan" />
+            <StatCard icon={<Users className="w-4 h-4" />} label="Total Employees" value={stats.uniqueEmployees} accent="#a855f7" />
+            <StatCard icon={<TrendingUp className="w-4 h-4" />} label="Attendance Rate" value={`${stats.attendanceRate}%`} accent="#34d399" />
+            <StatCard icon={<Clock className="w-4 h-4" />} label="Avg Work Hours" value={`${stats.avgWorkHours}h`} accent="#60a5fa" />
+            <StatCard icon={<UserCheck className="w-4 h-4" />} label="Punctuality Rate" value={`${stats.punctualityRate}%`} accent="#22d3ee" />
           </div>
 
-          {/* Breakdown Cards */}
+          {/* Breakdown Mini Stats */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
             <MiniStat label="Present" value={stats.present} color="text-emerald-400" />
             <MiniStat label="Absent" value={stats.absent} color="text-red-400" />
@@ -224,11 +340,128 @@ export function AnalyticsDashboard() {
             <MiniStat label="WFH" value={stats.wfh} color="text-cyan-400" />
           </div>
 
-          {/* Department Breakdown */}
+          {/* Charts Row: Attendance Status Pie + 6-Month Trend */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Attendance Status Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={stats.statusBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {stats.statusBreakdown.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [value, 'Records']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">6-Month Attendance Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {trendData.length > 1 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" unit="%" />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="attendanceRate" name="Attendance %" stroke="#22c55e" fill="#22c55e" fillOpacity={0.15} strokeWidth={2} />
+                      <Area type="monotone" dataKey="lateRate" name="Late %" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">Need at least 2 months of data for trends</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Department Breakdown Chart */}
+          {deptChartData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Department Attendance Comparison</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={deptChartData} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Present" fill={CHART_COLORS.present} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="Late" fill={CHART_COLORS.late} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="Absent" fill={CHART_COLORS.absent} radius={[2, 2, 0, 0]} />
+                    <Bar dataKey="WFH" fill={CHART_COLORS.wfh} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Leave Balance Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-purple-400" />
+                Leave Balance Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {leaveBalanceData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No employee data</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {leaveBalanceData.map((emp, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <span className="text-sm font-medium w-40 truncate">{emp.name}</span>
+                      <span className="text-xs text-muted-foreground w-20 truncate">{emp.department}</span>
+                      <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${(emp.used / 14) * 100}%`,
+                            backgroundColor: emp.remaining <= 2 ? '#ef4444' : emp.remaining <= 5 ? '#f59e0b' : '#22c55e',
+                          }}
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                          {emp.used}/14 used
+                        </span>
+                      </div>
+                      <span className={`text-xs font-semibold w-16 text-right ${
+                        emp.remaining <= 2 ? 'text-red-400' : emp.remaining <= 5 ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>
+                        {emp.remaining} left
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Department Progress Bars */}
           {stats.departments.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Department Breakdown</CardTitle>
+                <CardTitle className="text-base">Department Attendance Rate</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -237,8 +470,11 @@ export function AnalyticsDashboard() {
                       <span className="text-sm font-medium w-32 truncate">{dept.name}</span>
                       <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden relative">
                         <div
-                          className="h-full bg-emerald-500/70 rounded-full transition-all"
-                          style={{ width: `${dept.rate}%` }}
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${dept.rate}%`,
+                            backgroundColor: dept.rate >= 90 ? '#22c55e' : dept.rate >= 75 ? '#f59e0b' : '#ef4444',
+                          }}
                         />
                         <span className="absolute inset-0 flex items-center justify-center text-xs font-medium">
                           {dept.rate}% ({dept.present}/{dept.total})
@@ -293,12 +529,12 @@ export function AnalyticsDashboard() {
   )
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
+function StatCard({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string | number; accent: string }) {
   return (
-    <Card className={`border-l-4 border-l-${color}-500`}>
+    <Card className="border-l-4" style={{ borderLeftColor: accent }}>
       <CardHeader className="pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-          <div className={`p-1.5 rounded-md bg-${color}-500/10`}>{icon}</div>
+          <div className="p-1.5 rounded-md" style={{ backgroundColor: `${accent}1a`, color: accent }}>{icon}</div>
           {label}
         </CardTitle>
       </CardHeader>

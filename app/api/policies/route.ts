@@ -1,29 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
+import { deletePolicySchema, parseBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user, role } = auth
 
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const isAdmin = role === 'admin'
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    const isAdmin = profile?.is_admin === true
-
-    // Fetch policies
     let query = supabase
       .from('company_policies')
       .select('*')
@@ -36,14 +22,7 @@ export async function GET(request: NextRequest) {
     const { data: policies, error } = await query
     if (error) throw error
 
-    // For admin: fetch signature counts per policy
     if (isAdmin) {
-      const { data: employees } = await supabase
-        .from('employees')
-        .select('id', { count: 'exact', head: true })
-
-      const totalEmployees = employees || 0
-
       const policiesWithStats = await Promise.all(
         (policies || []).map(async (policy) => {
           const { count } = await supabase
@@ -65,7 +44,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // For employee: include their signature status
     const { data: employee } = await supabase
       .from('employees')
       .select('id')
@@ -92,27 +70,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -124,14 +84,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and file are required' }, { status: 400 })
     }
 
-    // Upload file to Supabase Storage
-    const fileExt = file.name.split('.').pop()
+    if (title.length > 200) {
+      return NextResponse.json({ error: 'Title must be under 200 characters' }, { status: 400 })
+    }
+
     const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
 
     const arrayBuffer = await file.arrayBuffer()
     const fileBuffer = new Uint8Array(arrayBuffer)
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('policies')
       .upload(fileName, fileBuffer, {
         contentType: file.type || 'application/pdf',
@@ -168,34 +130,20 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
 
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const body = await request.json()
+    const parsed = parseBody(deletePolicySchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
-
-    const { id } = await request.json()
 
     const { data: policy } = await supabase
       .from('company_policies')
       .select('file_url')
-      .eq('id', id)
+      .eq('id', parsed.data.id)
       .single()
 
     if (policy?.file_url) {
@@ -208,7 +156,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase
       .from('company_policies')
       .delete()
-      .eq('id', id)
+      .eq('id', parsed.data.id)
 
     if (error) throw error
     return NextResponse.json({ success: true })

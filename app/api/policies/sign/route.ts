@@ -1,19 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
+import { signPolicySchema, parseBody } from '@/lib/validations'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const { data: employee } = await supabase
       .from('employees')
@@ -25,18 +18,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    const { policy_id, signature_text } = await request.json()
-
-    if (!policy_id || !signature_text) {
-      return NextResponse.json({ error: 'Policy ID and signature are required' }, { status: 400 })
+    const body = await request.json()
+    const parsed = parseBody(signPolicySchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
 
-    const MAX_SIGNATURE_SIZE = 500_000
-    if (typeof signature_text !== 'string' || signature_text.length > MAX_SIGNATURE_SIZE) {
-      return NextResponse.json({ error: 'Invalid signature data' }, { status: 400 })
-    }
+    const { policy_id, signature_text } = parsed.data
 
-    // Check policy exists and requires signature
     const { data: policy } = await supabase
       .from('company_policies')
       .select('id, title, requires_signature')
@@ -47,7 +36,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Policy not found' }, { status: 404 })
     }
 
-    // Check if already signed
     const { data: existing } = await supabase
       .from('policy_signatures')
       .select('id')
@@ -88,27 +76,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    }
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
 
     const { searchParams } = new URL(request.url)
     const policyId = searchParams.get('policy_id')
@@ -125,7 +95,6 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error
 
-    // Get all employees for comparison
     const { data: allEmployees } = await supabase
       .from('employees')
       .select('id, first_name, last_name, email, department, designation')
@@ -134,10 +103,7 @@ export async function GET(request: NextRequest) {
     const signedIds = new Set((signatures || []).map((s: any) => s.employee_id))
     const unsigned = (allEmployees || []).filter(e => !signedIds.has(e.id))
 
-    return NextResponse.json({
-      signed: signatures || [],
-      unsigned,
-    })
+    return NextResponse.json({ signed: signatures || [], unsigned })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch signature data' }, { status: 500 })
   }

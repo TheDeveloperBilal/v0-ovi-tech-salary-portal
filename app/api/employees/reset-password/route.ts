@@ -1,128 +1,56 @@
-import { createClient } from "@/lib/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"
+import { authenticateRequest, isAuthError } from "@/lib/api-auth"
+import { resetPasswordSchema, parseBody } from "@/lib/validations"
 
 export async function POST(request: NextRequest) {
   try {
-    const { employeeId, newPassword } = await request.json();
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
 
-    if (!employeeId || !newPassword) {
-      return NextResponse.json(
-        { error: "Employee ID and new password are required" },
-        { status: 400 }
-      );
+    const body = await request.json()
+    const parsed = parseBody(resetPasswordSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters long" },
-        { status: 400 }
-      );
-    }
+    const { employeeId, newPassword } = parsed.data
 
-
-    const supabase = await createClient();
-
-    // Extract auth token from Authorization header for proper session context
-    const authHeader = request.headers.get('authorization');
-    let currentUser = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        // Verify the token using the service role
-        const token = authHeader.substring(7);
-        const { data: { user } } = await supabase.auth.getUser(token);
-        currentUser = user;
-      } catch (err) {
-      }
-    }
-
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", currentUser.id)
-      .single();
-
-
-    if (!profile?.is_admin) {
-      return NextResponse.json(
-        { error: "Only admins can reset employee passwords" },
-        { status: 403 }
-      );
-    }
-
-    // Get employee info 
     const { data: employee, error: empError } = await supabase
       .from("employees")
       .select("email, first_name, last_name")
       .eq("id", employeeId)
-      .single();
+      .single()
 
     if (empError || !employee) {
-      return NextResponse.json(
-        { error: "Employee not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
+    const { data: authUsers } = await supabase.auth.admin.listUsers()
+    let authUser = authUsers?.users?.find(u => u.email === employee.email)
 
-    // Update the auth user's password using admin API
-    try {
+    if (!authUser) {
+      const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
+        email: employee.email,
+        password: newPassword,
+        email_confirm: true,
+        user_metadata: { full_name: `${employee.first_name} ${employee.last_name}` },
+      })
 
-      // Get the user by email from auth
-      const { data: authUsers } = await supabase.auth.admin.listUsers();
-      let authUser = authUsers?.users?.find(u => u.email === employee.email);
-
-      // If auth user doesn't exist, create one with a temporary password
-      if (!authUser) {
-
-        const { data: newAuthUser, error: createError } = await supabase.auth.admin.createUser({
-          email: employee.email,
-          password: newPassword,
-          email_confirm: true,
-          user_metadata: {
-            full_name: `${employee.first_name} ${employee.last_name}`,
-          },
-        });
-
-        if (createError) {
-          return NextResponse.json(
-            { error: 'Failed to create auth account' },
-            { status: 400 }
-          );
-        }
-
-        authUser = newAuthUser.user;
-      } else {
-        // Update existing auth user's password
-        await supabase.auth.admin.updateUserById(authUser.id, {
-          password: newPassword,
-        });
+      if (createError) {
+        return NextResponse.json({ error: 'Failed to create auth account' }, { status: 400 })
       }
 
-
-      return NextResponse.json(
-        {
-          message: "Password reset successfully",
-          email: employee.email,
-        },
-        { status: 200 }
-      );
-    } catch {
-      return NextResponse.json(
-        { error: 'Failed to reset password' },
-        { status: 500 }
-      );
+      authUser = newAuthUser.user
+    } else {
+      await supabase.auth.admin.updateUserById(authUser.id, { password: newPassword })
     }
-  } catch {
+
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+      { message: "Password reset successfully", email: employee.email },
+      { status: 200 },
+    )
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

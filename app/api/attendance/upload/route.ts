@@ -1,6 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseZKTecoFile, processScans } from '@/lib/attendance-calculations'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
 
 interface UploadResponse {
   success: boolean
@@ -57,37 +57,14 @@ function matchEmployee(
 
 export async function POST(request: NextRequest): Promise<NextResponse<UploadResponse>> {
   try {
-    const supabase = await createClient()
-
-    // ── Auth: verify Bearer token + admin check ──
-    const authHeader = request.headers.get('authorization')
-    let currentUser = null
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      const { data: { user } } = await supabase.auth.getUser(token)
-      currentUser = user
-    }
-
-    if (!currentUser) {
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) {
       return NextResponse.json<UploadResponse>(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized or insufficient permissions' },
         { status: 401 }
       )
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', currentUser.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, error: 'Only admins can upload attendance data' },
-        { status: 403 }
-      )
-    }
+    const { supabase } = auth
 
     // ── Parse request ──
     const formData = await request.formData()

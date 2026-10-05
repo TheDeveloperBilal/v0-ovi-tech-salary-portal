@@ -1,27 +1,17 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   OFFICE_START,
   OFFICE_END,
   GRACE_MINUTES,
 } from '@/lib/attendance-calculations'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
-    // Auth: verify Bearer token
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get employee record by email (user_id is NULL for most employees)
     const { data: employee, error: empError } = await supabase
       .from('employees')
       .select('id, employee_id, first_name, last_name')
@@ -179,20 +169,11 @@ function formatTime(h: number, m: number): string {
   return `${h12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-// GET: fetch today's WFH status for the authenticated employee
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const { data: employee } = await supabase
       .from('employees')
