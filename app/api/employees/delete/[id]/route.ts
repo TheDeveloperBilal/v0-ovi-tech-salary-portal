@@ -1,95 +1,45 @@
-import { createClient } from "@/lib/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"
+import { authenticateRequest, isAuthError } from "@/lib/api-auth"
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: employeeId } = await params;
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
+
+    const { id: employeeId } = await params
 
     if (!employeeId) {
-      return NextResponse.json(
-        { error: "Employee ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Employee ID is required" }, { status: 400 })
     }
 
-
-    const supabase = await createClient();
-
-    // Extract auth token from Authorization header for proper session context
-    const authHeader = request.headers.get('authorization');
-    let currentUser = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        // Verify the token using the service role
-        const token = authHeader.substring(7);
-        const { data: { user } } = await supabase.auth.getUser(token);
-        currentUser = user;
-      } catch (err) {
-      }
-    }
-
-    if (!currentUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user is admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", currentUser.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      return NextResponse.json(
-        { error: "Only admins can delete employees" },
-        { status: 403 }
-      );
-    }
-
-    // Get employee info before deletion
     const { data: employee, error: fetchError } = await supabase
       .from("employees")
       .select("email")
       .eq("id", employeeId)
-      .single();
+      .single()
 
     if (fetchError || !employee) {
-      return NextResponse.json(
-        { error: "Employee not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-
-    // Delete the employee record
     const { error: deleteError } = await supabase
       .from("employees")
       .delete()
-      .eq("id", employeeId);
+      .eq("id", employeeId)
 
     if (deleteError) {
-      return NextResponse.json(
-        { error: 'Failed to delete employee' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Failed to delete employee' }, { status: 400 })
     }
 
-
     return NextResponse.json(
-      {
-        message: "Employee deleted successfully",
-        email: employee.email,
-      },
-      { status: 200 }
-    );
+      { message: "Employee deleted successfully", email: employee.email },
+      { status: 200 },
+    )
   } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

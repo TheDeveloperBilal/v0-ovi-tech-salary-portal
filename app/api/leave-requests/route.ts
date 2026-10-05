@@ -1,19 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
+import { createLeaveRequestSchema, deleteLeaveRequestSchema, parseBody } from '@/lib/validations'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const { data: employee } = await supabase
       .from('employees')
@@ -45,17 +38,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const { data: employee } = await supabase
       .from('employees')
@@ -68,11 +53,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { leave_type, start_date, end_date, reason } = body
-
-    if (!leave_type || !start_date || !end_date) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const parsed = parseBody(createLeaveRequestSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
+
+    const { leave_type, start_date, end_date, reason } = parsed.data
 
     if (end_date < start_date) {
       return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 })
@@ -123,17 +109,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    const token = authHeader.substring(7)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await authenticateRequest(request)
+    if (isAuthError(auth)) return auth.response
+    const { supabase, user } = auth
 
     const { data: employee } = await supabase
       .from('employees')
@@ -145,10 +123,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    const { id } = await request.json()
-    if (!id) {
-      return NextResponse.json({ error: 'Leave request ID is required' }, { status: 400 })
+    const body = await request.json()
+    const parsed = parseBody(deleteLeaveRequestSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
+
+    const { id } = parsed.data
 
     const { data: leaveRequest } = await supabase
       .from('leave_requests')

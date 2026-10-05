@@ -1,50 +1,22 @@
-// app/api/attendance/calculate-leaves/route.ts
-import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateRequest, isAuthError } from '@/lib/api-auth'
+import { calculateLeavesSchema, parseBody } from '@/lib/validations'
 import { applySandwichRule } from '@/lib/attendance-calculations'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
 
-    // Verify Bearer token — only authenticated admins can calculate leaves
-    const authHeader = request.headers.get('authorization')
-    let currentUser = null
-
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.substring(7)
-        const { data: { user } } = await supabase.auth.getUser(token)
-        currentUser = user
-      } catch (err) {
-      }
+    const body = await request.json()
+    const parsed = parseBody(calculateLeavesSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
     }
 
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { month, year, employeeId } = parsed.data
 
-    // Check if user is admin
-    const { data: adminProfile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', currentUser.id)
-      .single()
-
-    if (!adminProfile?.is_admin) {
-      return NextResponse.json(
-        { error: 'Only admins can calculate leaves' },
-        { status: 403 }
-      )
-    }
-
-    const { month, year, employeeId } = await request.json()
-
-    if (!month || !year) {
-      return NextResponse.json({ error: 'Month and year are required' }, { status: 400 })
-    }
-
-    // Get all attendance records for the month
     const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0]
     const endDate = new Date(year, month, 0).toISOString().split('T')[0]
 
@@ -59,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch records' }, { status: 500 })
     }
 
-    // Calculate leaves deducted based on business rules
     let leavesDeducted = 0
     const absentDates = new Set(
       (records || []).filter((r: any) => r.is_absent).map((r: any) => r.attendance_date)
@@ -67,13 +38,9 @@ export async function POST(request: NextRequest) {
     const absences = applySandwichRule(absentDates)
     const violations = (records || []).filter((r: any) => (r.is_late || r.is_early_out)).length
 
-    // Absences with sandwich rule applied
     leavesDeducted += absences
-
-    // 3 combined (late + early out) = 1 leave
     leavesDeducted += Math.floor(violations / 3)
 
-    // Update employee's leaves_taken
     const { data: employee, error: fetchError } = await supabase
       .from('employees')
       .select('leaves_taken')
@@ -95,7 +62,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update leaves' }, { status: 500 })
     }
 
-    // Store summary for the month
     const { error: summaryError } = await supabase
       .from('attendance_summary')
       .upsert({
@@ -108,9 +74,7 @@ export async function POST(request: NextRequest) {
         early_out_count: (records || []).filter((r: any) => r.is_early_out).length,
         absent_count: absences,
         leaves_deducted: leavesDeducted,
-      }, {
-        onConflict: 'employee_id,month,year',
-      })
+      }, { onConflict: 'employee_id,month,year' })
 
     if (summaryError) {
       console.error('Summary update error:', summaryError)
@@ -124,9 +88,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error calculating leaves:', error)
-    return NextResponse.json(
-      { error: 'Failed to calculate leaves' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to calculate leaves' }, { status: 500 })
   }
 }
