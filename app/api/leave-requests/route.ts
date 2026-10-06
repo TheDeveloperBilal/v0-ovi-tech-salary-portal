@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest, isAuthError } from '@/lib/api-auth'
-import { createLeaveRequestSchema, deleteLeaveRequestSchema, parseBody } from '@/lib/validations'
+import { createLeaveRequestSchema, deleteLeaveRequestSchema, reviewLeaveRequestSchema, parseBody } from '@/lib/validations'
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  casual_leave: 'Casual Leave',
+  sick_leave: 'Sick Leave',
+  work_from_home: 'Work From Home',
+  half_day: 'Half Day',
+  early_out: 'Early Out',
+  other: 'Other',
+}
+
+const LEAVE_TO_EXCEPTION: Record<string, string> = {
+  casual_leave: 'approved_leave',
+  sick_leave: 'approved_leave',
+  work_from_home: 'work_from_home',
+  half_day: 'half_day',
+  early_out: 'approved_early_out',
+  other: 'approved_leave',
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -163,6 +181,106 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Leave cancel API error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+function getDatesBetween(startStr: string, endStr: string): string[] {
+  const dates: string[] = []
+  const start = new Date(startStr + 'T00:00:00')
+  const end = new Date(endStr + 'T00:00:00')
+  const current = new Date(start)
+  while (current <= end) {
+    if (current.getDay() >= 1 && current.getDay() <= 5) {
+      dates.push(current.toISOString().split('T')[0])
+    }
+    current.setDate(current.getDate() + 1)
+  }
+  return dates
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const auth = await authenticateRequest(request, 'admin')
+    if (isAuthError(auth)) return auth.response
+    const { supabase } = auth
+
+    const body = await request.json()
+    const parsed = parseBody(reviewLeaveRequestSchema, body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 })
+    }
+
+    const { id, action, admin_remarks } = parsed.data
+
+    const { data: leaveRequest } = await supabase
+      .from('leave_requests')
+      .select('*, employees(id, first_name, last_name, employee_id, leaves_taken)')
+      .eq('id', id)
+      .single()
+
+    if (!leaveRequest) {
+      return NextResponse.json({ error: 'Leave request not found' }, { status: 404 })
+    }
+
+    if (leaveRequest.status !== 'pending') {
+      return NextResponse.json({ error: 'Only pending requests can be reviewed' }, { status: 400 })
+    }
+
+    const newStatus = action === 'approve' ? 'approved' : 'rejected'
+
+    const { error: updateError } = await supabase
+      .from('leave_requests')
+      .update({
+        status: newStatus,
+        admin_remarks: admin_remarks || null,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+
+    if (updateError) {
+      console.error('Leave request update error:', updateError)
+      return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
+    }
+
+    if (action === 'approve') {
+      const exceptionType = LEAVE_TO_EXCEPTION[leaveRequest.leave_type] || 'approved_leave'
+      const dates = getDatesBetween(leaveRequest.start_date, leaveRequest.end_date)
+
+      if (dates.length > 0) {
+        const exceptions = dates.map(date => ({
+          employee_id: leaveRequest.employee_id,
+          exception_date: date,
+          type: exceptionType,
+          reason: `Leave request: ${LEAVE_TYPE_LABELS[leaveRequest.leave_type] || leaveRequest.leave_type}${leaveRequest.reason ? ` - ${leaveRequest.reason}` : ''}`,
+        }))
+
+        for (const exc of exceptions) {
+          await supabase.from('attendance_exceptions').upsert(exc, {
+            onConflict: 'employee_id,exception_date,type',
+          })
+        }
+      }
+
+      if (leaveRequest.leave_type !== 'work_from_home') {
+        const emp = leaveRequest.employees
+        if (emp) {
+          const leaveDays = leaveRequest.leave_type === 'half_day' ? dates.length * 0.5 : dates.length
+          await supabase
+            .from('employees')
+            .update({ leaves_taken: (emp.leaves_taken || 0) + leaveDays })
+            .eq('id', emp.id)
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      status: newStatus,
+      message: `Leave request ${newStatus}`,
+    })
+  } catch (err) {
+    console.error('Leave review API error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

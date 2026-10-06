@@ -14,6 +14,8 @@ export const addEmployeeSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   base_salary: z.union([z.string(), z.number()]).optional(),
   income_tax: z.union([z.string(), z.number()]).optional(),
+  is_probation: z.boolean().optional(),
+  probation_end_date: z.string().optional().nullable(),
 })
 
 export const resetPasswordSchema = z.object({
@@ -70,6 +72,14 @@ export const signPolicySchema = z.object({
 
 export const deletePolicySchema = z.object({
   id: z.string().uuid('Valid policy ID is required'),
+})
+
+// ── Leave request review schemas ──
+
+export const reviewLeaveRequestSchema = z.object({
+  id: z.string().uuid('Valid leave request ID is required'),
+  action: z.enum(['approve', 'reject']),
+  admin_remarks: z.string().max(500).optional().nullable(),
 })
 
 // ── Audit log schemas ──

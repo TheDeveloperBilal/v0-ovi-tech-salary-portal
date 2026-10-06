@@ -92,112 +92,57 @@ export function LeaveRequestManager() {
     return dates
   }
 
-  async function handleApprove(request: any) {
+  async function reviewRequest(request: any, action: 'approve' | 'reject') {
     const emp = request.employees || {}
     const label = LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type
-    if (!confirm(`Approve ${label} for ${emp.first_name} ${emp.last_name}?\n\n${request.start_date} → ${request.end_date}`)) return
+    const verb = action === 'approve' ? 'Approve' : 'Reject'
+    if (!confirm(`${verb} ${label} for ${emp.first_name} ${emp.last_name}?\n\n${request.start_date} → ${request.end_date}`)) return
     setProcessingId(request.id)
     try {
-      // 1. Update leave request status
-      const { error: updateError } = await supabase
-        .from("leave_requests")
-        .update({
-          status: 'approved',
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Not authenticated')
+
+      const res = await fetch('/api/leave-requests', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          id: request.id,
+          action,
           admin_remarks: remarks[request.id] || null,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", request.id)
-
-      if (updateError) throw updateError
-
-      // 2. Create attendance exceptions for each day in the range
-      const exceptionType = LEAVE_TO_EXCEPTION[request.leave_type] || 'approved_leave'
-      const dates = getDatesBetween(request.start_date, request.end_date)
-
-      if (dates.length > 0) {
-        const exceptions = dates.map(date => ({
-          employee_id: request.employee_id,
-          exception_date: date,
-          type: exceptionType,
-          reason: `Leave request: ${LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type}${request.reason ? ` - ${request.reason}` : ''}`,
-        }))
-
-        // Insert, ignoring duplicates (unique constraint will prevent doubles)
-        for (const exc of exceptions) {
-          await supabase.from("attendance_exceptions").upsert(exc, {
-            onConflict: 'employee_id,exception_date,type',
-          })
-        }
-      }
-
-      // 3. Deduct from leave quota (skip WFH — it doesn't count against quota)
-      if (request.leave_type !== 'work_from_home') {
-        const leaveDays = request.leave_type === 'half_day' ? dates.length * 0.5 : dates.length
-        const { data: currentEmp } = await supabase
-          .from('employees')
-          .select('leaves_taken')
-          .eq('id', request.employee_id)
-          .single()
-
-        if (currentEmp) {
-          await supabase
-            .from('employees')
-            .update({ leaves_taken: (currentEmp.leaves_taken || 0) + leaveDays })
-            .eq('id', request.employee_id)
-        }
-      }
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || `Failed to ${action}`)
 
       logAudit({
-        action: 'approve_leave',
+        action: `${action}_leave`,
         entity_type: 'leave_request',
         entity_id: request.id,
-        details: { employee_name: `${emp.first_name} ${emp.last_name}`, leave_type: request.leave_type, dates: dates.length },
+        details: { employee_name: `${emp.first_name} ${emp.last_name}`, leave_type: request.leave_type },
       })
 
       toast({
-        title: "Approved",
-        description: `Leave request approved. ${dates.length} attendance exception(s) created.`,
+        title: action === 'approve' ? 'Approved' : 'Rejected',
+        description: `Leave request ${action === 'approve' ? 'approved' : 'rejected'}.`,
       })
 
       fetchRequests()
-    } catch {
-      toast({ title: "Error", description: "Failed to approve leave request.", variant: "destructive" })
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || `Failed to ${action} leave request.`, variant: "destructive" })
     } finally {
       setProcessingId(null)
     }
   }
 
+  async function handleApprove(request: any) {
+    return reviewRequest(request, 'approve')
+  }
+
   async function handleReject(request: any) {
-    const emp = request.employees || {}
-    const label = LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type
-    if (!confirm(`Reject ${label} for ${emp.first_name} ${emp.last_name}?\n\n${request.start_date} → ${request.end_date}`)) return
-    setProcessingId(request.id)
-    try {
-      const { error } = await supabase
-        .from("leave_requests")
-        .update({
-          status: 'rejected',
-          admin_remarks: remarks[request.id] || null,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", request.id)
-
-      if (error) throw error
-
-      logAudit({
-        action: 'reject_leave',
-        entity_type: 'leave_request',
-        entity_id: request.id,
-        details: { employee_name: `${emp.first_name} ${emp.last_name}`, leave_type: request.leave_type, reason: remarks[request.id] || '' },
-      })
-
-      toast({ title: "Rejected", description: "Leave request rejected." })
-      fetchRequests()
-    } catch {
-      toast({ title: "Error", description: "Failed to reject leave request.", variant: "destructive" })
-    } finally {
-      setProcessingId(null)
-    }
+    return reviewRequest(request, 'reject')
   }
 
   function formatDate(dateStr: string) {

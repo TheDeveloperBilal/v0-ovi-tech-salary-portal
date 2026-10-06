@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
 type Role = 'admin' | 'hr' | 'manager' | 'employee'
@@ -17,19 +18,27 @@ export async function authenticateRequest(
   request: NextRequest,
   requiredRole?: Role | Role[],
 ): Promise<AuthResult | AuthError> {
-  const supabase = await createClient()
-
   const authHeader = request.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) {
-    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    return { response: NextResponse.json({ error: 'No auth token provided' }, { status: 401 }) }
   }
 
   const token = authHeader.substring(7)
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const authClient = createSupabaseClient(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+
+  const { data: { user }, error: authError } = await authClient.auth.getUser()
 
   if (authError || !user?.email) {
-    return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    console.error('Auth verification failed:', authError?.message || 'No email on user')
+    return { response: NextResponse.json({ error: 'Invalid or expired session. Please log in again.' }, { status: 401 }) }
   }
+
+  const supabase = await createClient()
 
   const { data: profile } = await supabase
     .from('profiles')

@@ -13,6 +13,7 @@ import { HolidayManager } from "./holiday-manager"
 import { LeaveRequestManager } from "./leave-request-manager"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import { AuditLogViewer } from "./audit-log-viewer"
+import { AdminUsers } from "./admin-users"
 import { NoticeManager } from "./notice-manager"
 import { PolicyManager } from "./policy-manager"
 
@@ -78,6 +79,7 @@ export function DashboardContent({ user, activeView }: DashboardContentProps) {
     'policies': <PolicyManager />,
     'analytics': <AnalyticsDashboard />,
     'audit-log': <AuditLogViewer />,
+    'users': <AdminUsers />,
     'settings': <CompanySettings />,
   }
 
