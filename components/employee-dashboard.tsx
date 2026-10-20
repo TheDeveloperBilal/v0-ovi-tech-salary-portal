@@ -248,7 +248,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
       d.setDate(d.getDate() + 1)
     }
 
-    if (leaveForm.leave_type !== 'work_from_home' && requestedDays > currentRemaining) {
+    const quotaTypes = ['casual_leave', 'sick_leave']
+    if (quotaTypes.includes(leaveForm.leave_type) && requestedDays > currentRemaining) {
       toast({
         title: 'Insufficient Leave Balance',
         description: `You have ${currentRemaining} leave(s) remaining but requested ${requestedDays} day(s). Please reduce the duration or contact admin.`,
