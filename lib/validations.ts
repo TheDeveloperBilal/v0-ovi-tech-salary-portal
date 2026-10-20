@@ -82,6 +82,14 @@ export const reviewLeaveRequestSchema = z.object({
   admin_remarks: z.string().max(500).optional().nullable(),
 })
 
+// ── Leave balance adjustment schemas ──
+
+export const adjustLeaveBalanceSchema = z.object({
+  employee_id: z.string().uuid('Valid employee ID is required'),
+  adjustment: z.number().int().min(-14).max(14),
+  reason: z.string().min(1, 'Reason is required').max(500),
+})
+
 // ── Audit log schemas ──
 
 export const createAuditLogSchema = z.object({
