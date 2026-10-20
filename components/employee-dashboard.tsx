@@ -17,7 +17,7 @@ import {
 import {
   Eye, Calendar, Clock, CalendarDays, Plus,
   CheckCircle, XCircle, Loader2, FileText, AlertCircle, Send, Trash2,
-  Home, Briefcase, Play, Square, Megaphone, ShieldCheck, Download,
+  Home, Briefcase, Play, Square, Megaphone, ShieldCheck, Download, Info,
 } from 'lucide-react'
 import { SalarySlipPreview } from './salary-slip-preview'
 import { SignatureCanvas } from './signature-canvas'
@@ -686,6 +686,55 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
               <p className="text-3xl font-bold mt-1 text-foreground">{employeeData?.leaves_taken || 0}</p>
             </div>
           </div>
+
+          {/* Leave Policy Rules */}
+          <Card className="glass-card border border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Info className="w-4 h-4 text-blue-400" />
+                Leave Policy
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid gap-2 text-xs">
+                <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-emerald-500 mt-1.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Casual Leave &amp; Sick Leave</p>
+                    <p className="text-muted-foreground">Deducts 1 day per leave from the 14-day annual quota</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Half Day</p>
+                    <p className="text-muted-foreground">3 half days = 1 leave day deducted from quota</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-purple-500 mt-1.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Work From Home</p>
+                    <p className="text-muted-foreground">Does not deduct from leave quota (requires admin approval)</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-amber-500 mt-1.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Early Out &amp; Other</p>
+                    <p className="text-muted-foreground">Does not deduct from leave quota (employee worked that day)</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-red-500 mt-1.5" />
+                  <div>
+                    <p className="font-medium text-foreground">Late Arrivals &amp; Early Departures</p>
+                    <p className="text-muted-foreground">Every 3 violations (late or early departure) = 1 leave deducted</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Active Notices */}
           {notices.length > 0 && (

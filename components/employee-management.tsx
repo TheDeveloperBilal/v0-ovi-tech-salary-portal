@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCircle } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCircle, CalendarMinus, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ProbationManager } from "./probation-manager"
 
@@ -77,6 +77,9 @@ export function EmployeeManagement() {
   const [probationEmployee, setProbationEmployee] = useState<any | null>(null)
   const [newHistoryEntry, setNewHistoryEntry] = useState({ salary: "", effective_from: "", reason: "" })
   const [showAddHistory, setShowAddHistory] = useState(false)
+  const [leaveAdjustEmployee, setLeaveAdjustEmployee] = useState<any | null>(null)
+  const [leaveAdjustForm, setLeaveAdjustForm] = useState({ adjustment: "", reason: "" })
+  const [leaveAdjustLoading, setLeaveAdjustLoading] = useState(false)
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -472,6 +475,18 @@ export function EmployeeManagement() {
                   >
                     <History className="w-4 h-4 mr-2" />
                     Salary History
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setLeaveAdjustEmployee(emp)
+                      setLeaveAdjustForm({ adjustment: "", reason: "" })
+                    }}
+                    className="flex-1 w-full sm:w-auto"
+                  >
+                    <CalendarMinus className="w-4 h-4 mr-2" />
+                    Adjust Leaves
                   </Button>
                   {emp.is_probation && (
                     <Button
@@ -877,6 +892,98 @@ export function EmployeeManagement() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!leaveAdjustEmployee} onOpenChange={(open) => { if (!open) setLeaveAdjustEmployee(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Leave Balance</DialogTitle>
+            <DialogDescription>
+              {leaveAdjustEmployee?.first_name} {leaveAdjustEmployee?.last_name} — Currently used: {leaveAdjustEmployee?.leaves_taken || 0} / 14
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault()
+            if (!leaveAdjustEmployee || !leaveAdjustForm.adjustment || !leaveAdjustForm.reason) return
+            setLeaveAdjustLoading(true)
+            try {
+              const { data: { session } } = await supabase.auth.getSession()
+              if (!session?.access_token) throw new Error('Not authenticated')
+              const res = await fetch('/api/employees/adjust-leaves', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  employee_id: leaveAdjustEmployee.id,
+                  adjustment: Number(leaveAdjustForm.adjustment),
+                  reason: leaveAdjustForm.reason,
+                }),
+              })
+              const result = await res.json()
+              if (!res.ok) throw new Error(result.error || 'Failed to adjust')
+              toast({
+                title: 'Leave Balance Updated',
+                description: `${result.employee_name}: ${result.previous} → ${result.new_leaves_taken} leaves used (${Number(leaveAdjustForm.adjustment) > 0 ? '+' : ''}${leaveAdjustForm.adjustment})`,
+              })
+              setLeaveAdjustEmployee(null)
+              fetchEmployees()
+            } catch (err: any) {
+              toast({ title: 'Error', description: err?.message || 'Failed to adjust leave balance', variant: 'destructive' })
+            } finally {
+              setLeaveAdjustLoading(false)
+            }
+          }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-lg bg-muted/50">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{leaveAdjustEmployee?.leaves_taken || 0}</p>
+                <p className="text-xs text-muted-foreground">Used</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-emerald-500">{Math.max(0, 14 - (leaveAdjustEmployee?.leaves_taken || 0))}</p>
+                <p className="text-xs text-muted-foreground">Remaining</p>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="adjustment">Adjustment</Label>
+              <Input
+                id="adjustment"
+                type="number"
+                min={-14}
+                max={14}
+                placeholder="e.g. -2 to restore 2 leaves, +1 to deduct 1"
+                value={leaveAdjustForm.adjustment}
+                onChange={(e) => setLeaveAdjustForm({ ...leaveAdjustForm, adjustment: e.target.value })}
+                required
+              />
+              <p className="text-xs text-muted-foreground mt-1">Negative = restore leaves, Positive = deduct leaves</p>
+            </div>
+            <div>
+              <Label htmlFor="adjust-reason">Reason</Label>
+              <Input
+                id="adjust-reason"
+                placeholder="e.g. Correction for wrongly deducted early out"
+                value={leaveAdjustForm.reason}
+                onChange={(e) => setLeaveAdjustForm({ ...leaveAdjustForm, reason: e.target.value })}
+                required
+              />
+            </div>
+            {leaveAdjustForm.adjustment && (
+              <div className={`p-2 rounded-lg text-sm ${Number(leaveAdjustForm.adjustment) < 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                Result: {Math.max(0, Math.min(14, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment)))} / 14 leaves used
+                ({Math.max(0, 14 - Math.max(0, Math.min(14, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment))))} remaining)
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setLeaveAdjustEmployee(null)}>Cancel</Button>
+              <Button type="submit" disabled={leaveAdjustLoading || !leaveAdjustForm.adjustment || !leaveAdjustForm.reason}>
+                {leaveAdjustLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Apply Adjustment
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

@@ -16,6 +16,7 @@ import { AuditLogViewer } from "./audit-log-viewer"
 import { AdminUsers } from "./admin-users"
 import { NoticeManager } from "./notice-manager"
 import { PolicyManager } from "./policy-manager"
+import { LeaveDashboard } from "./leave-dashboard"
 
 interface DashboardContentProps {
   user: any
@@ -74,6 +75,7 @@ export function DashboardContent({ user, activeView }: DashboardContentProps) {
     'attendance': <AttendanceManager />,
     'slips': <SalarySlipGenerator isAdmin={true} />,
     'leave-requests': <LeaveRequestManager />,
+    'leave-dashboard': <LeaveDashboard />,
     'holidays': <HolidayManager />,
     'notices': <NoticeManager />,
     'policies': <PolicyManager />,
