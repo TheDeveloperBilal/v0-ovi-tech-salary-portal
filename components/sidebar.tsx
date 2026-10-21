@@ -60,8 +60,8 @@ export function Sidebar({ activeView, onViewChange, pendingLeaves, isCollapsed, 
               w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
               transition-all duration-200 cursor-pointer relative group
               ${isActive
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/25'
-                : 'text-muted-foreground hover:bg-[hsl(var(--sidebar-hover))] hover:text-foreground'
+                ? 'bg-[var(--ep-primary)] text-white shadow-lg shadow-[var(--ep-primary)]/25'
+                : 'text-[var(--ep-on-surface-variant)] hover:bg-[var(--ep-surface-container)] hover:text-[var(--ep-on-surface)]'
               }
               ${isCollapsed ? 'justify-center' : ''}
             `}
