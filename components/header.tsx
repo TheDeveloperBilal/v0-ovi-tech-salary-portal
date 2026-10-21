@@ -40,10 +40,10 @@ export function Header({ user, pendingLeaves = 0, onLeaveClick, sidebarCollapsed
       <div className="flex items-center justify-between h-16 px-6">
         {/* Left: Page title area */}
         <div className="pl-12 lg:pl-0">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="text-lg font-bold text-[var(--ep-on-surface)] font-display tracking-tight">
             Welcome back, {user?.full_name?.split(' ')[0] || 'User'}
           </h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[var(--ep-on-surface-variant)]">
             {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
@@ -77,7 +77,8 @@ export function Header({ user, pendingLeaves = 0, onLeaveClick, sidebarCollapsed
               <p className="text-sm font-medium text-foreground">{user?.full_name || user?.email || "User"}</p>
               <p className="text-[11px] text-muted-foreground capitalize">{isAdmin ? "Admin" : "Employee"}</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-white text-xs font-bold shadow-md">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-md"
+              style={{ background: 'linear-gradient(135deg, var(--ep-primary), var(--ep-primary-container))' }}>
               {initials}
             </div>
           </div>
