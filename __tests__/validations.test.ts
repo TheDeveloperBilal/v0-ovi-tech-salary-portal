@@ -4,7 +4,6 @@ import {
   resetPasswordSchema,
   createLeaveRequestSchema,
   deleteLeaveRequestSchema,
-  calculateLeavesSchema,
   deleteAttendanceRecordSchema,
   createNoticeSchema,
   deleteNoticeSchema,
@@ -110,21 +109,6 @@ describe('createLeaveRequestSchema', () => {
     for (const type of ['casual_leave', 'sick_leave', 'work_from_home', 'half_day', 'early_out', 'other']) {
       expect(createLeaveRequestSchema.safeParse({ ...validRequest, leave_type: type }).success).toBe(true)
     }
-  })
-})
-
-describe('calculateLeavesSchema', () => {
-  it('accepts valid month/year/employeeId', () => {
-    expect(calculateLeavesSchema.safeParse({ month: 10, year: 2026, employeeId: 'EMP001' }).success).toBe(true)
-  })
-
-  it('rejects month out of range', () => {
-    expect(calculateLeavesSchema.safeParse({ month: 0, year: 2026, employeeId: 'EMP001' }).success).toBe(false)
-    expect(calculateLeavesSchema.safeParse({ month: 13, year: 2026, employeeId: 'EMP001' }).success).toBe(false)
-  })
-
-  it('rejects year out of range', () => {
-    expect(calculateLeavesSchema.safeParse({ month: 1, year: 2019, employeeId: 'EMP001' }).success).toBe(false)
   })
 })
 

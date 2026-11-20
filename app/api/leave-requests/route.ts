@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateRequest, isAuthError } from '@/lib/api-auth'
 import { createLeaveRequestSchema, deleteLeaveRequestSchema, reviewLeaveRequestSchema, parseBody } from '@/lib/validations'
+import { ANNUAL_LEAVES } from '@/lib/attendance-calculations'
+import { QUOTA_LEAVE_TYPES } from '@/lib/leave-rules'
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   casual_leave: 'Casual Leave',
@@ -10,8 +12,6 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
   early_out: 'Early Out',
   other: 'Other',
 }
-
-const QUOTA_LEAVE_TYPES = ['casual_leave', 'sick_leave']
 
 const LEAVE_TO_EXCEPTION: Record<string, string> = {
   casual_leave: 'approved_leave',
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const { data: employee } = await supabase
       .from('employees')
-      .select('id, leaves_taken')
+      .select('id')
       .eq('email', user.email)
       .single()
 
@@ -94,7 +94,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (QUOTA_LEAVE_TYPES.includes(leave_type)) {
-      const remaining = Math.max(0, 14 - (employee.leaves_taken || 0))
+      const { data: used, error: usedError } = await supabase.rpc('leaves_used', {
+        p_employee: employee.id,
+        p_year: Number(start_date.slice(0, 4)),
+      })
+      if (usedError) {
+        console.error('Leave balance lookup error:', usedError)
+        return NextResponse.json({ error: 'Could not check your leave balance. Please try again.' }, { status: 500 })
+      }
+      const remaining = Math.max(0, ANNUAL_LEAVES - Number(used || 0))
       if (requestedDays > remaining) {
         return NextResponse.json({
           error: `Insufficient leave balance. You have ${remaining} leave(s) remaining but requested ${requestedDays} day(s).`
@@ -205,7 +213,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const auth = await authenticateRequest(request, 'admin')
     if (isAuthError(auth)) return auth.response
-    const { supabase } = auth
+    const { supabase, user } = auth
 
     const body = await request.json()
     const parsed = parseBody(reviewLeaveRequestSchema, body)
@@ -217,7 +225,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: leaveRequest } = await supabase
       .from('leave_requests')
-      .select('*, employees(id, first_name, last_name, employee_id, leaves_taken)')
+      .select('*')
       .eq('id', id)
       .single()
 
@@ -236,6 +244,7 @@ export async function PATCH(request: NextRequest) {
       .update({
         status: newStatus,
         admin_remarks: admin_remarks || null,
+        reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -265,40 +274,8 @@ export async function PATCH(request: NextRequest) {
       }
 
       if (QUOTA_LEAVE_TYPES.includes(leaveRequest.leave_type)) {
-        const emp = leaveRequest.employees
-        if (emp) {
-          await supabase
-            .from('employees')
-            .update({ leaves_taken: (emp.leaves_taken || 0) + dates.length })
-            .eq('id', emp.id)
-        }
-      } else if (leaveRequest.leave_type === 'half_day') {
-        const emp = leaveRequest.employees
-        if (emp) {
-          const { data: approvedHalfDayRequests } = await supabase
-            .from('leave_requests')
-            .select('start_date, end_date')
-            .eq('employee_id', leaveRequest.employee_id)
-            .eq('leave_type', 'half_day')
-            .eq('status', 'approved')
-
-          let totalHalfDayDates = 0
-          for (const req of (approvedHalfDayRequests || [])) {
-            totalHalfDayDates += getDatesBetween(req.start_date, req.end_date).length
-          }
-
-          const previousHalfDayDates = totalHalfDayDates - dates.length
-          const newLeaveDays = Math.floor(totalHalfDayDates / 3)
-          const previousLeaveDays = Math.floor(previousHalfDayDates / 3)
-          const increment = newLeaveDays - previousLeaveDays
-
-          if (increment > 0) {
-            await supabase
-              .from('employees')
-              .update({ leaves_taken: (emp.leaves_taken || 0) + increment })
-              .eq('id', emp.id)
-          }
-        }
+        const { error: recalcError } = await supabase.rpc('recalc_leaves_taken', { p_employee: leaveRequest.employee_id })
+        if (recalcError) console.error('Leave balance refresh error:', recalcError)
       }
     }
 
