@@ -25,7 +25,6 @@ A full-stack employee salary, attendance, payroll, and HR management portal for 
 - React Hook Form and Zod-compatible validation utilities
 - Recharts for dashboard visualizations
 - `date-fns` for date utilities
-- `xlsx` for spreadsheet-related file support
 - `jspdf`, `html2canvas`, and document helpers for salary-slip exports
 - Vercel Analytics
 

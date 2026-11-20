@@ -93,10 +93,21 @@ export function EmployeeManagement() {
 
   const fetchEmployees = async () => {
     setIsLoading(true)
-    const { data, error } = await supabase.from("employees").select("*").order("created_at", { ascending: false })
+    const load = async () => {
+      // Wait for the saved login session so the request is not sent signed-out
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return { data: null, error: new Error("No session") }
+      return supabase.from("employees").select("*").order("created_at", { ascending: false })
+    }
+
+    let { data, error } = await load()
+    if (error || !data || data.length === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      ;({ data, error } = await load())
+    }
 
     if (error) {
-      toast({ title: "Error", description: "Failed to load employees.", variant: "destructive" })
+      toast({ title: "Error", description: "Failed to load employees. Please refresh the page.", variant: "destructive" })
     } else {
       setEmployees(data || [])
     }
