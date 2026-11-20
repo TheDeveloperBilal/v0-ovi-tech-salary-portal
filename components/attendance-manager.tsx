@@ -30,7 +30,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { ANNUAL_LEAVES } from '@/lib/attendance-calculations'
+import { calculateMonthlySlip, quotaDatesBetween, QUOTA_LEAVE_TYPES } from '@/lib/leave-rules'
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -61,6 +61,7 @@ interface Employee {
   probation_end_date: string | null
   leaves_taken: number
   base_salary: number
+  income_tax: number
 }
 
 interface EmployeeStats {
@@ -70,6 +71,7 @@ interface EmployeeStats {
   absentDays: number
   lateDays: number
   earlyOutDays: number
+  halfDays: number
   violationDeductions: number
   leavesUsed: number
   salaryDeductionDays: number
@@ -98,6 +100,7 @@ export function AttendanceManager() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
   const [holidays, setHolidays] = useState<Map<string, string>>(new Map()) // date -> name
   const [exceptions, setExceptions] = useState<Map<string, { type: string; reason: string }[]>>(new Map()) // "empId|date" -> [{type, reason}]
+  const [quotaInfo, setQuotaInfo] = useState<{ employeeId: string; usedBefore: number; approvedDates: Set<string> } | null>(null)
 
   // ── Data Loading ──
 
@@ -126,6 +129,7 @@ export function AttendanceManager() {
         probation_end_date: (e.probation_end_date as string) || null,
         leaves_taken: Number(e.leaves_taken || 0),
         base_salary: Number(e.base_salary || 0),
+        income_tax: Number(e.income_tax || 0),
       }))
       setEmployees(mappedEmployees)
 
@@ -180,6 +184,7 @@ export function AttendanceManager() {
           probation_end_date: (e.probation_end_date as string) || null,
           leaves_taken: Number(e.leaves_taken || 0),
           base_salary: Number(e.base_salary || 0),
+          income_tax: Number(e.income_tax || 0),
         }))
 
         // Fetch attendance records for this month
@@ -357,16 +362,39 @@ export function AttendanceManager() {
     }
   }, [filteredRecords])
 
-  const selectedEmployeeStats: EmployeeStats | null = useMemo(() => {
-    let targetEmployeeId: string | null = selectedEmployeeId
+  const targetEmployeeId: string | null = useMemo(() => {
+    if (selectedEmployeeId) return selectedEmployeeId
+    if (!search.trim()) return null
+    const uniqueEmployees = [...new Set(filteredRecords.map(r => r.employee_id))]
+    return uniqueEmployees.length === 1 ? uniqueEmployees[0] : null
+  }, [selectedEmployeeId, search, filteredRecords])
 
-    if (!targetEmployeeId && search.trim()) {
-      const uniqueEmployees = [...new Set(filteredRecords.map(r => r.employee_id))]
-      if (uniqueEmployees.length === 1) {
-        targetEmployeeId = uniqueEmployees[0]
+  // Leave quota used before this month and approved casual/sick days, same as payroll
+  useEffect(() => {
+    if (!targetEmployeeId) return
+    let cancelled = false
+    const firstDay = `${year}-${String(month).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0).toISOString().split('T')[0]
+    Promise.all([
+      supabase.rpc('leaves_used', { p_employee: targetEmployeeId, p_year: year, p_before_month: month }),
+      supabase.from('leave_requests').select('start_date, end_date')
+        .eq('employee_id', targetEmployeeId).eq('status', 'approved')
+        .in('leave_type', QUOTA_LEAVE_TYPES).lte('start_date', lastDay).gte('end_date', firstDay),
+    ]).then(([usedRes, leaveRes]) => {
+      if (cancelled) return
+      const holidayDates = new Set(holidays.keys())
+      const approvedDates = new Set<string>()
+      for (const lr of (leaveRes.data || [])) {
+        const from = lr.start_date > firstDay ? lr.start_date : firstDay
+        const to = lr.end_date < lastDay ? lr.end_date : lastDay
+        for (const d of quotaDatesBetween(from, to, holidayDates)) approvedDates.add(d)
       }
-    }
+      setQuotaInfo({ employeeId: targetEmployeeId, usedBefore: Number(usedRes.data || 0), approvedDates })
+    })
+    return () => { cancelled = true }
+  }, [targetEmployeeId, month, year, holidays])
 
+  const selectedEmployeeStats: EmployeeStats | null = useMemo(() => {
     if (!targetEmployeeId) return null
 
     const empRecords = records.filter(r => r.employee_id === targetEmployeeId)
@@ -375,65 +403,46 @@ export function AttendanceManager() {
     const emp = employees.find(e => e.id === targetEmployeeId)
     if (!emp) return null
 
-    const baseSalary = emp.base_salary || 0
-
-    // Collect WFH exception dates so they don't count as absences
-    const wfhDates = new Set<string>()
+    const exceptionsByDate = new Map<string, string[]>()
     for (const [key, excs] of exceptions) {
       if (key.startsWith(targetEmployeeId + '|')) {
-        for (const exc of excs) {
-          if (exc.type === 'work_from_home') {
-            wfhDates.add(key.split('|')[1])
-          }
-        }
+        exceptionsByDate.set(key.split('|')[1], excs.map(e => e.type))
       }
     }
 
-    const totalDays = empRecords.length
-    const absentDays = empRecords.filter(r => r.is_absent && !wfhDates.has(r.attendance_date)).length
-    const presentDays = totalDays - absentDays
-    const lateDays = empRecords.filter(r => r.is_late).length
-    const earlyOutDays = empRecords.filter(r => r.is_early_out).length
-
-    const totalViolations = lateDays + earlyOutDays
-    const violationDeductions = Math.floor(totalViolations / 3)
-
-    const remainingLeaves = Math.max(0, ANNUAL_LEAVES - (emp.leaves_taken || 0))
-    let leavesUsed: number
-    let absentSalaryDays: number
-
-    if (emp.is_probation) {
-      leavesUsed = 0
-      absentSalaryDays = absentDays
-    } else {
-      leavesUsed = Math.min(absentDays, remainingLeaves)
-      absentSalaryDays = Math.max(0, absentDays - remainingLeaves)
-    }
-
-    const totalSalaryDeductionDays = violationDeductions + absentSalaryDays
-    const dailyRate = baseSalary / 30
-    const salaryDeduction = Math.round(totalSalaryDeductionDays * dailyRate)
-    const netPayable = Math.round(baseSalary - salaryDeduction)
+    const quota = quotaInfo?.employeeId === targetEmployeeId ? quotaInfo : null
+    const baseSalary = emp.base_salary || 0
+    const result = calculateMonthlySlip({
+      records: empRecords,
+      holidayDates: new Set(holidays.keys()),
+      exceptionsByDate,
+      approvedLeaveDates: quota?.approvedDates || new Set(),
+      baseSalary,
+      incomeTax: emp.income_tax || 0,
+      isProbation: emp.is_probation,
+      leavesUsedBefore: quota ? quota.usedBefore : emp.leaves_taken || 0,
+    })
 
     return {
       employeeName: `${emp.first_name} ${emp.last_name}`,
-      totalDays,
-      presentDays,
-      absentDays,
-      lateDays,
-      earlyOutDays,
-      violationDeductions,
-      leavesUsed,
-      salaryDeductionDays: totalSalaryDeductionDays,
+      totalDays: result.workingDays,
+      presentDays: result.presentDays,
+      absentDays: result.absentDays,
+      lateDays: result.lateDays,
+      earlyOutDays: result.earlyOutDays,
+      halfDays: result.halfDays,
+      violationDeductions: result.violationDeductions,
+      leavesUsed: result.leavesUsed,
+      salaryDeductionDays: result.totalDeductionDays,
       baseSalary,
-      dailyRate: Math.round(dailyRate),
-      salaryDeduction,
-      netPayable,
+      dailyRate: result.dailyRate,
+      salaryDeduction: result.salaryDeduction,
+      netPayable: result.netSalary,
       designation: emp.designation || '-',
       isProbation: emp.is_probation,
-      remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
+      remainingLeaves: result.remainingLeaves,
     }
-  }, [selectedEmployeeId, search, filteredRecords, records, employees, exceptions])
+  }, [targetEmployeeId, records, employees, exceptions, holidays, quotaInfo])
 
   // ── Helpers ──
 
@@ -774,7 +783,7 @@ export function AttendanceManager() {
 
           <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50">
             <strong>Deduction rules:</strong>{' '}
-            3 late/early-outs = 1 day salary deducted ({selectedEmployeeStats.lateDays} + {selectedEmployeeStats.earlyOutDays} = {selectedEmployeeStats.lateDays + selectedEmployeeStats.earlyOutDays} violations → {selectedEmployeeStats.violationDeductions} day{selectedEmployeeStats.violationDeductions !== 1 ? 's' : ''})
+            3 violations (late, early out or half day) = 1 day salary deducted ({selectedEmployeeStats.lateDays} + {selectedEmployeeStats.earlyOutDays} + {selectedEmployeeStats.halfDays} = {selectedEmployeeStats.lateDays + selectedEmployeeStats.earlyOutDays + selectedEmployeeStats.halfDays} violations → {selectedEmployeeStats.violationDeductions} day{selectedEmployeeStats.violationDeductions !== 1 ? 's' : ''})
             {selectedEmployeeStats.isProbation
               ? ' · Probation: no leave quota, all absences deducted from salary'
               : ` · ${selectedEmployeeStats.leavesUsed} absence${selectedEmployeeStats.leavesUsed !== 1 ? 's' : ''} covered by leave quota`

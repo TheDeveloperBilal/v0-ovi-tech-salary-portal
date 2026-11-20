@@ -90,6 +90,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   useEffect(() => {
     if (employeeData?.id) {
       fetchLeaveRequests()
+      fetchWfhStatus()
     }
   }, [employeeData?.id])
 
@@ -100,20 +101,16 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
   }, [employeeData?.id, attMonth, attYear, activeView])
 
   useEffect(() => {
-    if (wfhStatus?.record?.check_in && !wfhStatus?.record?.check_out) {
-      const checkInTime = parseTimeToMs(wfhStatus.record.check_in)
-      const updateElapsed = () => {
-        const now = new Date()
-        const nowMs = now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000
-        setElapsedTime(Math.max(0, Math.floor((nowMs - checkInTime) / 1000)))
-      }
-      updateElapsed()
-      timerRef.current = setInterval(updateElapsed, 1000)
-      return () => { if (timerRef.current) clearInterval(timerRef.current) }
-    } else {
-      setElapsedTime(0)
-      if (timerRef.current) clearInterval(timerRef.current)
+    if (!wfhStatus?.record?.check_in || wfhStatus?.record?.check_out) return
+    const checkInTime = parseTimeToMs(wfhStatus.record.check_in)
+    const updateElapsed = () => {
+      const now = new Date()
+      const nowMs = now.getHours() * 3600000 + now.getMinutes() * 60000 + now.getSeconds() * 1000
+      setElapsedTime(Math.max(0, Math.floor((nowMs - checkInTime) / 1000)))
     }
+    updateElapsed()
+    timerRef.current = setInterval(updateElapsed, 1000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [wfhStatus?.record?.check_in, wfhStatus?.record?.check_out])
 
   const parseTimeToMs = (time: string): number => {
@@ -411,7 +408,6 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
     }
   }
 
-  useEffect(() => { fetchWfhStatus() }, [employeeData])
 
   const handleViewSlip = (slip: any) => {
     const summary = slip.attendance_summary || {}
@@ -525,10 +521,18 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
     })
   }
 
-  const attPresent = attendanceRecords.filter(r => !r.is_absent).length
-  const attAbsent = attendanceRecords.filter(r => r.is_absent).length
-  const attLate = attendanceRecords.filter(r => r.is_late && !r.is_absent).length
-  const attEarlyOut = attendanceRecords.filter(r => r.is_early_out && !r.is_absent).length
+  const getDayLabel = (r: any): string | null => {
+    if (holidays.has(r.attendance_date)) return 'Holiday'
+    const types = (exceptions.get(`${r.employee_id || employeeData?.id}|${r.attendance_date}`) || []).map(e => e.type)
+    if (types.includes('approved_leave')) return 'On Leave'
+    if (types.includes('work_from_home')) return 'WFH'
+    return null
+  }
+  const countedRecords = attendanceRecords.filter(r => !getDayLabel(r))
+  const attPresent = countedRecords.filter(r => !r.is_absent).length
+  const attAbsent = countedRecords.filter(r => r.is_absent).length
+  const attLate = countedRecords.filter(r => r.is_late && !r.is_absent).length
+  const attEarlyOut = countedRecords.filter(r => r.is_early_out && !r.is_absent).length
   const pendingRequests = leaveRequests.filter(r => r.status === 'pending').length
   const remainingLeaves = Math.max(0, 14 - (employeeData?.leaves_taken || 0))
 
@@ -1118,8 +1122,8 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                         <td className="p-3 text-right text-[var(--ep-on-surface)] font-medium" style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.work_hours ? `${r.work_hours}h` : '—'}
                         </td>
-                        <td className={`p-3 font-bold text-xs uppercase tracking-wide ${getAttStatusColor(r)}`}>
-                          {r.status}
+                        <td className={`p-3 font-bold text-xs uppercase tracking-wide ${getDayLabel(r) ? 'text-[var(--ep-secondary)]' : getAttStatusColor(r)}`}>
+                          {getDayLabel(r) || r.status}
                         </td>
                       </tr>
                     ))}
