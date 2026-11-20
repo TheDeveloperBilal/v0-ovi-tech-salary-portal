@@ -48,6 +48,18 @@ export async function authenticateRequest(
 
   const role: Role = profile?.role || (profile?.is_admin ? 'admin' : 'employee')
 
+  if (role === 'employee') {
+    const { data: inactive } = await supabase
+      .from('employees')
+      .select('id')
+      .eq('email', user.email)
+      .eq('is_active', false)
+      .limit(1)
+    if (inactive && inactive.length > 0) {
+      return { response: NextResponse.json({ error: 'Your account has been deactivated. Please contact HR.' }, { status: 403 }) }
+    }
+  }
+
   if (requiredRole) {
     const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
     if (!allowed.includes(role)) {

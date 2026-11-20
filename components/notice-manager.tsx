@@ -72,6 +72,7 @@ export function NoticeManager() {
     const { data } = await supabase
       .from('employees')
       .select('id, first_name, last_name, department')
+      .eq('is_active', true)
       .order('first_name')
     setEmployees(data || [])
   }
