@@ -972,8 +972,8 @@ export function EmployeeManagement() {
             </div>
             {leaveAdjustForm.adjustment && (
               <div className={`p-2 rounded-lg text-sm ${Number(leaveAdjustForm.adjustment) < 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                Result: {Math.max(0, Math.min(14, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment)))} / 14 leaves used
-                ({Math.max(0, 14 - Math.max(0, Math.min(14, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment))))} remaining)
+                Result: {Math.max(0, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment))} / 14 leaves used
+                ({Math.max(0, 14 - Math.max(0, (leaveAdjustEmployee?.leaves_taken || 0) + Number(leaveAdjustForm.adjustment)))} remaining). Saved for this year and kept through payroll runs.
               </div>
             )}
             <div className="flex gap-2 justify-end">

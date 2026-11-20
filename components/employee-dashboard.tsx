@@ -833,14 +833,14 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                       <span className="w-2 h-2 rounded-full" style={{ background: 'var(--ep-tertiary)' }} />
                       <span className="text-xs font-bold text-[var(--ep-on-surface)]">Casual & Sick Leave</span>
                     </div>
-                    <p className="text-xs text-[var(--ep-on-surface-variant)] leading-relaxed">Deducts 1 day per leave from the 14-day annual quota</p>
+                    <p className="text-xs text-[var(--ep-on-surface-variant)] leading-relaxed">Each approved day, and each unapproved absence, uses 1 day of the 14-day yearly quota. Resets every 1 January</p>
                   </div>
                   <div className="rounded-xl p-4" style={{ background: 'var(--ep-surface)' }}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-2 h-2 rounded-full" style={{ background: 'var(--ep-secondary)' }} />
                       <span className="text-xs font-bold text-[var(--ep-on-surface)]">Half Day</span>
                     </div>
-                    <p className="text-xs text-[var(--ep-on-surface-variant)] leading-relaxed">3 half days = 1 leave day deducted from quota</p>
+                    <p className="text-xs text-[var(--ep-on-surface-variant)] leading-relaxed">Counts as a violation, not leave. 3 violations = 1 day&apos;s salary deducted</p>
                   </div>
                   <div className="rounded-xl p-4" style={{ background: 'var(--ep-surface)' }}>
                     <div className="flex items-center gap-2 mb-2">
@@ -860,7 +860,7 @@ export function EmployeeDashboard({ userId, activeView = 'overview' }: { userId:
                 <div className="mt-3 rounded-xl p-3 flex items-start gap-2" style={{ background: 'rgba(186,26,26,0.05)', border: '1px solid rgba(186,26,26,0.1)' }}>
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--ep-error)' }} />
                   <p className="text-xs text-[var(--ep-on-surface-variant)] leading-relaxed">
-                    <span className="font-bold" style={{ color: 'var(--ep-error)' }}>Punctuality Rule:</span> Every 3 violations (late arrival or early departure) = 1 leave deducted from quota
+                    <span className="font-bold" style={{ color: 'var(--ep-error)' }}>Punctuality Rule:</span> Every 3 violations (late arrival, early departure or half day) = 1 day&apos;s salary deducted. Violations never use your leave quota
                   </p>
                 </div>
               </div>

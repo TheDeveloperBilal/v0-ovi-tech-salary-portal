@@ -38,12 +38,6 @@ export const deleteLeaveRequestSchema = z.object({
 
 // ── Attendance schemas ──
 
-export const calculateLeavesSchema = z.object({
-  month: z.number().int().min(1).max(12),
-  year: z.number().int().min(2020).max(2100),
-  employeeId: z.string().min(1, 'Employee ID is required'),
-})
-
 export const deleteAttendanceRecordSchema = z.object({
   recordId: z.string().uuid('Valid record ID is required'),
 })

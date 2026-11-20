@@ -15,7 +15,7 @@ import {
 import { FileText, Download, Eye, Trash2, Zap, Loader2, CalendarDays } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SalarySlipPreview } from "@/components/salary-slip-preview"
-import { ANNUAL_LEAVES } from "@/lib/attendance-calculations"
+import { calculateMonthlySlip, quotaDatesBetween, QUOTA_LEAVE_TYPES } from "@/lib/leave-rules"
 
 interface Employee {
   id: string
@@ -55,7 +55,9 @@ interface GeneratedSlip {
   absentDays: number
   lateDays: number
   earlyOutDays: number
+  halfDays: number
   violationDeductions: number
+  approvedLeaveDays: number
   leavesUsed: number
   absentSalaryDays: number
   totalDeductionDays: number
@@ -139,7 +141,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       const lastDayOfMonth = new Date(year, month, 0).toISOString().split("T")[0]
       const firstDayOfMonth = `${year}-${String(month).padStart(2, "0")}-01`
 
-      const [attRes, holidayRes, exceptionRes, salaryHistRes] = await Promise.all([
+      const [attRes, holidayRes, exceptionRes, salaryHistRes, leaveReqRes] = await Promise.all([
         supabase
           .from("attendance_records")
           .select("*")
@@ -160,7 +162,15 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           .select("employee_id, salary, effective_from")
           .lte("effective_from", lastDayOfMonth)
           .order("effective_from", { ascending: false }),
+        supabase
+          .from("leave_requests")
+          .select("employee_id, start_date, end_date")
+          .eq("status", "approved")
+          .in("leave_type", QUOTA_LEAVE_TYPES)
+          .lte("start_date", lastDayOfMonth)
+          .gte("end_date", firstDayOfMonth),
       ])
+      if (leaveReqRes.error) throw leaveReqRes.error
 
       const attData = attRes.data
       if (attRes.error) throw attRes.error
@@ -207,6 +217,24 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         employeeRecords.set(record.employee_id, existing)
       }
 
+      // Approved casual/sick leave days in this month, per employee
+      const approvedLeaveMap = new Map<string, Set<string>>()
+      for (const lr of (leaveReqRes.data || [])) {
+        const from = lr.start_date > firstDayOfMonth ? lr.start_date : firstDayOfMonth
+        const to = lr.end_date < lastDayOfMonth ? lr.end_date : lastDayOfMonth
+        const set = approvedLeaveMap.get(lr.employee_id) || new Set<string>()
+        for (const d of quotaDatesBetween(from, to, holidayDates)) set.add(d)
+        approvedLeaveMap.set(lr.employee_id, set)
+      }
+
+      // Quota used earlier this year (before this month), from the database rules
+      const usedBeforeMap = new Map<string, number>()
+      await Promise.all([...employeeRecords.keys()].map(async (empUuid) => {
+        const { data, error } = await supabase.rpc("leaves_used", { p_employee: empUuid, p_year: year, p_before_month: month })
+        if (error) throw error
+        usedBeforeMap.set(empUuid, Number(data || 0))
+      }))
+
       const previews: GeneratedSlip[] = []
 
       for (const [empUuid, records] of employeeRecords) {
@@ -217,84 +245,17 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         const effectiveSalary = salaryForMonth.get(empUuid) ?? emp.base_salary
         if (effectiveSalary <= 0) continue
 
-        const empExceptions = exceptionMap.get(empUuid)
-
-        // Filter out holiday records (don't count holidays as absent/late/early)
-        let holidaysExcluded = 0
-        let exceptionsApplied = 0
-        const effectiveRecords: AttendanceRecord[] = []
-
-        for (const r of records) {
-          const date = r.attendance_date
-
-          // Skip holidays entirely — not counted at all
-          if (holidayDates.has(date)) {
-            holidaysExcluded++
-            continue
-          }
-
-          const dayExceptions = empExceptions?.get(date) || []
-
-          // approved_leave or work_from_home → treat as present (not absent, not late/early)
-          if (dayExceptions.includes("approved_leave") || dayExceptions.includes("work_from_home")) {
-            exceptionsApplied++
-            // Push as a "present" record — override absence/late/early
-            effectiveRecords.push({ ...r, is_absent: false, is_late: false, is_early_out: false })
-            continue
-          }
-
-          // half_day → present, ignore early out
-          if (dayExceptions.includes("half_day")) {
-            exceptionsApplied++
-            effectiveRecords.push({ ...r, is_absent: false, is_early_out: false })
-            continue
-          }
-
-          // approved_late → forgive late
-          let isLate = r.is_late
-          if (dayExceptions.includes("approved_late") && isLate) {
-            isLate = false
-            exceptionsApplied++
-          }
-
-          // approved_early_out → forgive early out
-          let isEarlyOut = r.is_early_out
-          if (dayExceptions.includes("approved_early_out") && isEarlyOut) {
-            isEarlyOut = false
-            exceptionsApplied++
-          }
-
-          effectiveRecords.push({ ...r, is_late: isLate, is_early_out: isEarlyOut })
-        }
-
-        const totalDays = effectiveRecords.length
-        const absentDays = effectiveRecords.filter(r => r.is_absent).length
-        const presentDays = totalDays - absentDays
-        const lateDays = effectiveRecords.filter(r => r.is_late && !r.is_absent).length
-        const earlyOutDays = effectiveRecords.filter(r => r.is_early_out && !r.is_absent).length
-
-        // Deduction rules: 3 violations = 1 day salary deducted
-        const totalViolations = lateDays + earlyOutDays
-        const violationDeductions = Math.floor(totalViolations / 3)
-
-        // Absent handling: probation = all absences deducted, else use leave quota
-        const remainingLeaves = Math.max(0, ANNUAL_LEAVES - (emp.leaves_taken || 0))
-        let leavesUsed: number
-        let absentSalaryDays: number
-
-        if (emp.is_probation) {
-          leavesUsed = 0
-          absentSalaryDays = absentDays
-        } else {
-          leavesUsed = Math.min(absentDays, remainingLeaves)
-          absentSalaryDays = Math.max(0, absentDays - remainingLeaves)
-        }
-
-        const totalDeductionDays = violationDeductions + absentSalaryDays
-        const dailyRate = effectiveSalary / 30
-        const salaryDeduction = Math.round(totalDeductionDays * dailyRate)
         const incomeTax = emp.income_tax || 0
-        const netSalary = Math.round(effectiveSalary - salaryDeduction - incomeTax)
+        const result = calculateMonthlySlip({
+          records,
+          holidayDates,
+          exceptionsByDate: exceptionMap.get(empUuid) || new Map(),
+          approvedLeaveDates: approvedLeaveMap.get(empUuid) || new Set(),
+          baseSalary: effectiveSalary,
+          incomeTax,
+          isProbation: emp.is_probation,
+          leavesUsedBefore: usedBeforeMap.get(empUuid) || 0,
+        })
 
         previews.push({
           employeeId: empUuid,
@@ -302,22 +263,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
           designation: emp.designation || '-',
           baseSalary: effectiveSalary,
           incomeTax,
-          workingDays: totalDays,
-          presentDays,
-          absentDays,
-          lateDays,
-          earlyOutDays,
-          violationDeductions,
-          leavesUsed,
-          absentSalaryDays,
-          totalDeductionDays,
-          dailyRate: Math.round(dailyRate),
-          salaryDeduction,
-          netSalary,
           isProbation: emp.is_probation,
-          remainingLeaves: emp.is_probation ? 0 : Math.max(0, remainingLeaves - leavesUsed),
-          holidaysExcluded,
-          exceptionsApplied,
+          ...result,
         })
       }
 
@@ -377,7 +324,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         attendance_summary: {
           lateDays: p.lateDays,
           earlyOutDays: p.earlyOutDays,
+          halfDays: p.halfDays,
           violationDeductions: p.violationDeductions,
+          approvedLeaveDays: p.approvedLeaveDays,
           leavesUsed: p.leavesUsed,
           absentSalaryDays: p.absentSalaryDays,
           remainingLeaves: p.remainingLeaves,
@@ -391,9 +340,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       const { error } = await supabase.from("salary_slips").insert(slipRecords)
       if (error) throw error
 
-      // Sync leaves_taken on employees from actual attendance data
       for (const p of generatedPreview) {
-        await syncEmployeeLeaves(p.employeeId)
+        await refreshLeaveBalance(p.employeeId)
       }
 
       toast({
@@ -451,44 +399,9 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
     setIsPreviewOpen(true)
   }
 
-  // Recalculate leaves_taken for an employee from attendance data (May 2026+)
-  async function syncEmployeeLeaves(employeeId: string) {
-    try {
-      // Count absences from May 2026 onwards, excluding holidays & approved exceptions
-      const { data: absences } = await supabase
-        .from("attendance_records")
-        .select("attendance_date")
-        .eq("employee_id", employeeId)
-        .eq("is_absent", true)
-        .or("year.gt.2026,and(year.eq.2026,month.gte.5)")
-
-      if (!absences) return
-
-      // Fetch holidays and approved exceptions to exclude
-      const dates = absences.map(a => a.attendance_date)
-      if (dates.length === 0) {
-        await supabase.from("employees").update({ leaves_taken: 0 }).eq("id", employeeId)
-        return
-      }
-
-      const [holidayRes, exceptionRes] = await Promise.all([
-        supabase.from("company_holidays").select("holiday_date").in("holiday_date", dates),
-        supabase.from("attendance_exceptions").select("exception_date")
-          .eq("employee_id", employeeId)
-          .in("exception_date", dates)
-          .in("type", ["approved_leave", "work_from_home"]),
-      ])
-
-      const excludedDates = new Set([
-        ...(holidayRes.data || []).map(h => h.holiday_date),
-        ...(exceptionRes.data || []).map(e => e.exception_date),
-      ])
-
-      const actualAbsences = dates.filter(d => !excludedDates.has(d)).length
-      await supabase.from("employees").update({ leaves_taken: actualAbsences }).eq("id", employeeId)
-    } catch (error) {
-      console.error("Failed to sync leaves for employee:", employeeId, error)
-    }
+  async function refreshLeaveBalance(employeeId: string) {
+    const { error } = await supabase.rpc("recalc_leaves_taken", { p_employee: employeeId })
+    if (error) console.error("Failed to refresh leave balance:", employeeId, error)
   }
 
   async function handleDeleteSlip(slipId: string) {
@@ -508,9 +421,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
 
       setSlips(slips.filter(s => s.id !== slipId))
 
-      // Re-sync leaves for the affected employee
       if (empId) {
-        await syncEmployeeLeaves(empId)
+        await refreshLeaveBalance(empId)
       }
 
       toast({ title: "Deleted", description: "Salary slip deleted. Leave quota re-synced." })
