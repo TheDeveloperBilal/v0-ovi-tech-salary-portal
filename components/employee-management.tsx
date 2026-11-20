@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCircle, CalendarMinus, Loader2 } from "lucide-react"
+import { Edit2, Trash2, Plus, RefreshCw, Lock, AlertCircle, History, X, PlusCircle, CalendarMinus, Loader2, UserX, UserCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { ProbationManager } from "./probation-manager"
 
@@ -80,6 +80,10 @@ export function EmployeeManagement() {
   const [leaveAdjustEmployee, setLeaveAdjustEmployee] = useState<any | null>(null)
   const [leaveAdjustForm, setLeaveAdjustForm] = useState({ adjustment: "", reason: "" })
   const [leaveAdjustLoading, setLeaveAdjustLoading] = useState(false)
+  const [showFormer, setShowFormer] = useState(false)
+  const [deactivateEmployee, setDeactivateEmployee] = useState<any | null>(null)
+  const [leftOn, setLeftOn] = useState("")
+  const [statusLoading, setStatusLoading] = useState(false)
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -193,8 +197,35 @@ export function EmployeeManagement() {
     }
   }
 
+  const setEmployeeStatus = async (emp: any, active: boolean, leftOnDate?: string) => {
+    setStatusLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error("Not authenticated. Please log in.")
+      const response = await fetch("/api/employees/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify(active ? { employee_id: emp.id, active } : { employee_id: emp.id, active, left_on: leftOnDate }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to update employee status")
+      toast({
+        title: active ? "Employee reactivated" : "Employee deactivated",
+        description: active
+          ? `${emp.first_name} ${emp.last_name} can log in again.`
+          : `${emp.first_name} ${emp.last_name} can no longer log in. All history is kept.`,
+      })
+      setDeactivateEmployee(null)
+      fetchEmployees()
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to update employee status", variant: "destructive" })
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this employee? This action cannot be undone.")) return
+    if (!confirm("Delete this employee? This is only allowed for employees added by mistake with no history. Use Deactivate for employees who left.")) return
 
     try {
 
@@ -227,8 +258,8 @@ export function EmployeeManagement() {
 
       // Refresh from server to ensure consistency
       setTimeout(() => fetchEmployees(), 500)
-    } catch {
-      toast({ title: "Error", description: "Failed to delete employee.", variant: "destructive" })
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to delete employee.", variant: "destructive" })
     }
   }
 
@@ -366,6 +397,9 @@ export function EmployeeManagement() {
     }
   }
 
+  const formerCount = employees.filter(e => e.is_active === false).length
+  const visibleEmployees = showFormer ? employees : employees.filter(e => e.is_active !== false)
+
   return (
     <div className="space-y-6">
       <div className="bg-card rounded-xl border border-border p-6">
@@ -374,6 +408,12 @@ export function EmployeeManagement() {
             <h2 className="text-2xl font-bold text-foreground">Employee Management</h2>
             <p className="text-muted-foreground mt-1">Add and manage employee records</p>
           </div>
+          <div className="flex items-center gap-2">
+          {formerCount > 0 && (
+            <Button variant="outline" onClick={() => setShowFormer(!showFormer)}>
+              {showFormer ? "Hide former employees" : `Show former employees (${formerCount})`}
+            </Button>
+          )}
           <Button onClick={() => {
             setFormData({
               employee_id: "",
@@ -397,6 +437,7 @@ export function EmployeeManagement() {
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
+          </div>
         </div>
       </div>
 
@@ -406,7 +447,7 @@ export function EmployeeManagement() {
             <p className="text-center text-muted-foreground">Loading employees...</p>
           </CardContent>
         </Card>
-      ) : employees.length === 0 ? (
+      ) : visibleEmployees.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="pt-8">
             <p className="text-center text-muted-foreground mb-4">No employees found</p>
@@ -415,12 +456,17 @@ export function EmployeeManagement() {
         </Card>
       ) : (
         <div className="grid gap-4">
-          {employees.map((emp) => (
-            <Card key={emp.id}>
+          {visibleEmployees.map((emp) => (
+            <Card key={emp.id} className={emp.is_active === false ? "opacity-70" : undefined}>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center justify-between">
                   <span>{emp.first_name} {emp.last_name}</span>
-                  {emp.is_probation && (
+                  {emp.is_active === false && (
+                    <span className="text-xs bg-muted text-muted-foreground border border-border px-2 py-1 rounded-full">
+                      Left on {emp.left_on ? new Date(emp.left_on + 'T00:00:00').toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    </span>
+                  )}
+                  {emp.is_active !== false && emp.is_probation && (
                     <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-full flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Probation
@@ -476,6 +522,23 @@ export function EmployeeManagement() {
                     <History className="w-4 h-4 mr-2" />
                     Salary History
                   </Button>
+                  {emp.is_active === false ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={statusLoading}
+                      onClick={() => {
+                        if (confirm(`Reactivate ${emp.first_name} ${emp.last_name}? They will be able to log in again.`)) {
+                          setEmployeeStatus(emp, true)
+                        }
+                      }}
+                      className="flex-1 w-full sm:w-auto"
+                    >
+                      <UserCheck className="w-4 h-4 mr-2" />
+                      Reactivate
+                    </Button>
+                  ) : (
+                  <>
                   <Button
                     variant="outline"
                     size="sm"
@@ -511,7 +574,21 @@ export function EmployeeManagement() {
                     <Lock className="w-4 h-4 mr-2" />
                     Reset Password
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(emp.id)} className="flex-1 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDeactivateEmployee(emp)
+                      setLeftOn(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi' }).format(new Date()))
+                    }}
+                    className="flex-1 w-full sm:w-auto border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                  >
+                    <UserX className="w-4 h-4 mr-2" />
+                    Deactivate
+                  </Button>
+                  </>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => handleDelete(emp.id)} className="flex-1 w-full sm:w-auto text-red-400 hover:text-red-300 hover:bg-red-500/10">
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete
                   </Button>
@@ -892,6 +969,42 @@ export function EmployeeManagement() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deactivateEmployee} onOpenChange={(open) => { if (!open) setDeactivateEmployee(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deactivate Employee</DialogTitle>
+            <DialogDescription>
+              {deactivateEmployee?.first_name} {deactivateEmployee?.last_name} ({deactivateEmployee?.employee_id})
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (deactivateEmployee && leftOn) setEmployeeStatus(deactivateEmployee, false, leftOn)
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <Label htmlFor="left-on">Last working day</Label>
+              <Input id="left-on" type="date" value={leftOn} onChange={(e) => setLeftOn(e.target.value)} required />
+            </div>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-5">
+              <li>They will no longer be able to log in to the portal.</li>
+              <li>They are hidden from current staff lists and from payroll after this date.</li>
+              <li>All salary slips, attendance and leave history are kept.</li>
+              <li>You can reactivate them at any time.</li>
+            </ul>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setDeactivateEmployee(null)}>Cancel</Button>
+              <Button type="submit" disabled={statusLoading || !leftOn} className="bg-amber-600 hover:bg-amber-700 text-white">
+                {statusLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserX className="w-4 h-4 mr-2" />}
+                Deactivate
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 

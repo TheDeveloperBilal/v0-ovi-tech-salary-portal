@@ -41,7 +41,7 @@ export function LeaveDashboard() {
     setIsLoading(true)
     try {
       const [empRes, leaveRes] = await Promise.all([
-        supabase.from("employees").select("id, first_name, last_name, employee_id, department, designation, leaves_taken, is_probation").order("first_name"),
+        supabase.from("employees").select("id, first_name, last_name, employee_id, department, designation, leaves_taken, is_probation").eq("is_active", true).order("first_name"),
         supabase.from("leave_requests").select("employee_id, leave_type, start_date, end_date, status").eq("status", "approved"),
       ])
 

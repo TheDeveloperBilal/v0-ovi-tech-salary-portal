@@ -49,7 +49,9 @@ export default function LoginPage() {
       window.location.href = "/dashboard"
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Login failed"
-      setError(errorMessage)
+      setError(/banned/i.test(errorMessage)
+        ? "Your account has been deactivated. Please contact HR."
+        : errorMessage)
     } finally {
       setIsLoading(false)
     }

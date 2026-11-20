@@ -31,6 +31,8 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   delete_salary_slip: { label: 'Deleted Salary Slip', color: 'text-red-400' },
   add_employee: { label: 'Added Employee', color: 'text-emerald-400' },
   delete_employee: { label: 'Deleted Employee', color: 'text-red-400' },
+  deactivate_employee: { label: 'Deactivated Employee', color: 'text-amber-400' },
+  reactivate_employee: { label: 'Reactivated Employee', color: 'text-emerald-400' },
   update_settings: { label: 'Updated Settings', color: 'text-amber-400' },
   add_holiday: { label: 'Added Holiday', color: 'text-cyan-400' },
   delete_holiday: { label: 'Deleted Holiday', color: 'text-red-400' },

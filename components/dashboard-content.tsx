@@ -42,7 +42,7 @@ export function DashboardContent({ user, activeView }: DashboardContentProps) {
         const year = now.getFullYear()
 
         const [empRes, slipRes, leaveRes, attRes] = await Promise.all([
-          supabase.from("employees").select("*", { count: "exact", head: true }),
+          supabase.from("employees").select("*", { count: "exact", head: true }).eq("is_active", true),
           supabase.from("salary_slips").select("*", { count: "exact", head: true }),
           supabase.from("leave_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
           supabase.from("attendance_records").select("*", { count: "exact", head: true }).eq("month", month).eq("year", year),

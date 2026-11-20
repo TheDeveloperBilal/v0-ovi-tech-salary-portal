@@ -84,6 +84,20 @@ export const adjustLeaveBalanceSchema = z.object({
   reason: z.string().min(1, 'Reason is required').max(500),
 })
 
+// ── Employee status schemas ──
+
+export const setEmployeeStatusSchema = z.discriminatedUnion('active', [
+  z.object({
+    employee_id: z.string().uuid('Valid employee ID is required'),
+    active: z.literal(false),
+    left_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Leaving date is required'),
+  }),
+  z.object({
+    employee_id: z.string().uuid('Valid employee ID is required'),
+    active: z.literal(true),
+  }),
+])
+
 // ── Audit log schemas ──
 
 export const createAuditLogSchema = z.object({

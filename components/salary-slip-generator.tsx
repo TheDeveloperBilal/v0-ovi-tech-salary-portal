@@ -32,6 +32,8 @@ interface Employee {
   is_probation: boolean
   probation_end_date: string | null
   leaves_taken: number
+  is_active: boolean
+  left_on: string | null
 }
 
 interface AttendanceRecord {
@@ -124,6 +126,8 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
         is_probation: Boolean(e.is_probation),
         probation_end_date: e.probation_end_date || null,
         leaves_taken: Number(e.leaves_taken || 0),
+        is_active: e.is_active !== false,
+        left_on: e.left_on || null,
       })))
     } catch {
       toast({ title: "Error", description: "Failed to load data.", variant: "destructive" })
@@ -240,6 +244,7 @@ export function SalarySlipGenerator({ isAdmin }: { isAdmin: boolean }) {
       for (const [empUuid, records] of employeeRecords) {
         const emp = employees.find(e => e.id === empUuid)
         if (!emp) continue
+        if (!emp.is_active && emp.left_on && emp.left_on < firstDayOfMonth) continue
 
         // Use salary from history if available (handles promotions), else current
         const effectiveSalary = salaryForMonth.get(empUuid) ?? emp.base_salary

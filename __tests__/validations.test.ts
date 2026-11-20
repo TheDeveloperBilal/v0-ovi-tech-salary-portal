@@ -10,8 +10,27 @@ import {
   signPolicySchema,
   deletePolicySchema,
   createAuditLogSchema,
+  setEmployeeStatusSchema,
   parseBody,
 } from '@/lib/validations'
+
+describe('setEmployeeStatusSchema', () => {
+  const id = '3397ecac-4e43-481c-8edb-4d8fa21d0fe4'
+
+  it('requires a leaving date to deactivate', () => {
+    expect(setEmployeeStatusSchema.safeParse({ employee_id: id, active: false, left_on: '2026-11-20' }).success).toBe(true)
+    expect(setEmployeeStatusSchema.safeParse({ employee_id: id, active: false }).success).toBe(false)
+    expect(setEmployeeStatusSchema.safeParse({ employee_id: id, active: false, left_on: '20/11/2026' }).success).toBe(false)
+  })
+
+  it('reactivates without a date', () => {
+    expect(setEmployeeStatusSchema.safeParse({ employee_id: id, active: true }).success).toBe(true)
+  })
+
+  it('rejects an invalid employee id', () => {
+    expect(setEmployeeStatusSchema.safeParse({ employee_id: 'abc', active: true }).success).toBe(false)
+  })
+})
 
 describe('addEmployeeSchema', () => {
   const validEmployee = {
